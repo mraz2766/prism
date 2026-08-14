@@ -44,6 +44,7 @@ struct MenuBarPopoverView: View {
         }
         .padding(14)
         .frame(width: 360)
+        .background(Color(nsColor: .windowBackgroundColor))
         .tint(environment.settings.accentColorChoice.color)
     }
 

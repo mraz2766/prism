@@ -10,7 +10,7 @@ final class PrismUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Network Exit"].waitForExistence(timeout: 5))
     }
 
-    func testAppearanceNavigationAndPreviewRemainInteractive() {
+    func testAppearanceNavigationAndAccentSelectionRemainInteractive() {
         let app = launchApp()
         XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
 
@@ -25,11 +25,7 @@ final class PrismUITests: XCTestCase {
         purple.click()
         XCTAssertTrue(purple.isSelected)
         XCTAssertTrue(app.staticTexts["Aurora Purple"].exists)
-
-        let action = app.buttons["Action"]
-        XCTAssertTrue(action.exists)
-        action.click()
-        XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.staticTexts["Live preview"].exists)
     }
 
     private func launchApp() -> XCUIApplication {

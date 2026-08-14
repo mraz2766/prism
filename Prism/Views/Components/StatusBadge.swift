@@ -2,6 +2,8 @@ import SwiftUI
 
 struct StatusBadge: View {
     let status: NetworkStatus
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         Label(status.shortLabel, systemImage: status.symbolName)
@@ -16,7 +18,9 @@ struct StatusBadge: View {
     private var foregroundColor: Color {
         switch status {
         case .online:
-            .green
+            colorScheme == .dark
+                ? Color(red: 0.38, green: 0.90, blue: 0.50)
+                : Color(red: 0.03, green: contrast == .increased ? 0.34 : 0.42, blue: 0.16)
         case .loading, .verifying:
             // 动态琥珀色：浅色模式下对比度 > 4.5:1，深色模式下明亮醒目
             Color(nsColor: NSColor(name: nil) { appearance in
@@ -36,7 +40,7 @@ struct StatusBadge: View {
     private var backgroundColor: Color {
         switch status {
         case .online:
-            .green.opacity(0.12)
+            foregroundColor.opacity(colorScheme == .dark ? 0.18 : 0.13)
         case .loading, .verifying:
             Color.orange.opacity(0.12)
         case .offline, .failed:

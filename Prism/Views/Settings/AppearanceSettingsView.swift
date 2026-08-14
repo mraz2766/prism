@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @Environment(SettingsStore.self) private var settings
-    @State private var previewEnabled = true
 
     var body: some View {
         @Bindable var settings = settings
@@ -34,31 +33,6 @@ struct AppearanceSettingsView: View {
                 .padding(.vertical, 3)
             }
 
-            Section(String(localized: "Live preview")) {
-                HStack(spacing: 14) {
-                    Button(String(localized: "Action")) {
-                        previewEnabled.toggle()
-                    }
-                        .buttonStyle(.borderedProminent)
-                        .tint(settings.accentColorChoice.color)
-
-                    Toggle(String(localized: "Option"), isOn: $previewEnabled)
-                        .tint(settings.accentColorChoice.color)
-
-                    Spacer()
-
-                    Label(
-                        previewEnabled ? String(localized: "Active") : String(localized: "Offline"),
-                        systemImage: previewEnabled ? "bolt.horizontal.fill" : "pause.fill"
-                    )
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .foregroundStyle(settings.accentColorChoice.color)
-                        .background(settings.accentColorChoice.color.opacity(0.12), in: Capsule())
-                }
-                .padding(.vertical, 3)
-            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

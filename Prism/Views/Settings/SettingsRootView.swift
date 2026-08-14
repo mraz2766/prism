@@ -23,7 +23,7 @@ struct SettingsRootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 560, height: 450)
+        .frame(width: 680, height: 540)
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(settings.accentColorChoice.color)
         .navigationTitle(selection.title)

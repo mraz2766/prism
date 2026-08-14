@@ -8,34 +8,6 @@ struct GeneralSettingsView: View {
         @Bindable var settings = settings
         Form {
             Section {
-                HStack(spacing: 14) {
-                    Image("PrismLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 8) {
-                            Text("Prism")
-                                .font(.headline.weight(.bold))
-                            Text("v\(appVersion)")
-                                .font(.caption2.weight(.semibold))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color(nsColor: .quaternaryLabelColor), in: Capsule())
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(String(localized: "Native macOS Network Exit & GeoIP Monitor"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            Section {
                 Toggle(String(localized: "Launch at login"), isOn: Binding(
                     get: { settings.launchAtLogin },
                     set: { viewModel.setLaunchAtLogin($0) }
@@ -75,6 +47,31 @@ struct GeneralSettingsView: View {
                 Text(String(localized: "Refresh & Detection"))
             } footer: {
                 Text(String(localized: "Prism checks once per second while stable and briefly switches to 250 ms confirmation after a possible change."))
+            }
+
+            Section {
+                HStack(spacing: 12) {
+                    Image("PrismLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 7) {
+                            Text("Prism")
+                                .font(.callout.weight(.semibold))
+                            Text("v\(appVersion)")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(String(localized: "Native macOS Network Exit & GeoIP Monitor"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 2)
             }
         }
         .formStyle(.grouped)
