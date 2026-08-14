@@ -23,7 +23,7 @@ struct SettingsRootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 680, height: preferredHeight)
+        .frame(width: 620, height: preferredHeight)
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(settings.accentColorChoice.color)
         .navigationTitle(selection.title)
@@ -34,11 +34,11 @@ struct SettingsRootView: View {
         case .general:
             settings.automaticRefreshEnabled ? 540 : 500
         case .menuBar:
-            settings.menuBarDisplayMode == .custom ? 540 : 400
+            settings.menuBarDisplayMode == .custom ? 560 : 400
         case .appearance:
             340
         case .network, .privacy:
-            540
+            560
         }
     }
 }

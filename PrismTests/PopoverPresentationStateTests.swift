@@ -2,20 +2,31 @@ import XCTest
 @testable import Prism
 
 final class PopoverPresentationStateTests: XCTestCase {
-    func testRepeatedToggleIsIgnoredWhileOpeningAndClosing() {
+    func testSecondToggleDuringOpeningClosesAsSoonAsShowCompletes() {
         var state = PopoverPresentationState.closed
 
         XCTAssertEqual(state.requestToggle(), .open)
-        XCTAssertEqual(state, .opening)
+        XCTAssertEqual(state.phase, .opening)
         XCTAssertNil(state.requestToggle())
-        state.didShow()
-        XCTAssertEqual(state, .open)
+        XCTAssertFalse(state.wantsVisible)
+        XCTAssertEqual(state.didShow(), .close)
+        XCTAssertEqual(state.phase, .closing)
+        XCTAssertNil(state.didClose())
+        XCTAssertEqual(state.phase, .closed)
+    }
 
+    func testToggleDuringClosingReopensAfterCloseCompletes() {
+        var state = PopoverPresentationState.closed
+
+        XCTAssertEqual(state.requestToggle(), .open)
+        XCTAssertNil(state.didShow())
         XCTAssertEqual(state.requestToggle(), .close)
-        XCTAssertEqual(state, .closing)
         XCTAssertNil(state.requestToggle())
-        state.didClose()
-        XCTAssertEqual(state, .closed)
+        XCTAssertTrue(state.wantsVisible)
+        XCTAssertEqual(state.didClose(), .open)
+        XCTAssertEqual(state.phase, .opening)
+        XCTAssertNil(state.didShow())
+        XCTAssertEqual(state.phase, .open)
     }
 
     func testExternalCloseIsIdempotent() {
@@ -23,13 +34,24 @@ final class PopoverPresentationStateTests: XCTestCase {
 
         XCTAssertNil(state.requestClose())
         _ = state.requestToggle()
-        state.didShow()
+        XCTAssertNil(state.didShow())
         XCTAssertEqual(state.requestClose(), .close)
         XCTAssertNil(state.requestClose())
         state.willClose()
-        state.didClose()
-        state.didClose()
-        XCTAssertEqual(state, .closed)
+        XCTAssertNil(state.didClose())
+        XCTAssertNil(state.didClose())
+        XCTAssertEqual(state.phase, .closed)
+    }
+
+    func testOutsideClickDuringOpeningClosesAfterShowCompletes() {
+        var state = PopoverPresentationState.closed
+
+        XCTAssertEqual(state.requestPointerDown(on: .statusItem), .open)
+        XCTAssertNil(state.requestPointerDown(on: .outside))
+        XCTAssertFalse(state.wantsVisible)
+        XCTAssertEqual(state.didShow(), .close)
+        XCTAssertNil(state.didClose())
+        XCTAssertEqual(state.phase, .closed)
     }
 
     func testLateDidShowCannotReopenClosingPopover() {
@@ -37,50 +59,78 @@ final class PopoverPresentationStateTests: XCTestCase {
 
         _ = state.requestToggle()
         state.willClose()
-        state.didShow()
-        XCTAssertEqual(state, .closing)
-        state.didClose()
-        XCTAssertEqual(state, .closed)
+        XCTAssertNil(state.didShow())
+        XCTAssertEqual(state.phase, .closing)
+        _ = state.requestClose()
+        XCTAssertNil(state.didClose())
+        XCTAssertEqual(state.phase, .closed)
     }
 
     func testStatusItemAndOutsidePointerHaveDistinctEffects() {
         var state = PopoverPresentationState.closed
 
         XCTAssertEqual(state.requestPointerDown(on: .statusItem), .open)
-        state.didShow()
+        XCTAssertNil(state.didShow())
+        XCTAssertNil(state.requestPointerDown(on: .popover))
         XCTAssertEqual(state.requestPointerDown(on: .statusItem), .close)
-        state.didClose()
+        XCTAssertNil(state.didClose())
         XCTAssertNil(state.requestPointerDown(on: .outside))
     }
 
     func testDismissHitTesterKeepsStatusItemClickOutOfOutsidePath() {
-        let frame = NSRect(x: 100, y: 900, width: 80, height: 24)
+        let statusFrame = NSRect(x: 100, y: 900, width: 80, height: 24)
+        let popoverFrame = NSRect(x: 80, y: 440, width: 360, height: 450)
 
         XCTAssertEqual(
-            PopoverDismissHitTester.target(screenPoint: NSPoint(x: 140, y: 912), statusItemFrame: frame),
+            PopoverDismissHitTester.target(
+                screenPoint: NSPoint(x: 140, y: 912),
+                statusItemFrame: statusFrame,
+                popoverFrame: popoverFrame
+            ),
             .statusItem
         )
         XCTAssertEqual(
-            PopoverDismissHitTester.target(screenPoint: NSPoint(x: 40, y: 700), statusItemFrame: frame),
+            PopoverDismissHitTester.target(
+                screenPoint: NSPoint(x: 140, y: 700),
+                statusItemFrame: statusFrame,
+                popoverFrame: popoverFrame
+            ),
+            .popover
+        )
+        XCTAssertEqual(
+            PopoverDismissHitTester.target(
+                screenPoint: NSPoint(x: 40, y: 700),
+                statusItemFrame: statusFrame,
+                popoverFrame: popoverFrame
+            ),
             .outside
         )
     }
 
-    func testRapidOddNumberOfSettledStatusItemClicksEndsOpen() {
+    func testFiveRapidClicksDuringOpeningPreserveOddClickParity() {
         var state = PopoverPresentationState.closed
 
-        for _ in 0..<5 {
-            let action = state.requestPointerDown(on: .statusItem)
-            switch action {
-            case .open:
-                state.didShow()
-            case .close:
-                state.didClose()
-            case nil:
-                XCTFail("A settled status-item click must produce exactly one action")
-            }
+        XCTAssertEqual(state.requestPointerDown(on: .statusItem), .open)
+        for _ in 0..<4 {
+            XCTAssertNil(state.requestPointerDown(on: .statusItem))
         }
 
-        XCTAssertEqual(state, .open)
+        XCTAssertTrue(state.wantsVisible)
+        XCTAssertNil(state.didShow())
+        XCTAssertEqual(state.phase, .open)
+    }
+
+    func testFourRapidClicksDuringOpeningPreserveEvenClickParity() {
+        var state = PopoverPresentationState.closed
+
+        XCTAssertEqual(state.requestPointerDown(on: .statusItem), .open)
+        for _ in 0..<3 {
+            XCTAssertNil(state.requestPointerDown(on: .statusItem))
+        }
+
+        XCTAssertFalse(state.wantsVisible)
+        XCTAssertEqual(state.didShow(), .close)
+        XCTAssertNil(state.didClose())
+        XCTAssertEqual(state.phase, .closed)
     }
 }
