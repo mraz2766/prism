@@ -8,17 +8,9 @@ struct CountryHeroView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: compact ? 12 : 18) {
-            ZStack {
-                RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous)
-                    .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous)
-                            .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-                    )
-                Text(CountryFlag.emoji(for: info.location.countryCode) ?? "◎")
-                    .font(compact ? .system(size: 28) : .system(size: 40))
-                    .accessibilityLabel(info.location.localizedCountry())
-            }
+            Text(CountryFlag.emoji(for: info.location.countryCode) ?? "◎")
+                .font(compact ? .system(size: 30) : .system(size: 42))
+                .accessibilityLabel(info.location.localizedCountry())
             .frame(width: compact ? 48 : 64, height: compact ? 48 : 64)
 
             VStack(alignment: .leading, spacing: 4) {

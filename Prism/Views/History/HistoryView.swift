@@ -106,18 +106,10 @@ private struct HistoryRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-                    )
-                Text(CountryFlag.emoji(for: entry.countryCode) ?? "◎")
-                    .font(.system(size: 18))
-                    .accessibilityLabel(country)
-            }
-            .frame(width: 34, height: 34)
+            Text(CountryFlag.emoji(for: entry.countryCode) ?? "◎")
+                .font(.system(size: 20))
+                .frame(width: 30)
+                .accessibilityLabel(country)
 
             VStack(alignment: .leading, spacing: 4) {
                 if let previous = previousTransitionLabel {
@@ -141,16 +133,12 @@ private struct HistoryRow: View {
                 HStack(spacing: 6) {
                     Text(entry.addresses.preferredForLookup ?? "—")
                         .font(.system(.caption2, design: .monospaced))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color(nsColor: .quaternaryLabelColor).opacity(0.3), in: RoundedRectangle(cornerRadius: 4))
+                        .foregroundStyle(.secondary)
 
                     if let asn = entry.asn {
                         Text(verbatim: "AS\(asn)")
                             .font(.system(.caption2, design: .monospaced))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Color(nsColor: .quaternaryLabelColor).opacity(0.3), in: RoundedRectangle(cornerRadius: 4))
+                            .foregroundStyle(.tertiary)
                     }
 
                     Text(entry.routeMode.label)
@@ -165,7 +153,7 @@ private struct HistoryRow: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
 

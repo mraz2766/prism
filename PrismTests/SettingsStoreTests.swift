@@ -35,10 +35,45 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.accentColorChoice, .sunsetOrange)
     }
 
-    func testDynamicAccentColorRuntimeInstallation() {
-        DynamicAccentColorRuntime.install()
-        DynamicAccentColorRuntime.apply(choice: .auroraPurple)
-        XCTAssertNotNil(NSColor(named: "AccentColor"))
-        XCTAssertNotNil(NSColor.controlAccentColor)
+    func testUnrelatedSettingsDoNotEmitRefreshConfiguration() async throws {
+        let suite = "PrismTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        var changes = settings.changes().makeAsyncIterator()
+
+        let initial = await changes.next()
+        XCTAssertEqual(initial, settings.refreshConfiguration)
+        settings.accentColorChoice = .auroraPurple
+        settings.menuBarDisplayMode = .flag
+        settings.appearanceMode = .dark
+        settings.refreshInterval = .minutes5
+
+        let refreshChange = await changes.next()
+        XCTAssertEqual(
+            refreshChange,
+            RefreshConfiguration(interval: .minutes5, refreshOnNetworkChange: true)
+        )
+    }
+
+    func testAssigningSameRefreshValueDoesNotEmitDuplicate() async throws {
+        let suite = "PrismTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        var changes = settings.changes().makeAsyncIterator()
+
+        _ = await changes.next()
+        settings.refreshInterval = .minutes5
+        let intervalChange = await changes.next()
+        XCTAssertEqual(intervalChange?.interval, .minutes5)
+        settings.refreshInterval = .minutes5
+        settings.refreshOnNetworkChange = false
+
+        let networkChange = await changes.next()
+        XCTAssertEqual(
+            networkChange,
+            RefreshConfiguration(interval: .minutes5, refreshOnNetworkChange: false)
+        )
     }
 }

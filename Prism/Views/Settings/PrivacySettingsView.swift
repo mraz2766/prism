@@ -38,6 +38,7 @@ struct PrivacySettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private func providerRow(_ name: String, icon: String, description: String) -> some View {

@@ -118,11 +118,11 @@ final class RealtimeExitMonitorTests: XCTestCase {
         let probe = CountingObservationProbe(observation: observation(ip: "203.0.113.10", route: .proxy))
         let monitor = RealtimeExitMonitor(probe: probe, lookupService: harness.lookup)
 
-        monitor.pause()
+        await monitor.pause()
         await monitor.pollNow()
         let pausedCalls = await probe.callCount
         XCTAssertEqual(pausedCalls, 0)
-        monitor.resume()
+        await monitor.resume()
         await monitor.pollNow()
         let resumedCalls = await probe.callCount
         XCTAssertEqual(resumedCalls, 1)
@@ -139,15 +139,31 @@ final class RealtimeExitMonitorTests: XCTestCase {
             burstDuration: .milliseconds(30)
         )
 
-        monitor.start()
+        await monitor.start()
         try await Task.sleep(for: .milliseconds(45))
-        monitor.stop()
+        await monitor.stop()
         let callsAtStop = await probe.callCount
         try await Task.sleep(for: .milliseconds(30))
 
         XCTAssertGreaterThanOrEqual(callsAtStop, 2)
         let callsAfterStop = await probe.callCount
         XCTAssertEqual(callsAfterStop, callsAtStop)
+    }
+
+    func testConcurrentPollRequestsShareOneProbe() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let probe = SlowCountingObservationProbe(
+            observation: observation(ip: "203.0.113.10", route: .proxy)
+        )
+        let monitor = RealtimeExitMonitor(probe: probe, lookupService: harness.lookup)
+
+        async let first: Void = monitor.pollNow()
+        async let second: Void = monitor.pollNow()
+        _ = await (first, second)
+
+        let metrics = await probe.metrics
+        XCTAssertEqual(metrics.callCount, 1)
+        XCTAssertEqual(metrics.maximumConcurrentCalls, 1)
     }
 
     private func makeHarness(cached: NetworkInfo) -> MonitorHarness {
@@ -240,6 +256,30 @@ private actor CountingObservationProbe: ExitAddressProbing {
 
     func observeExit() async throws -> ExitObservation {
         callCount += 1
+        return observation
+    }
+}
+
+private actor SlowCountingObservationProbe: ExitAddressProbing {
+    let observation: ExitObservation
+    private var callCount = 0
+    private var concurrentCalls = 0
+    private var maximumConcurrentCalls = 0
+
+    init(observation: ExitObservation) {
+        self.observation = observation
+    }
+
+    var metrics: (callCount: Int, maximumConcurrentCalls: Int) {
+        (callCount, maximumConcurrentCalls)
+    }
+
+    func observeExit() async throws -> ExitObservation {
+        callCount += 1
+        concurrentCalls += 1
+        maximumConcurrentCalls = max(maximumConcurrentCalls, concurrentCalls)
+        defer { concurrentCalls -= 1 }
+        try await Task.sleep(for: .milliseconds(30))
         return observation
     }
 }

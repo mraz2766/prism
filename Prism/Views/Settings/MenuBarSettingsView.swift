@@ -59,6 +59,7 @@ struct MenuBarSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private func simulatedMenuBar(_ stateLabel: String, status: NetworkStatus) -> some View {

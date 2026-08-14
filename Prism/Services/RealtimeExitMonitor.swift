@@ -1,8 +1,7 @@
 import Foundation
 import OSLog
 
-@MainActor
-final class RealtimeExitMonitor {
+actor RealtimeExitMonitor {
     private let probe: any ExitAddressProbing
     private let lookupService: NetworkLookupService
     private let stableInterval: Duration
@@ -12,6 +11,10 @@ final class RealtimeExitMonitor {
     private let logger = Logger(subsystem: "com.mraz.prism", category: "realtime-exit")
 
     private var loopTask: Task<Void, Never>?
+    private var observationTask: Task<Void, Never>?
+    private var activeRefreshesUnchanged = false
+    private var queuedRefreshesUnchanged = false
+    private var queuedShowLoading = false
     private var isPaused = false
     private var burstUntil: ContinuousClock.Instant?
     private var stabilizer = ExitStabilizer()
@@ -19,9 +22,9 @@ final class RealtimeExitMonitor {
     init(
         probe: any ExitAddressProbing,
         lookupService: NetworkLookupService,
-        interval: Duration = .milliseconds(500),
+        interval: Duration = .seconds(1),
         retryBackoff: Duration = .seconds(5),
-        burstInterval: Duration = .milliseconds(150),
+        burstInterval: Duration = .milliseconds(250),
         burstDuration: Duration = .seconds(4)
     ) {
         self.probe = probe
@@ -35,6 +38,7 @@ final class RealtimeExitMonitor {
     func start() {
         guard loopTask == nil else { return }
         isPaused = false
+        boost()
         loopTask = Task { [weak self] in
             await self?.runLoop()
         }
@@ -42,7 +46,12 @@ final class RealtimeExitMonitor {
 
     func stop() {
         loopTask?.cancel()
+        observationTask?.cancel()
         loopTask = nil
+        observationTask = nil
+        activeRefreshesUnchanged = false
+        queuedRefreshesUnchanged = false
+        queuedShowLoading = false
         burstUntil = nil
         stabilizer.reset()
     }
@@ -69,6 +78,39 @@ final class RealtimeExitMonitor {
     }
 
     private func observeAndApply(refreshUnchanged: Bool, showLoading: Bool) async {
+        guard !isPaused, !Task.isCancelled else { return }
+
+        if let observationTask {
+            if refreshUnchanged, !activeRefreshesUnchanged {
+                queuedRefreshesUnchanged = true
+                queuedShowLoading = queuedShowLoading || showLoading
+            }
+            await observationTask.value
+            return
+        }
+
+        activeRefreshesUnchanged = refreshUnchanged
+        let task = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.performObservation(
+                refreshUnchanged: refreshUnchanged,
+                showLoading: showLoading
+            )
+        }
+        observationTask = task
+        await task.value
+        observationTask = nil
+        activeRefreshesUnchanged = false
+
+        if queuedRefreshesUnchanged, !Task.isCancelled {
+            let shouldShowLoading = queuedShowLoading
+            queuedRefreshesUnchanged = false
+            queuedShowLoading = false
+            await observeAndApply(refreshUnchanged: true, showLoading: shouldShowLoading)
+        }
+    }
+
+    private func performObservation(refreshUnchanged: Bool, showLoading: Bool) async {
         guard !isPaused, !Task.isCancelled else { return }
 
         do {

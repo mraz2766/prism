@@ -5,6 +5,51 @@ extension Notification.Name {
     static let prismClosePopover = Notification.Name("com.mraz.prism.closePopover")
 }
 
+enum PopoverPresentationAction: Equatable {
+    case open
+    case close
+}
+
+enum PopoverPresentationState: Equatable {
+    case closed
+    case opening
+    case open
+    case closing
+
+    mutating func requestToggle() -> PopoverPresentationAction? {
+        switch self {
+        case .closed:
+            self = .opening
+            return .open
+        case .open:
+            self = .closing
+            return .close
+        case .opening, .closing:
+            return nil
+        }
+    }
+
+    mutating func requestClose() -> PopoverPresentationAction? {
+        guard self == .open else { return nil }
+        self = .closing
+        return .close
+    }
+
+    mutating func didShow() {
+        guard self == .opening else { return }
+        self = .open
+    }
+
+    mutating func willClose() {
+        guard self != .closed else { return }
+        self = .closing
+    }
+
+    mutating func didClose() {
+        self = .closed
+    }
+}
+
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate {
     private let environment: AppEnvironment
@@ -14,6 +59,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var resignObserver: NSObjectProtocol?
     private var closeObserver: NSObjectProtocol?
     private var observing = false
+    private var presentationState = PopoverPresentationState.closed
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -27,7 +73,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.closePopover() }
+            Task { @MainActor [weak self] in self?.requestClosePopover() }
         }
     }
 
@@ -36,17 +82,22 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         statusItem.autosaveName = "com.mraz.prism.statusItem"
         button.target = self
         button.action = #selector(handleClick(_:))
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.sendAction(on: [.leftMouseDown, .rightMouseDown])
         render()
     }
 
     @objc private func handleClick(_ sender: NSStatusBarButton) {
-        if NSApp.currentEvent?.type == .rightMouseUp {
+        if NSApp.currentEvent?.type == .rightMouseDown {
             showContextMenu()
-        } else if popoverHost.popover.isShown {
-            closePopover()
         } else {
-            openPopover()
+            switch presentationState.requestToggle() {
+            case .open:
+                openPopover()
+            case .close:
+                closePopover()
+            case nil:
+                break
+            }
         }
     }
 
@@ -85,11 +136,13 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func openPopover() {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem.button else {
+            presentationState.didClose()
+            return
+        }
         NSApp.activate(ignoringOtherApps: true)
         popoverHost.popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popoverHost.popover.contentViewController?.view.window?.makeKey()
-        installDismissMonitors()
     }
 
     private func closePopover() {
@@ -97,17 +150,22 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popoverHost.popover.performClose(nil)
     }
 
+    private func requestClosePopover() {
+        guard presentationState.requestClose() == .close else { return }
+        closePopover()
+    }
+
     private func installDismissMonitors() {
         removeDismissMonitors()
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.closePopover() }
+            Task { @MainActor [weak self] in self?.requestClosePopover() }
         }
         resignObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didResignActiveNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.closePopover() }
+            Task { @MainActor [weak self] in self?.requestClosePopover() }
         }
     }
 
@@ -116,9 +174,27 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         if let resignObserver { NotificationCenter.default.removeObserver(resignObserver); self.resignObserver = nil }
     }
 
+    nonisolated func popoverDidShow(_ notification: Notification) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.presentationState.didShow()
+            self.installDismissMonitors()
+        }
+    }
+
+    nonisolated func popoverWillClose(_ notification: Notification) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.presentationState.willClose()
+            self.removeDismissMonitors()
+        }
+    }
+
     nonisolated func popoverDidClose(_ notification: Notification) {
         Task { @MainActor [weak self] in
-            self?.removeDismissMonitors()
+            guard let self else { return }
+            self.presentationState.didClose()
+            self.removeDismissMonitors()
         }
     }
 

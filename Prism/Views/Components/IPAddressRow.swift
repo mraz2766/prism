@@ -6,6 +6,7 @@ struct IPAddressRow: View {
     let address: String?
     @State private var copied = false
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 12) {
@@ -38,7 +39,7 @@ struct IPAddressRow: View {
                 }
                 .foregroundStyle(copied ? .green : (isHovered ? .primary : .secondary))
                 .padding(.horizontal, copied ? 8 : 6)
-                .padding(.vertical, 5)
+                .frame(minWidth: 30, minHeight: 30)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(copied ? Color.green.opacity(0.12) : (isHovered ? Color(nsColor: .quaternaryLabelColor) : Color.clear))
@@ -59,7 +60,7 @@ struct IPAddressRow: View {
         guard let address else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(address, forType: .string)
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) { copied = true }
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { copied = true }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.2))
             withAnimation(.easeOut(duration: 0.2)) { copied = false }

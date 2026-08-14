@@ -11,6 +11,7 @@ final class RefreshCoordinator {
     private var timerTask: Task<Void, Never>?
     private var networkTask: Task<Void, Never>?
     private var settingsTask: Task<Void, Never>?
+    private var realtimeControlTask: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
     private var isSleeping = false
 
@@ -32,15 +33,21 @@ final class RefreshCoordinator {
         observeSettings()
         observeSleepWake()
         restartTimer(configuration: settings.refreshConfiguration)
-        realtimeExitMonitor.boost()
-        realtimeExitMonitor.start()
+        realtimeControlTask?.cancel()
+        realtimeControlTask = Task { [realtimeExitMonitor] in
+            guard !Task.isCancelled else { return }
+            await realtimeExitMonitor.start()
+        }
     }
 
     func stop() {
         timerTask?.cancel()
         networkTask?.cancel()
         settingsTask?.cancel()
-        realtimeExitMonitor.stop()
+        realtimeControlTask?.cancel()
+        realtimeControlTask = Task { [realtimeExitMonitor] in
+            await realtimeExitMonitor.stop()
+        }
         let center = NSWorkspace.shared.notificationCenter
         observers.forEach(center.removeObserver)
         observers.removeAll()
@@ -48,8 +55,10 @@ final class RefreshCoordinator {
     }
 
     func triggerManual() {
-        realtimeExitMonitor.boost()
-        Task { await realtimeExitMonitor.refreshNow(showLoading: true) }
+        Task {
+            await realtimeExitMonitor.boost()
+            await realtimeExitMonitor.refreshNow(showLoading: true)
+        }
     }
 
     private func observeNetwork() {
@@ -61,7 +70,7 @@ final class RefreshCoordinator {
                     await lookupService.markOffline()
                 case .onlineChanged:
                     guard settings.refreshConfiguration.refreshOnNetworkChange, !isSleeping else { continue }
-                    realtimeExitMonitor.boost()
+                    await realtimeExitMonitor.boost()
                     await realtimeExitMonitor.refreshNow()
                 }
             }
@@ -99,7 +108,8 @@ final class RefreshCoordinator {
             Task { @MainActor [weak self] in
                 self?.isSleeping = true
                 self?.timerTask?.cancel()
-                self?.realtimeExitMonitor.pause()
+                guard let self else { return }
+                await self.realtimeExitMonitor.pause()
             }
         })
         observers.append(center.addObserver(
@@ -112,7 +122,7 @@ final class RefreshCoordinator {
                 isSleeping = false
                 restartTimer(configuration: settings.refreshConfiguration)
                 try? await Task.sleep(for: .seconds(1.5))
-                realtimeExitMonitor.resume()
+                await realtimeExitMonitor.resume()
                 await realtimeExitMonitor.refreshNow()
             }
         })

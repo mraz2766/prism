@@ -44,39 +44,36 @@ struct DashboardOverviewView: View {
                         CountryHeroView(info: info, status: status, showsStatus: false)
                     }
 
-                    HStack(alignment: .top, spacing: 16) {
-                        SectionCard {
-                            VStack(alignment: .leading, spacing: 13) {
-                                Label(String(localized: "Public Addresses"), systemImage: "network")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                Divider()
-                                IPAddressRow(label: String(localized: "Public IPv4"), address: info.addresses.ipv4)
-                                Divider()
-                                IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
-                                Divider()
-                                InfoRow(label: String(localized: "Route"), value: info.routeMode.label, icon: "arrow.triangle.branch")
-                                InfoRow(label: String(localized: "Source"), value: info.exitSource.label, icon: "antenna.radiowaves.left.and.right")
-                            }
+                    HStack(alignment: .top, spacing: 22) {
+                        VStack(alignment: .leading, spacing: 13) {
+                            Text(String(localized: "Public Addresses"))
+                                .font(.subheadline.weight(.semibold))
+                            Divider()
+                            IPAddressRow(label: String(localized: "Public IPv4"), address: info.addresses.ipv4)
+                            Divider()
+                            IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
+                            Divider()
+                            InfoRow(label: String(localized: "Route"), value: info.routeMode.label)
+                            InfoRow(label: String(localized: "Source"), value: info.exitSource.label)
                         }
                         .frame(maxWidth: .infinity)
 
-                        SectionCard {
-                            VStack(alignment: .leading, spacing: 13) {
-                                Label(String(localized: "Network Details"), systemImage: "building.2")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                Divider()
-                                InfoRow(label: String(localized: "Organization"), value: info.network.organization ?? String(localized: "Unavailable"), icon: "building.2", allowsWrapping: true)
-                                InfoRow(label: String(localized: "ISP"), value: info.network.isp ?? String(localized: "Unavailable"), icon: "server.rack")
-                                InfoRow(label: String(localized: "ASN"), value: info.network.asnLabel ?? String(localized: "Unavailable"), icon: "number", monospaced: true)
-                                InfoRow(label: String(localized: "Timezone"), value: info.location.timezone ?? String(localized: "Unavailable"), icon: "clock")
-                                InfoRow(label: String(localized: "Provider"), value: info.providerIdentifier, icon: "globe.americas.fill")
-                                InfoRow(label: String(localized: "Proxy Risk"), value: privacyLabel(info.privacy), icon: "shield.lefthalf.filled")
-                            }
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 13) {
+                            Text(String(localized: "Network Details"))
+                                .font(.subheadline.weight(.semibold))
+                            Divider()
+                            InfoRow(label: String(localized: "Organization"), value: info.network.organization ?? String(localized: "Unavailable"), allowsWrapping: true)
+                            InfoRow(label: String(localized: "ISP"), value: info.network.isp ?? String(localized: "Unavailable"))
+                            InfoRow(label: String(localized: "ASN"), value: info.network.asnLabel ?? String(localized: "Unavailable"), monospaced: true)
+                            InfoRow(label: String(localized: "Timezone"), value: info.location.timezone ?? String(localized: "Unavailable"))
+                            InfoRow(label: String(localized: "Provider"), value: info.providerIdentifier)
+                            InfoRow(label: String(localized: "Proxy Risk"), value: privacyLabel(info.privacy))
                         }
                         .frame(maxWidth: .infinity)
                     }
+                    .padding(.horizontal, 4)
                 }
                 .padding(24)
             } else {

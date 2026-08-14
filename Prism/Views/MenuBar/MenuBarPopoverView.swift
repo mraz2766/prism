@@ -78,7 +78,8 @@ struct MenuBarPopoverView: View {
                 systemName: "arrow.clockwise",
                 help: String(localized: "Refresh"),
                 shortcutKey: "r",
-                isSpinning: status.isRefreshing
+                isSpinning: status.isRefreshing,
+                isDisabled: status.isRefreshing
             ) {
                 environment.refreshCoordinator.triggerManual()
             }
@@ -88,7 +89,10 @@ struct MenuBarPopoverView: View {
                 help: String(localized: "History")
             ) {
                 NotificationCenter.default.post(name: .prismClosePopover, object: nil)
-                environment.showDashboard(.history)
+                Task { @MainActor in
+                    await Task.yield()
+                    environment.showDashboard(.history)
+                }
             }
 
             PopoverActionButton(
@@ -97,7 +101,10 @@ struct MenuBarPopoverView: View {
                 shortcutKey: ","
             ) {
                 NotificationCenter.default.post(name: .prismClosePopover, object: nil)
-                environment.openSettingsAction?()
+                Task { @MainActor in
+                    await Task.yield()
+                    environment.openSettingsAction?()
+                }
             }
         }
     }
@@ -116,6 +123,7 @@ private struct PopoverActionButton: View {
     let help: String
     var shortcutKey: KeyEquivalent?
     var isSpinning = false
+    var isDisabled = false
     let action: () -> Void
 
     @State private var isHovered = false
@@ -131,19 +139,43 @@ private struct PopoverActionButton: View {
             }
             .font(.system(size: 13, weight: .regular))
             .foregroundStyle(isHovered ? .primary : .secondary)
-            .frame(width: 24, height: 24)
-            .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(isHovered ? Color(nsColor: .quaternaryLabelColor) : Color.clear)
-            )
+            .frame(width: 30, height: 30)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PopoverActionButtonStyle(isHovered: isHovered))
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.65 : 1)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
         }
         .help(help)
         .accessibilityLabel(help)
+        .keyboardShortcutIfPresent(shortcutKey)
+    }
+}
+
+private struct PopoverActionButtonStyle: ButtonStyle {
+    let isHovered: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(isHovered || configuration.isPressed ? Color.primary.opacity(0.08) : Color.clear)
+            )
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func keyboardShortcutIfPresent(_ key: KeyEquivalent?) -> some View {
+        if let key {
+            keyboardShortcut(key, modifiers: .command)
+        } else {
+            self
+        }
     }
 }
 

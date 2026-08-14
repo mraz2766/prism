@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @Environment(SettingsStore.self) private var settings
+    @State private var previewEnabled = true
 
     var body: some View {
         @Bindable var settings = settings
@@ -22,9 +23,7 @@ struct AppearanceSettingsView: View {
                             choice: choice,
                             isSelected: settings.accentColorChoice == choice
                         ) {
-                            withAnimation(.spring(response: 0.2, dampingFraction: 0.75)) {
-                                settings.accentColorChoice = choice
-                            }
+                            settings.accentColorChoice = choice
                         }
                     }
                     Spacer()
@@ -37,16 +36,21 @@ struct AppearanceSettingsView: View {
 
             Section(String(localized: "Live preview")) {
                 HStack(spacing: 14) {
-                    Button(String(localized: "Action")) {}
+                    Button(String(localized: "Action")) {
+                        previewEnabled.toggle()
+                    }
                         .buttonStyle(.borderedProminent)
                         .tint(settings.accentColorChoice.color)
 
-                    Toggle(String(localized: "Option"), isOn: .constant(true))
+                    Toggle(String(localized: "Option"), isOn: $previewEnabled)
                         .tint(settings.accentColorChoice.color)
 
                     Spacer()
 
-                    Label(String(localized: "Active"), systemImage: "bolt.horizontal.fill")
+                    Label(
+                        previewEnabled ? String(localized: "Active") : String(localized: "Offline"),
+                        systemImage: previewEnabled ? "bolt.horizontal.fill" : "pause.fill"
+                    )
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 9)
                         .padding(.vertical, 4)
@@ -57,6 +61,7 @@ struct AppearanceSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 }
 
@@ -65,6 +70,8 @@ private struct CompactAccentColorDot: View {
     let isSelected: Bool
     let action: () -> Void
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
@@ -77,7 +84,7 @@ private struct CompactAccentColorDot: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 9, weight: .black))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(choice.theme.foreground(for: colorScheme))
                 }
             }
             .overlay(
@@ -86,11 +93,18 @@ private struct CompactAccentColorDot: View {
                     .padding(-3)
             )
             .scaleEffect(isHovered && !isSelected ? 1.1 : 1.0)
+            .frame(width: 34, height: 34)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.1)) { isHovered = hovering }
+            if reduceMotion {
+                isHovered = hovering
+            } else {
+                withAnimation(.easeInOut(duration: 0.1)) { isHovered = hovering }
+            }
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isSelected)
         .help(choice.label)
         .accessibilityLabel(choice.label)
     }

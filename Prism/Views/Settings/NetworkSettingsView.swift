@@ -71,6 +71,7 @@ struct NetworkSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .task(id: environment.networkViewModel.status.info?.checkedAt) {
             providerHealth = await environment.providerHealth.snapshots(
                 order: ["ipwho.is", "ip.guide", "ipip.net"]

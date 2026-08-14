@@ -14,18 +14,13 @@ struct GeneralSettingsView: View {
                         .scaledToFit()
                         .frame(width: 44, height: 44)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
                         .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 8) {
                             Text("Prism")
                                 .font(.headline.weight(.bold))
-                            Text("v2.4.0")
+                            Text("v\(appVersion)")
                                 .font(.caption2.weight(.semibold))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -83,6 +78,11 @@ struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .onAppear { viewModel.synchronizeLaunchAtLogin() }
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 }

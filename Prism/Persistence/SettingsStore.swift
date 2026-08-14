@@ -4,18 +4,54 @@ import Observation
 @MainActor
 @Observable
 final class SettingsStore {
-    var refreshInterval: RefreshInterval { didSet { persist(); emit() } }
-    var refreshOnNetworkChange: Bool { didSet { persist(); emit() } }
-    var changeNotificationsEnabled: Bool { didSet { persist(); emit() } }
-    var launchAtLogin: Bool { didSet { persist(); emit() } }
-    var menuBarDisplayMode: MenuBarDisplayMode { didSet { persist(); emit() } }
-    var customMenuTemplate: String { didSet { persist(); emit() } }
-    var appearanceMode: AppearanceMode { didSet { persist(); emit() } }
+    var refreshInterval: RefreshInterval {
+        didSet {
+            guard oldValue != refreshInterval else { return }
+            defaults.set(refreshInterval.rawValue, forKey: Keys.refreshInterval)
+            emit()
+        }
+    }
+    var refreshOnNetworkChange: Bool {
+        didSet {
+            guard oldValue != refreshOnNetworkChange else { return }
+            defaults.set(refreshOnNetworkChange, forKey: Keys.refreshOnNetworkChange)
+            emit()
+        }
+    }
+    var changeNotificationsEnabled: Bool {
+        didSet {
+            guard oldValue != changeNotificationsEnabled else { return }
+            defaults.set(changeNotificationsEnabled, forKey: Keys.changeNotifications)
+        }
+    }
+    var launchAtLogin: Bool {
+        didSet {
+            guard oldValue != launchAtLogin else { return }
+            defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+        }
+    }
+    var menuBarDisplayMode: MenuBarDisplayMode {
+        didSet {
+            guard oldValue != menuBarDisplayMode else { return }
+            defaults.set(menuBarDisplayMode.rawValue, forKey: Keys.displayMode)
+        }
+    }
+    var customMenuTemplate: String {
+        didSet {
+            guard oldValue != customMenuTemplate else { return }
+            defaults.set(customMenuTemplate, forKey: Keys.customTemplate)
+        }
+    }
+    var appearanceMode: AppearanceMode {
+        didSet {
+            guard oldValue != appearanceMode else { return }
+            defaults.set(appearanceMode.rawValue, forKey: Keys.appearance)
+        }
+    }
     var accentColorChoice: AccentColorChoice {
         didSet {
-            persist()
-            emit()
-            DynamicAccentColorRuntime.apply(choice: accentColorChoice)
+            guard oldValue != accentColorChoice else { return }
+            defaults.set(accentColorChoice.rawValue, forKey: Keys.accentColor)
         }
     }
 
@@ -69,17 +105,6 @@ final class SettingsStore {
                 Task { @MainActor [weak self] in self?.continuations.removeValue(forKey: id) }
             }
         }
-    }
-
-    private func persist() {
-        defaults.set(refreshInterval.rawValue, forKey: Keys.refreshInterval)
-        defaults.set(refreshOnNetworkChange, forKey: Keys.refreshOnNetworkChange)
-        defaults.set(changeNotificationsEnabled, forKey: Keys.changeNotifications)
-        defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
-        defaults.set(menuBarDisplayMode.rawValue, forKey: Keys.displayMode)
-        defaults.set(customMenuTemplate, forKey: Keys.customTemplate)
-        defaults.set(appearanceMode.rawValue, forKey: Keys.appearance)
-        defaults.set(accentColorChoice.rawValue, forKey: Keys.accentColor)
     }
 
     private func emit() {

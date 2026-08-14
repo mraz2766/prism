@@ -79,58 +79,86 @@ enum AccentColorChoice: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .prismBlue: String(localized: "Prism Blue")
-        case .oceanicTeal: String(localized: "Oceanic Teal")
-        case .sunsetOrange: String(localized: "Sunset Orange")
-        case .emeraldGreen: String(localized: "Emerald Green")
+        case .prismBlue: String(localized: "Spectrum Blue")
+        case .oceanicTeal: String(localized: "Tidal Teal")
+        case .sunsetOrange: String(localized: "Solar Orange")
+        case .emeraldGreen: String(localized: "Tundra Green")
         case .auroraPurple: String(localized: "Aurora Purple")
         case .graphite: String(localized: "Graphite")
         }
     }
 
-    var nsColor: NSColor {
+    var theme: AccentTheme {
         switch self {
         case .prismBlue:
-            NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    ? NSColor(red: 0.380, green: 0.620, blue: 0.965, alpha: 1.0)
-                    : NSColor(red: 0.188, green: 0.482, blue: 0.933, alpha: 1.0)
-            }
+            AccentTheme(
+                light: RGBColor(red: 0.12, green: 0.42, blue: 0.88),
+                dark: RGBColor(red: 0.37, green: 0.64, blue: 0.98)
+            )
         case .oceanicTeal:
-            NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    ? NSColor(red: 0.18, green: 0.83, blue: 0.75, alpha: 1.0)
-                    : NSColor(red: 0.05, green: 0.58, blue: 0.53, alpha: 1.0)
-            }
+            AccentTheme(
+                light: RGBColor(red: 0.03, green: 0.50, blue: 0.46),
+                dark: RGBColor(red: 0.19, green: 0.78, blue: 0.72)
+            )
         case .sunsetOrange:
-            NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    ? NSColor(red: 0.98, green: 0.57, blue: 0.24, alpha: 1.0)
-                    : NSColor(red: 0.92, green: 0.35, blue: 0.05, alpha: 1.0)
-            }
+            AccentTheme(
+                light: RGBColor(red: 0.79, green: 0.31, blue: 0.05),
+                dark: RGBColor(red: 1.00, green: 0.55, blue: 0.24)
+            )
         case .emeraldGreen:
-            NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    ? NSColor(red: 0.29, green: 0.87, blue: 0.50, alpha: 1.0)
-                    : NSColor(red: 0.09, green: 0.64, blue: 0.29, alpha: 1.0)
-            }
+            AccentTheme(
+                light: RGBColor(red: 0.07, green: 0.51, blue: 0.23),
+                dark: RGBColor(red: 0.26, green: 0.85, blue: 0.47)
+            )
         case .auroraPurple:
-            NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    ? NSColor(red: 0.65, green: 0.55, blue: 0.98, alpha: 1.0)
-                    : NSColor(red: 0.49, green: 0.23, blue: 0.93, alpha: 1.0)
-            }
+            AccentTheme(
+                light: RGBColor(red: 0.44, green: 0.26, blue: 0.84),
+                dark: RGBColor(red: 0.64, green: 0.51, blue: 1.00)
+            )
         case .graphite:
-            NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    ? NSColor(red: 0.61, green: 0.64, blue: 0.69, alpha: 1.0)
-                    : NSColor(red: 0.29, green: 0.33, blue: 0.39, alpha: 1.0)
-            }
+            AccentTheme(
+                light: RGBColor(red: 0.29, green: 0.33, blue: 0.39),
+                dark: RGBColor(red: 0.67, green: 0.70, blue: 0.75)
+            )
         }
     }
 
+    var nsColor: NSColor {
+        theme.nsColor
+    }
+
     var color: Color {
-        Color(nsColor: nsColor)
+        theme.primary
+    }
+}
+
+struct AccentTheme: Sendable {
+    let light: RGBColor
+    let dark: RGBColor
+
+    var nsColor: NSColor {
+        NSColor(name: nil) { appearance in
+            let value = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return value.nsColor
+        }
+    }
+
+    var primary: Color { Color(nsColor: nsColor) }
+    var pressed: Color { primary.opacity(0.82) }
+    var softBackground: Color { primary.opacity(0.12) }
+
+    func foreground(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.black.opacity(0.86) : .white
+    }
+}
+
+struct RGBColor: Equatable, Sendable {
+    let red: Double
+    let green: Double
+    let blue: Double
+
+    var nsColor: NSColor {
+        NSColor(red: red, green: green, blue: blue, alpha: 1)
     }
 }
 
