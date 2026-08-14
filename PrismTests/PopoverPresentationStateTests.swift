@@ -77,34 +77,36 @@ final class PopoverPresentationStateTests: XCTestCase {
         XCTAssertNil(state.requestPointerDown(on: .outside))
     }
 
-    func testDismissHitTesterKeepsStatusItemClickOutOfOutsidePath() {
-        let statusFrame = NSRect(x: 100, y: 900, width: 80, height: 24)
-        let popoverFrame = NSRect(x: 80, y: 440, width: 360, height: 450)
+    func testPointerEventGateConsumesOnePhysicalEventOnlyOnce() {
+        var gate = PopoverPointerEventGate()
+        let event = PopoverPointerEventIdentity(
+            eventNumber: 42,
+            timestamp: 10,
+            typeRawValue: NSEvent.EventType.leftMouseDown.rawValue,
+            buttonNumber: 0
+        )
 
-        XCTAssertEqual(
-            PopoverDismissHitTester.target(
-                screenPoint: NSPoint(x: 140, y: 912),
-                statusItemFrame: statusFrame,
-                popoverFrame: popoverFrame
-            ),
-            .statusItem
+        XCTAssertTrue(gate.consume(event))
+        XCTAssertFalse(gate.consume(event))
+    }
+
+    func testPointerEventGateDoesNotDebounceDistinctFastClicks() {
+        var gate = PopoverPointerEventGate()
+        let first = PopoverPointerEventIdentity(
+            eventNumber: 42,
+            timestamp: 10,
+            typeRawValue: NSEvent.EventType.leftMouseDown.rawValue,
+            buttonNumber: 0
         )
-        XCTAssertEqual(
-            PopoverDismissHitTester.target(
-                screenPoint: NSPoint(x: 140, y: 700),
-                statusItemFrame: statusFrame,
-                popoverFrame: popoverFrame
-            ),
-            .popover
+        let second = PopoverPointerEventIdentity(
+            eventNumber: 43,
+            timestamp: 10.001,
+            typeRawValue: NSEvent.EventType.leftMouseDown.rawValue,
+            buttonNumber: 0
         )
-        XCTAssertEqual(
-            PopoverDismissHitTester.target(
-                screenPoint: NSPoint(x: 40, y: 700),
-                statusItemFrame: statusFrame,
-                popoverFrame: popoverFrame
-            ),
-            .outside
-        )
+
+        XCTAssertTrue(gate.consume(first))
+        XCTAssertTrue(gate.consume(second))
     }
 
     func testFiveRapidClicksDuringOpeningPreserveOddClickParity() {

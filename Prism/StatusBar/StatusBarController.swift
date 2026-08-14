@@ -16,22 +16,34 @@ enum PopoverPointerTarget: Equatable {
     case outside
 }
 
-struct PopoverDismissHitTester {
-    static let hitSlop: CGFloat = 4
+struct PopoverPointerEventIdentity: Equatable {
+    let eventNumber: Int
+    let timestamp: TimeInterval
+    let typeRawValue: UInt
+    let buttonNumber: Int
 
-    static func target(
-        screenPoint: NSPoint,
-        statusItemFrame: NSRect?,
-        popoverFrame: NSRect?
-    ) -> PopoverPointerTarget {
-        if let statusItemFrame,
-           statusItemFrame.insetBy(dx: -hitSlop, dy: -hitSlop).contains(screenPoint) {
-            return .statusItem
-        }
-        if let popoverFrame, popoverFrame.contains(screenPoint) {
-            return .popover
-        }
-        return .outside
+    init(eventNumber: Int, timestamp: TimeInterval, typeRawValue: UInt, buttonNumber: Int) {
+        self.eventNumber = eventNumber
+        self.timestamp = timestamp
+        self.typeRawValue = typeRawValue
+        self.buttonNumber = buttonNumber
+    }
+
+    init(event: NSEvent) {
+        eventNumber = event.eventNumber
+        timestamp = event.timestamp
+        typeRawValue = event.type.rawValue
+        buttonNumber = event.buttonNumber
+    }
+}
+
+struct PopoverPointerEventGate {
+    private(set) var lastHandledEvent: PopoverPointerEventIdentity?
+
+    mutating func consume(_ event: PopoverPointerEventIdentity) -> Bool {
+        guard event != lastHandledEvent else { return false }
+        lastHandledEvent = event
+        return true
     }
 }
 
@@ -110,6 +122,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var closeObserver: NSObjectProtocol?
     private var observing = false
     private var presentationState = PopoverPresentationState.closed
+    private var pointerEventGate = PopoverPointerEventGate()
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -137,7 +150,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     @objc private func handleClick(_ sender: NSStatusBarButton) {
-        if NSApp.currentEvent?.type == .rightMouseDown {
+        guard let event = NSApp.currentEvent else { return }
+        guard pointerEventGate.consume(PopoverPointerEventIdentity(event: event)) else { return }
+        if event.type == .rightMouseDown {
+            requestClosePopover()
             showContextMenu()
         } else {
             performPresentationAction(presentationState.requestPointerDown(on: .statusItem))
@@ -184,6 +200,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             _ = presentationState.didClose()
             return
         }
+        installDismissMonitors()
         NSApp.activate(ignoringOtherApps: true)
         popoverHost.popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popoverHost.popover.contentViewController?.view.window?.makeKey()
@@ -213,61 +230,38 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         performPresentationAction(presentationState.requestClose())
     }
 
-    private var statusItemScreenFrame: NSRect? {
-        guard let button = statusItem.button, let window = button.window else { return nil }
-        let frameInWindow = button.convert(button.bounds, to: nil)
-        return window.convertToScreen(frameInWindow)
-    }
-
-    private var popoverScreenFrame: NSRect? {
-        popoverHost.popover.contentViewController?.view.window?.frame
-    }
-
-    private func requestClosePopover(forPointerAt screenPoint: NSPoint) {
-        let target = PopoverDismissHitTester.target(
-            screenPoint: screenPoint,
-            statusItemFrame: statusItemScreenFrame,
-            popoverFrame: popoverScreenFrame
-        )
-        guard target == .outside else { return }
-        performPresentationAction(presentationState.requestPointerDown(on: target))
+    private func requestClosePopover(for event: PopoverPointerEventIdentity) {
+        guard pointerEventGate.consume(event) else { return }
+        requestClosePopover()
     }
 
     private func requestClosePopoverForApplicationResign() {
-        if let event = NSApp.currentEvent,
-           event.type == .leftMouseDown || event.type == .rightMouseDown {
-            let screenPoint: NSPoint
-            if let window = event.window {
-                screenPoint = window.convertPoint(toScreen: event.locationInWindow)
-            } else {
-                screenPoint = event.locationInWindow
-            }
-            if PopoverDismissHitTester.target(
-                screenPoint: screenPoint,
-                statusItemFrame: statusItemScreenFrame,
-                popoverFrame: popoverScreenFrame
-            ) != .outside {
-                return
-            }
-        }
         requestClosePopover()
+    }
+
+    private func isStatusItemEvent(_ event: NSEvent) -> Bool {
+        guard let statusWindow = statusItem.button?.window else { return false }
+        return event.window === statusWindow
+    }
+
+    private func isPopoverEvent(_ event: NSEvent) -> Bool {
+        guard let popoverWindow = popoverHost.popover.contentViewController?.view.window else {
+            return false
+        }
+        return event.window === popoverWindow
     }
 
     private func installDismissMonitors() {
         removeDismissMonitors()
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            let screenPoint = event.locationInWindow
-            Task { @MainActor [weak self] in self?.requestClosePopover(forPointerAt: screenPoint) }
+            let identity = PopoverPointerEventIdentity(event: event)
+            Task { @MainActor [weak self] in self?.requestClosePopover(for: identity) }
         }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             MainActor.assumeIsolated {
-                let screenPoint: NSPoint
-                if let window = event.window {
-                    screenPoint = window.convertPoint(toScreen: event.locationInWindow)
-                } else {
-                    screenPoint = event.locationInWindow
-                }
-                self?.requestClosePopover(forPointerAt: screenPoint)
+                guard let self else { return }
+                guard !self.isStatusItemEvent(event), !self.isPopoverEvent(event) else { return }
+                self.requestClosePopover(for: PopoverPointerEventIdentity(event: event))
             }
             return event
         }
@@ -290,7 +284,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let action = self.presentationState.didShow()
-            self.installDismissMonitors()
             self.performPresentationAction(action)
         }
     }
