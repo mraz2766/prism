@@ -5,28 +5,51 @@ struct IPAddressRow: View {
     let label: String
     let address: String?
     @State private var copied = false
+    @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(label)
-                    .font(.caption)
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
-                Text(address ?? String(localized: "Unavailable"))
-                    .font(.system(.body, design: .monospaced).weight(.medium))
-                    .foregroundStyle(address == nil ? .secondary : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
+                if let address {
+                    Text(address)
+                        .font(.system(.body, design: .monospaced).weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                } else {
+                    Text(String(localized: "Unavailable"))
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
+                }
             }
             Spacer(minLength: 8)
             Button(action: copy) {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(copied ? .green : .secondary)
+                HStack(spacing: 4) {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 12, weight: .semibold))
+                    if copied {
+                        Text(String(localized: "Copied"))
+                            .font(.caption2.weight(.medium))
+                    }
+                }
+                .foregroundStyle(copied ? .green : (isHovered ? .primary : .secondary))
+                .padding(.horizontal, copied ? 8 : 6)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(copied ? Color.green.opacity(0.12) : (isHovered ? Color(nsColor: .quaternaryLabelColor) : Color.clear))
+                )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(address == nil)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
+            }
             .help(String(localized: "Copy IP address"))
             .accessibilityLabel(String(localized: "Copy IP address"))
         }
@@ -36,10 +59,10 @@ struct IPAddressRow: View {
         guard let address else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(address, forType: .string)
-        withAnimation(.easeInOut(duration: 0.15)) { copied = true }
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) { copied = true }
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1))
-            withAnimation(.easeInOut(duration: 0.15)) { copied = false }
+            try? await Task.sleep(for: .seconds(1.2))
+            withAnimation(.easeOut(duration: 0.2)) { copied = false }
         }
     }
 }

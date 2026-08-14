@@ -3,6 +3,14 @@ import SwiftUI
 struct MenuBarSettingsView: View {
     @Environment(SettingsStore.self) private var settings
 
+    private let availableTokens = [
+        ("{flag}", "🇯🇵"),
+        ("{country}", "Japan"),
+        ("{code}", "JP"),
+        ("{city}", "Tokyo"),
+        ("{status}", "●")
+    ]
+
     var body: some View {
         @Bindable var settings = settings
         Form {
@@ -12,37 +20,87 @@ struct MenuBarSettingsView: View {
                         Text(mode.label).tag(mode)
                     }
                 }
+
                 if settings.menuBarDisplayMode == .custom {
-                    TextField(String(localized: "Custom template"), text: $settings.customMenuTemplate)
-                    Text("{flag}  {country}  {code}  {city}  {status}")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField(String(localized: "Custom template"), text: $settings.customMenuTemplate)
+                            .textFieldStyle(.roundedBorder)
+
+                        HStack(spacing: 6) {
+                            Text(String(localized: "Insert:"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ForEach(availableTokens, id: \.0) { token, sample in
+                                Button(action: { insertToken(token) }) {
+                                    Text("\(token) (\(sample))")
+                                        .font(.caption2.monospaced())
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color(nsColor: .quaternaryLabelColor), in: RoundedRectangle(cornerRadius: 4))
+                                }
+                                .buttonStyle(.plain)
+                                .help(String(localized: "Click to append to template"))
+                            }
+                        }
+                    }
                 }
             }
-            Section(String(localized: "Preview")) {
-                VStack(spacing: 10) {
-                    previewRow(String(localized: "Online"), status: .online(.preview))
-                    previewRow(
+
+            Section(String(localized: "Menu Bar Preview")) {
+                VStack(spacing: 8) {
+                    simulatedMenuBar(String(localized: "Online"), status: .online(.preview))
+                    simulatedMenuBar(
                         String(localized: "Confirming"),
                         status: .verifying(previous: .preview, candidateAddress: "198.51.100.8")
                     )
-                    previewRow(String(localized: "Offline"), status: .offline(previous: .preview))
+                    simulatedMenuBar(String(localized: "Offline"), status: .offline(previous: .preview))
                 }
-                .padding(.vertical, 10)
+                .padding(.vertical, 4)
             }
         }
         .formStyle(.grouped)
     }
 
-    private func previewRow(_ label: String, status: NetworkStatus) -> some View {
-        HStack {
-            Text(label).foregroundStyle(.secondary)
+    private func simulatedMenuBar(_ stateLabel: String, status: NetworkStatus) -> some View {
+        HStack(spacing: 12) {
+            Text(stateLabel)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 80, alignment: .leading)
+
             Spacer()
-            Text(preview(status: status))
-                .font(.system(size: NSFont.menuBarFont(ofSize: 0).pointSize))
-                .padding(.horizontal, 9).padding(.vertical, 5)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
+
+            HStack(spacing: 12) {
+                Text(preview(status: status))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+
+                Image(systemName: "wifi")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+
+                Image(systemName: "controlcenter")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(nsColor: .windowBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5)
+                    )
+            )
+        }
+    }
+
+    private func insertToken(_ token: String) {
+        if settings.customMenuTemplate.isEmpty {
+            settings.customMenuTemplate = token
+        } else {
+            settings.customMenuTemplate += " \(token)"
         }
     }
 

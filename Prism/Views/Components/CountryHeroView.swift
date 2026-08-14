@@ -8,23 +8,45 @@ struct CountryHeroView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: compact ? 12 : 18) {
-            Text(CountryFlag.emoji(for: info.location.countryCode) ?? "◎")
-                .font(compact ? .system(size: 34) : .system(size: 48))
-                .accessibilityLabel(info.location.localizedCountry())
-            VStack(alignment: .leading, spacing: 3) {
-                Text(info.location.localizedCountry())
-                    .font(compact ? .title2.weight(.semibold) : .largeTitle.weight(.semibold))
-                    .lineLimit(1)
-                if let city = info.location.city, !city.isEmpty {
-                    Text(city).font(.callout).foregroundStyle(.secondary)
+            ZStack {
+                RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous)
+                    .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous)
+                            .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+                    )
+                Text(CountryFlag.emoji(for: info.location.countryCode) ?? "◎")
+                    .font(compact ? .system(size: 28) : .system(size: 40))
+                    .accessibilityLabel(info.location.localizedCountry())
+            }
+            .frame(width: compact ? 48 : 64, height: compact ? 48 : 64)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(info.location.localizedCountry())
+                        .font(compact ? .title3.weight(.bold) : .title2.weight(.bold))
+                        .lineLimit(1)
+                    if let city = info.location.city, !city.isEmpty {
+                        Text(city)
+                            .font(compact ? .subheadline : .headline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
-                Label(info.routeMode.label, systemImage: routeSymbol)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                if compact {
-                    Text(String(localized: "Current network exit"))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+
+                HStack(spacing: 8) {
+                    Label(info.routeMode.label, systemImage: routeSymbol)
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color(nsColor: .quaternaryLabelColor).opacity(0.4), in: Capsule())
+                        .foregroundStyle(.secondary)
+
+                    if let timezone = info.location.timezone, !compact {
+                        Label(timezone, systemImage: "clock")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
             Spacer(minLength: 8)

@@ -11,6 +11,7 @@ final class SettingsStore {
     var menuBarDisplayMode: MenuBarDisplayMode { didSet { persist(); emit() } }
     var customMenuTemplate: String { didSet { persist(); emit() } }
     var appearanceMode: AppearanceMode { didSet { persist(); emit() } }
+    var accentColorChoice: AccentColorChoice { didSet { persist(); emit() } }
 
     var automaticRefreshEnabled: Bool {
         get { refreshInterval != .networkChangesOnly }
@@ -49,6 +50,8 @@ final class SettingsStore {
         customMenuTemplate = defaults.string(forKey: Keys.customTemplate) ?? "{flag} {country}"
         appearanceMode = defaults.string(forKey: Keys.appearance)
             .flatMap(AppearanceMode.init(rawValue:)) ?? .system
+        accentColorChoice = defaults.string(forKey: Keys.accentColor)
+            .flatMap(AccentColorChoice.init(rawValue:)) ?? .prismBlue
     }
 
     func changes() -> AsyncStream<RefreshConfiguration> {
@@ -70,6 +73,7 @@ final class SettingsStore {
         defaults.set(menuBarDisplayMode.rawValue, forKey: Keys.displayMode)
         defaults.set(customMenuTemplate, forKey: Keys.customTemplate)
         defaults.set(appearanceMode.rawValue, forKey: Keys.appearance)
+        defaults.set(accentColorChoice.rawValue, forKey: Keys.accentColor)
     }
 
     private func emit() {
@@ -85,5 +89,6 @@ final class SettingsStore {
         static let displayMode = "menuBar.displayMode"
         static let customTemplate = "menuBar.customTemplate"
         static let appearance = "appearance.mode"
+        static let accentColor = "appearance.accentColor"
     }
 }

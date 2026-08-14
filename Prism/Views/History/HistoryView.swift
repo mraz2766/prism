@@ -105,26 +105,67 @@ private struct HistoryRow: View {
     private var entry: NetworkHistoryEntry { displayEntry.current }
 
     var body: some View {
-        HStack(spacing: 14) {
-            Text(CountryFlag.emoji(for: entry.countryCode) ?? "◎")
-                .font(.title2)
-                .accessibilityLabel(country)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(transition).font(.headline).lineLimit(1)
-                HStack(spacing: 8) {
-                    Text(entry.addresses.preferredForLookup ?? "—")
-                        .font(.system(.caption, design: .monospaced))
-                    if let asn = entry.asn { Text(verbatim: "AS\(asn)").font(.caption.monospaced()) }
-                    Text(entry.routeMode.label).font(.caption)
-                }
-                .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+                    )
+                Text(CountryFlag.emoji(for: entry.countryCode) ?? "◎")
+                    .font(.system(size: 18))
+                    .accessibilityLabel(country)
             }
+            .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 4) {
+                if let previous = previousTransitionLabel {
+                    HStack(spacing: 6) {
+                        Text(previous)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                        Text(location)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .lineLimit(1)
+                } else {
+                    Text(location)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: 6) {
+                    Text(entry.addresses.preferredForLookup ?? "—")
+                        .font(.system(.caption2, design: .monospaced))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(nsColor: .quaternaryLabelColor).opacity(0.3), in: RoundedRectangle(cornerRadius: 4))
+
+                    if let asn = entry.asn {
+                        Text(verbatim: "AS\(asn)")
+                            .font(.system(.caption2, design: .monospaced))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color(nsColor: .quaternaryLabelColor).opacity(0.3), in: RoundedRectangle(cornerRadius: 4))
+                    }
+
+                    Text(entry.routeMode.label)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Spacer()
+
             Text(entry.recordedAt, style: .time)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
     }
 
@@ -137,11 +178,11 @@ private struct HistoryRow: View {
         return "\(country) · \(city)"
     }
 
-    private var transition: String {
-        guard let previous = displayEntry.previous else { return location }
+    private var previousTransitionLabel: String? {
+        guard let previous = displayEntry.previous else { return nil }
         let previousCountry = Locale.autoupdatingCurrent.localizedString(forRegionCode: previous.countryCode) ?? previous.countryCode
         let previousLocation = previous.city.map { "\(previousCountry) · \($0)" } ?? previousCountry
-        guard previousLocation != location else { return location }
-        return "\(previousLocation) → \(location)"
+        guard previousLocation != location else { return nil }
+        return previousLocation
     }
 }

@@ -41,43 +41,41 @@ struct DashboardOverviewView: View {
                     }
 
                     SectionCard {
-                        VStack(alignment: .leading, spacing: 18) {
-                            CountryHeroView(info: info, status: status, showsStatus: false)
-                            Divider()
-                            HStack(spacing: 28) {
-                                primaryAddress(info)
-                                Divider().frame(height: 54)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(String(localized: "Network"))
-                                        .font(.caption).foregroundStyle(.secondary)
-                                    Text(info.network.organization ?? info.network.isp ?? String(localized: "Unavailable"))
-                                        .font(.headline).lineLimit(1)
-                                    Text(info.network.asnLabel ?? "—")
-                                        .font(.caption.monospaced()).foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
+                        CountryHeroView(info: info, status: status, showsStatus: false)
                     }
 
                     HStack(alignment: .top, spacing: 16) {
                         SectionCard {
-                            VStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 13) {
+                                Label(String(localized: "Public Addresses"), systemImage: "network")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Divider()
                                 IPAddressRow(label: String(localized: "Public IPv4"), address: info.addresses.ipv4)
                                 Divider()
                                 IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
+                                Divider()
+                                InfoRow(label: String(localized: "Route"), value: info.routeMode.label, icon: "arrow.triangle.branch")
+                                InfoRow(label: String(localized: "Source"), value: info.exitSource.label, icon: "antenna.radiowaves.left.and.right")
                             }
                         }
+                        .frame(maxWidth: .infinity)
+
                         SectionCard {
-                            VStack(spacing: 10) {
-                                InfoRow(label: String(localized: "ISP"), value: info.network.isp ?? String(localized: "Unavailable"))
-                                InfoRow(label: String(localized: "ASN"), value: info.network.asnLabel ?? String(localized: "Unavailable"), monospaced: true)
-                                InfoRow(label: String(localized: "Organization"), value: info.network.organization ?? String(localized: "Unavailable"), allowsWrapping: true)
-                                InfoRow(label: String(localized: "Timezone"), value: info.location.timezone ?? String(localized: "Unavailable"))
-                                InfoRow(label: String(localized: "Provider"), value: info.providerIdentifier)
-                                InfoRow(label: String(localized: "Route"), value: info.routeMode.label)
+                            VStack(alignment: .leading, spacing: 13) {
+                                Label(String(localized: "Network Details"), systemImage: "building.2")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Divider()
+                                InfoRow(label: String(localized: "Organization"), value: info.network.organization ?? String(localized: "Unavailable"), icon: "building.2", allowsWrapping: true)
+                                InfoRow(label: String(localized: "ISP"), value: info.network.isp ?? String(localized: "Unavailable"), icon: "server.rack")
+                                InfoRow(label: String(localized: "ASN"), value: info.network.asnLabel ?? String(localized: "Unavailable"), icon: "number", monospaced: true)
+                                InfoRow(label: String(localized: "Timezone"), value: info.location.timezone ?? String(localized: "Unavailable"), icon: "clock")
+                                InfoRow(label: String(localized: "Provider"), value: info.providerIdentifier, icon: "globe.americas.fill")
+                                InfoRow(label: String(localized: "Proxy Risk"), value: privacyLabel(info.privacy), icon: "shield.lefthalf.filled")
                             }
                         }
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 .padding(24)
@@ -95,14 +93,11 @@ struct DashboardOverviewView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private func primaryAddress(_ info: NetworkInfo) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(String(localized: "Primary public IP"))
-                .font(.caption).foregroundStyle(.secondary)
-            Text(info.addresses.preferredForLookup ?? "—")
-                .font(.system(.title3, design: .monospaced).weight(.medium))
-                .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+    private func privacyLabel(_ value: PrivacyClassification) -> String {
+        switch value {
+        case .suspected: String(localized: "Suspected proxy / VPN")
+        case .notDetected: String(localized: "Not detected")
+        case .unavailable: String(localized: "Unavailable")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

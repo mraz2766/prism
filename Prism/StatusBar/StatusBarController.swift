@@ -10,7 +10,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let environment: AppEnvironment
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popoverHost: PopoverHost
-    private var anchorWindow: NSWindow?
     private var globalMonitor: Any?
     private var resignObserver: NSObjectProtocol?
     private var closeObserver: NSObjectProtocol?
@@ -86,19 +85,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func openPopover() {
-        guard let button = statusItem.button, let buttonWindow = button.window else { return }
+        guard let button = statusItem.button else { return }
         NSApp.activate(ignoringOtherApps: true)
-        let frame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
-        let anchor = NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
-        anchor.isOpaque = false
-        anchor.backgroundColor = .clear
-        anchor.ignoresMouseEvents = true
-        anchor.level = .statusBar
-        let view = NSView(frame: NSRect(origin: .zero, size: frame.size))
-        anchor.contentView = view
-        anchor.orderFrontRegardless()
-        anchorWindow = anchor
-        popoverHost.popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+        popoverHost.popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popoverHost.popover.contentViewController?.view.window?.makeKey()
         installDismissMonitors()
     }
@@ -106,8 +95,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private func closePopover() {
         removeDismissMonitors()
         popoverHost.popover.performClose(nil)
-        anchorWindow?.orderOut(nil)
-        anchorWindow = nil
     }
 
     private func installDismissMonitors() {
@@ -132,8 +119,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     nonisolated func popoverDidClose(_ notification: Notification) {
         Task { @MainActor [weak self] in
             self?.removeDismissMonitors()
-            self?.anchorWindow?.orderOut(nil)
-            self?.anchorWindow = nil
         }
     }
 

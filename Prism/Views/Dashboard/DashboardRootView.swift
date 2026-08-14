@@ -14,6 +14,7 @@ struct DashboardRootView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 460)
+        .tint(environment.settings.accentColorChoice.color)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker(String(localized: "View"), selection: $navigation.destination) {
@@ -36,6 +37,5 @@ struct DashboardRootView: View {
                     .help(String(localized: "Settings"))
             }
         }
-        .tint(Color(red: 0.259, green: 0.522, blue: 0.957))
     }
 }

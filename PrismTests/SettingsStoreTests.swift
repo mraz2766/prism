@@ -19,4 +19,19 @@ final class SettingsStoreTests: XCTestCase {
         settings.automaticRefreshEnabled = true
         XCTAssertEqual(settings.refreshInterval, .minute1)
     }
+
+    func testAccentColorChoiceDefaultsAndPersists() throws {
+        let suite = "PrismTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(settings.accentColorChoice, .prismBlue)
+
+        settings.accentColorChoice = .sunsetOrange
+        XCTAssertEqual(settings.accentColorChoice, .sunsetOrange)
+
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertEqual(reloaded.accentColorChoice, .sunsetOrange)
+    }
 }

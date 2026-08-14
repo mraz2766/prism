@@ -16,14 +16,14 @@ struct MenuBarPopoverView: View {
                 }
                 CountryHeroView(info: info, status: status, compact: true)
                     .contentTransition(.opacity)
-                SectionCard {
-                    VStack(spacing: 13) {
+                SectionCard(horizontalPadding: 14, verticalPadding: 12) {
+                    VStack(spacing: 12) {
                         IPAddressRow(label: String(localized: "Public IPv4"), address: info.addresses.ipv4)
                         Divider()
                         IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
                     }
                 }
-                SectionCard {
+                SectionCard(horizontalPadding: 14, verticalPadding: 12) {
                     VStack(spacing: 10) {
                         InfoRow(label: String(localized: "ISP"), value: info.network.isp ?? String(localized: "Unavailable"))
                         InfoRow(label: String(localized: "ASN"), value: info.network.asnLabel ?? String(localized: "Unavailable"), monospaced: true)
@@ -44,7 +44,7 @@ struct MenuBarPopoverView: View {
         }
         .padding(14)
         .frame(width: 360)
-        .tint(Color(red: 0.259, green: 0.522, blue: 0.957))
+        .tint(environment.settings.accentColorChoice.color)
     }
 
     private var unavailableContent: some View {
@@ -65,41 +65,40 @@ struct MenuBarPopoverView: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(alignment: .center) {
             if let info = status.info {
-                TimelineView(.periodic(from: .now, by: 30)) { context in
+                TimelineView(.periodic(from: .now, by: 30)) { _ in
                     Text(info.checkedAt, style: .relative)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer()
-            Button {
+            PopoverActionButton(
+                systemName: "arrow.clockwise",
+                help: String(localized: "Refresh"),
+                shortcutKey: "r",
+                isSpinning: status.isRefreshing
+            ) {
                 environment.refreshCoordinator.triggerManual()
-            } label: {
-                RefreshGlyph(isActive: status.isRefreshing)
             }
-            .buttonStyle(.plain)
-            .keyboardShortcut("r", modifiers: [.command])
-            .help(String(localized: "Refresh"))
-            .accessibilityLabel(String(localized: "Refresh"))
 
-            Button {
+            PopoverActionButton(
+                systemName: "clock.arrow.circlepath",
+                help: String(localized: "History")
+            ) {
                 NotificationCenter.default.post(name: .prismClosePopover, object: nil)
                 environment.showDashboard(.history)
-            } label: { Image(systemName: "clock.arrow.circlepath") }
-                .buttonStyle(.plain)
-                .help(String(localized: "History"))
-                .accessibilityLabel(String(localized: "History"))
+            }
 
-            Button {
+            PopoverActionButton(
+                systemName: "gearshape",
+                help: String(localized: "Settings"),
+                shortcutKey: ","
+            ) {
                 NotificationCenter.default.post(name: .prismClosePopover, object: nil)
                 environment.openSettingsAction?()
-            } label: { Image(systemName: "gearshape") }
-                .buttonStyle(.plain)
-                .keyboardShortcut(",", modifiers: [.command])
-                .help(String(localized: "Settings"))
-                .accessibilityLabel(String(localized: "Settings"))
+            }
         }
     }
 
@@ -109,6 +108,42 @@ struct MenuBarPopoverView: View {
         case .notDetected: String(localized: "Not detected")
         case .unavailable: String(localized: "Unavailable")
         }
+    }
+}
+
+private struct PopoverActionButton: View {
+    let systemName: String
+    let help: String
+    var shortcutKey: KeyEquivalent?
+    var isSpinning = false
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if isSpinning {
+                    RefreshGlyph(isActive: true)
+                } else {
+                    Image(systemName: systemName)
+                }
+            }
+            .font(.system(size: 13, weight: .regular))
+            .foregroundStyle(isHovered ? .primary : .secondary)
+            .frame(width: 24, height: 24)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(isHovered ? Color(nsColor: .quaternaryLabelColor) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
+        }
+        .help(help)
+        .accessibilityLabel(help)
     }
 }
 

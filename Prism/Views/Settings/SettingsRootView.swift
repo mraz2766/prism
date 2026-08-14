@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SettingsRootView: View {
+    @Environment(SettingsStore.self) private var settings
+
     var body: some View {
         TabView {
             GeneralSettingsView()
@@ -8,13 +10,14 @@ struct SettingsRootView: View {
             MenuBarSettingsView()
                 .tabItem { Label(String(localized: "Menu Bar"), systemImage: "menubar.rectangle") }
             AppearanceSettingsView()
-                .tabItem { Label(String(localized: "Appearance"), systemImage: "circle.lefthalf.filled") }
+                .tabItem { Label(String(localized: "Appearance"), systemImage: "paintbrush.fill") }
             NetworkSettingsView()
                 .tabItem { Label(String(localized: "Network"), systemImage: "network") }
             PrivacySettingsView()
-                .tabItem { Label(String(localized: "Privacy"), systemImage: "hand.raised") }
+                .tabItem { Label(String(localized: "Privacy"), systemImage: "lock.shield") }
         }
         .padding(18)
-        .frame(width: 540, height: 440)
+        .frame(width: 540, height: 480)
+        .tint(settings.accentColorChoice.color)
     }
 }
