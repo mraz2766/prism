@@ -1,0 +1,273 @@
+import XCTest
+@testable import Prism
+
+@MainActor
+final class RealtimeExitMonitorTests: XCTestCase {
+    func testExactObservationRefreshesWithoutSecondAddressLookup() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let changed = observation(ip: "203.0.113.50", route: .proxy)
+        let monitor = RealtimeExitMonitor(
+            probe: SequenceObservationProbe(observations: [changed]),
+            lookupService: harness.lookup
+        )
+
+        await monitor.pollNow()
+
+        let publicIPCalls = await harness.publicIP.callCount
+        let geoCalls = await harness.geo.callCount
+        let status = await harness.lookup.snapshot()
+        XCTAssertEqual(publicIPCalls, 0)
+        XCTAssertEqual(geoCalls, 1)
+        XCTAssertEqual(status.info?.addresses.ipv4, "203.0.113.50")
+    }
+
+    func testMetadataRefreshUsesExactUnchangedObservation() async throws {
+        let cached = routedInfo(ip: "203.0.113.10", route: .proxy)
+        let harness = makeHarness(cached: cached)
+        let monitor = RealtimeExitMonitor(
+            probe: SequenceObservationProbe(observations: [
+                observation(ip: "203.0.113.10", route: .proxy)
+            ]),
+            lookupService: harness.lookup
+        )
+
+        await monitor.refreshNow(showLoading: true)
+
+        let publicIPCalls = await harness.publicIP.callCount
+        let geoCalls = await harness.geo.callCount
+        let refreshedInfo = await harness.lookup.snapshot().info
+        XCTAssertEqual(publicIPCalls, 0)
+        XCTAssertEqual(geoCalls, 1)
+        XCTAssertEqual(refreshedInfo?.addresses.ipv4, "203.0.113.10")
+    }
+
+    func testSingleDomesticFallbackDoesNotReplaceStableProxyExit() async throws {
+        let original = routedInfo(ip: "203.0.113.10", route: .proxy)
+        let harness = makeHarness(cached: original)
+        let probe = SequenceObservationProbe(observations: [
+            observation(ip: "198.51.100.30", route: .direct),
+            observation(ip: "203.0.113.10", route: .proxy)
+        ])
+        let monitor = RealtimeExitMonitor(probe: probe, lookupService: harness.lookup)
+
+        await monitor.pollNow()
+        let pending = await harness.lookup.snapshot()
+        await monitor.pollNow()
+        let restored = await harness.lookup.snapshot()
+
+        guard case .verifying(_, let candidate) = pending else {
+            return XCTFail("Expected a pending verification state")
+        }
+        XCTAssertEqual(candidate, "198.51.100.30")
+        XCTAssertEqual(restored.info?.addresses, original.addresses)
+        XCTAssertEqual(restored.info?.routeMode, .proxy)
+        let history = await harness.history.snapshot()
+        let geoCalls = await harness.geo.callCount
+        XCTAssertTrue(history.isEmpty)
+        XCTAssertEqual(geoCalls, 0)
+    }
+
+    func testTwoDomesticObservationsConfirmOnceAndReuseSnapshotGeo() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let domestic = observation(
+            ip: "198.51.100.30",
+            route: .direct,
+            geo: geoResult(country: "CN", region: "Shanghai", city: "Shanghai")
+        )
+        let monitor = RealtimeExitMonitor(
+            probe: SequenceObservationProbe(observations: [domestic, domestic]),
+            lookupService: harness.lookup
+        )
+
+        await monitor.pollNow()
+        await monitor.pollNow()
+
+        let info = (await harness.lookup.snapshot()).info
+        XCTAssertEqual(info?.location.countryCode, "CN")
+        XCTAssertEqual(info?.location.city, "Shanghai")
+        XCTAssertEqual(info?.routeMode, .direct)
+        let geoCalls = await harness.geo.callCount
+        let historyCount = await harness.history.snapshot().count
+        XCTAssertEqual(geoCalls, 0)
+        XCTAssertEqual(historyCount, 1)
+    }
+
+    func testConfirmedDirectRouteAcceptsSubsequentDirectIPImmediately() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "198.51.100.30", route: .direct))
+        let hangzhou = observation(
+            ip: "198.51.100.31",
+            route: .direct,
+            geo: geoResult(country: "CN", region: "Zhejiang", city: "Hangzhou")
+        )
+        let monitor = RealtimeExitMonitor(
+            probe: SequenceObservationProbe(observations: [hangzhou]),
+            lookupService: harness.lookup
+        )
+
+        await monitor.pollNow()
+
+        let info = (await harness.lookup.snapshot()).info
+        XCTAssertEqual(info?.addresses.ipv4, "198.51.100.31")
+        XCTAssertEqual(info?.location.city, "Hangzhou")
+        let historyCount = await harness.history.snapshot().count
+        XCTAssertEqual(historyCount, 1)
+    }
+
+    func testPausedMonitorDoesNotProbeUntilResumed() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let probe = CountingObservationProbe(observation: observation(ip: "203.0.113.10", route: .proxy))
+        let monitor = RealtimeExitMonitor(probe: probe, lookupService: harness.lookup)
+
+        monitor.pause()
+        await monitor.pollNow()
+        let pausedCalls = await probe.callCount
+        XCTAssertEqual(pausedCalls, 0)
+        monitor.resume()
+        await monitor.pollNow()
+        let resumedCalls = await probe.callCount
+        XCTAssertEqual(resumedCalls, 1)
+    }
+
+    func testStartedLoopPollsAndStopCancelsFutureProbes() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let probe = CountingObservationProbe(observation: observation(ip: "203.0.113.10", route: .proxy))
+        let monitor = RealtimeExitMonitor(
+            probe: probe,
+            lookupService: harness.lookup,
+            interval: .milliseconds(10),
+            burstInterval: .milliseconds(5),
+            burstDuration: .milliseconds(30)
+        )
+
+        monitor.start()
+        try await Task.sleep(for: .milliseconds(45))
+        monitor.stop()
+        let callsAtStop = await probe.callCount
+        try await Task.sleep(for: .milliseconds(30))
+
+        XCTAssertGreaterThanOrEqual(callsAtStop, 2)
+        let callsAfterStop = await probe.callCount
+        XCTAssertEqual(callsAfterStop, callsAtStop)
+    }
+
+    private func makeHarness(cached: NetworkInfo) -> MonitorHarness {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let cache = NetworkInfoCache(directory: directory)
+        cache.saveInfo(cached)
+        let publicIP = CountingPublicIPProvider(addresses: cached.addresses)
+        let geo = CountingGeoProvider()
+        let history = NetworkHistoryStore(fileURL: directory.appendingPathComponent("history.json"))
+        let lookup = NetworkLookupService(
+            publicIPProvider: publicIP,
+            geoProvider: geo,
+            privacyProvider: MonitorPrivacyProvider(),
+            cache: cache,
+            history: history
+        )
+        return MonitorHarness(lookup: lookup, publicIP: publicIP, geo: geo, history: history)
+    }
+}
+
+private struct MonitorHarness {
+    let lookup: NetworkLookupService
+    let publicIP: CountingPublicIPProvider
+    let geo: CountingGeoProvider
+    let history: NetworkHistoryStore
+}
+
+func observation(
+    ip: String,
+    route: NetworkRouteMode,
+    geo: GeoIPResult? = nil
+) -> ExitObservation {
+    ExitObservation(
+        addresses: IPAddressSet(ipv4: ip, ipv6: nil),
+        source: route == .direct ? .domesticFallback : .overseasIPv4,
+        routeMode: route,
+        preResolvedGeo: geo
+    )
+}
+
+func routedInfo(ip: String, route: NetworkRouteMode) -> NetworkInfo {
+    NetworkInfo(
+        addresses: IPAddressSet(ipv4: ip, ipv6: nil),
+        location: NetworkInfo.preview.location,
+        network: NetworkInfo.preview.network,
+        privacy: .notDetected,
+        providerIdentifier: "fixture",
+        routeMode: route,
+        exitSource: route == .direct ? .domesticFallback : .overseasIPv4,
+        checkedAt: .now
+    )
+}
+
+private func geoResult(country: String, region: String, city: String) -> GeoIPResult {
+    GeoIPResult(
+        location: LocationInfo(
+            countryCode: country,
+            region: region,
+            city: city,
+            timezone: country == "CN" ? "Asia/Shanghai" : nil,
+            latitude: nil,
+            longitude: nil
+        ),
+        network: NetworkInfo.preview.network,
+        providerIdentifier: "fixture-geo"
+    )
+}
+
+private actor SequenceObservationProbe: ExitAddressProbing {
+    private var observations: [ExitObservation]
+
+    init(observations: [ExitObservation]) {
+        self.observations = observations
+    }
+
+    func observeExit() async throws -> ExitObservation {
+        guard !observations.isEmpty else { throw NetworkFailure.serviceUnavailable }
+        return observations.removeFirst()
+    }
+}
+
+private actor CountingObservationProbe: ExitAddressProbing {
+    let observation: ExitObservation
+    private(set) var callCount = 0
+
+    init(observation: ExitObservation) {
+        self.observation = observation
+    }
+
+    func observeExit() async throws -> ExitObservation {
+        callCount += 1
+        return observation
+    }
+}
+
+private actor CountingPublicIPProvider: PublicIPProviding {
+    let addresses: IPAddressSet
+    private(set) var callCount = 0
+
+    init(addresses: IPAddressSet) {
+        self.addresses = addresses
+    }
+
+    func fetchAddresses() async throws -> IPAddressSet {
+        callCount += 1
+        return addresses
+    }
+}
+
+private actor CountingGeoProvider: GeoIPProvider {
+    nonisolated let identifier = "monitor-geo"
+    private(set) var callCount = 0
+
+    func lookup(ipAddress: String) async throws -> GeoIPResult {
+        callCount += 1
+        return geoResult(country: "SG", region: "Singapore", city: "Singapore")
+    }
+}
+
+private actor MonitorPrivacyProvider: PrivacyClassifying {
+    func classify(ipAddress: String) async throws -> PrivacyClassification { .notDetected }
+}

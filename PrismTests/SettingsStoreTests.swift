@@ -1,0 +1,22 @@
+import XCTest
+@testable import Prism
+
+@MainActor
+final class SettingsStoreTests: XCTestCase {
+    func testAutomaticRefreshBindingPreservesValidConfiguration() throws {
+        let suite = "PrismTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(settings.refreshInterval, .minute1)
+        XCTAssertTrue(settings.automaticRefreshEnabled)
+
+        settings.automaticRefreshEnabled = false
+        XCTAssertEqual(settings.refreshInterval, .networkChangesOnly)
+        XCTAssertTrue(settings.refreshConfiguration.refreshOnNetworkChange)
+
+        settings.automaticRefreshEnabled = true
+        XCTAssertEqual(settings.refreshInterval, .minute1)
+    }
+}

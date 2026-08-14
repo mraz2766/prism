@@ -1,0 +1,261 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		AA0000000000000000000031 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000010;
+			remoteInfo = Prism;
+		};
+		AA0000000000000000000032 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000010;
+			remoteInfo = Prism;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		AA0000000000000000000020 /* Prism.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Prism.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000000021 /* PrismTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PrismTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000000022 /* PrismUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PrismUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AA0000000000000000000040 /* Prism */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Prism; sourceTree = "<group>"; };
+		AA0000000000000000000041 /* PrismTests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = PrismTests; sourceTree = "<group>"; };
+		AA0000000000000000000042 /* PrismUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = PrismUITests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000000000000000000050 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000052 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AA0000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000040 /* Prism */,
+				AA0000000000000000000041 /* PrismTests */,
+				AA0000000000000000000042 /* PrismUITests */,
+				AA0000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000020 /* Prism.app */,
+				AA0000000000000000000021 /* PrismTests.xctest */,
+				AA0000000000000000000022 /* PrismUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA0000000000000000000010 /* Prism */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000080 /* Build configuration list for PBXNativeTarget "Prism" */;
+			buildPhases = (AA0000000000000000000060 /* Sources */, AA0000000000000000000050 /* Frameworks */, AA0000000000000000000070 /* Resources */);
+			buildRules = ();
+			dependencies = ();
+			fileSystemSynchronizedGroups = (AA0000000000000000000040 /* Prism */);
+			name = Prism;
+			packageProductDependencies = ();
+			productName = Prism;
+			productReference = AA0000000000000000000020 /* Prism.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AA0000000000000000000011 /* PrismTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000081 /* Build configuration list for PBXNativeTarget "PrismTests" */;
+			buildPhases = (AA0000000000000000000061 /* Sources */, AA0000000000000000000051 /* Frameworks */, AA0000000000000000000071 /* Resources */);
+			buildRules = ();
+			dependencies = (AA0000000000000000000033 /* PBXTargetDependency */);
+			fileSystemSynchronizedGroups = (AA0000000000000000000041 /* PrismTests */);
+			name = PrismTests;
+			packageProductDependencies = ();
+			productName = PrismTests;
+			productReference = AA0000000000000000000021 /* PrismTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		AA0000000000000000000012 /* PrismUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000082 /* Build configuration list for PBXNativeTarget "PrismUITests" */;
+			buildPhases = (AA0000000000000000000062 /* Sources */, AA0000000000000000000052 /* Frameworks */, AA0000000000000000000072 /* Resources */);
+			buildRules = ();
+			dependencies = (AA0000000000000000000034 /* PBXTargetDependency */);
+			fileSystemSynchronizedGroups = (AA0000000000000000000042 /* PrismUITests */);
+			name = PrismUITests;
+			packageProductDependencies = ();
+			productName = PrismUITests;
+			productReference = AA0000000000000000000022 /* PrismUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA0000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					AA0000000000000000000010 = {CreatedOnToolsVersion = 26.6; };
+					AA0000000000000000000011 = {CreatedOnToolsVersion = 26.6; TestTargetID = AA0000000000000000000010; };
+					AA0000000000000000000012 = {CreatedOnToolsVersion = 26.6; TestTargetID = AA0000000000000000000010; };
+				};
+			};
+			buildConfigurationList = AA0000000000000000000083 /* Build configuration list for PBXProject "Prism" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base, "zh-Hans");
+			mainGroup = AA0000000000000000000002;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AA0000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (AA0000000000000000000010 /* Prism */, AA0000000000000000000011 /* PrismTests */, AA0000000000000000000012 /* PrismUITests */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA0000000000000000000070 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000071 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000072 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA0000000000000000000060 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000061 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000062 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA0000000000000000000033 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = AA0000000000000000000010 /* Prism */; targetProxy = AA0000000000000000000031 /* PBXContainerItemProxy */; };
+		AA0000000000000000000034 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = AA0000000000000000000010 /* Prism */; targetProxy = AA0000000000000000000032 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000000000000000000090 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+			CODE_SIGN_ENTITLEMENTS = Prism/Resources/Prism.entitlements;
+			CODE_SIGN_STYLE = Automatic;
+			COMBINE_HIDPI_IMAGES = YES;
+			CURRENT_PROJECT_VERSION = 10;
+			ENABLE_APP_SANDBOX = YES;
+			ENABLE_HARDENED_RUNTIME = YES;
+			ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+			EXTRACT_APP_INTENTS_METADATA = NO;
+			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_KEY_CFBundleDisplayName = Prism;
+			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+			INFOPLIST_KEY_LSUIElement = YES;
+			MACOSX_DEPLOYMENT_TARGET = 14.0;
+			MARKETING_VERSION = 2.2.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.mraz.prism;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			SWIFT_STRICT_CONCURRENCY = complete;
+			SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+			SWIFT_VERSION = 6.0;
+			VERSIONING_SYSTEM = "apple-generic";
+		}; name = Debug; };
+		AA0000000000000000000091 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+			CODE_SIGN_ENTITLEMENTS = Prism/Resources/Prism.entitlements;
+			CODE_SIGN_STYLE = Automatic;
+			COMBINE_HIDPI_IMAGES = YES;
+			CURRENT_PROJECT_VERSION = 10;
+			ENABLE_APP_SANDBOX = YES;
+			ENABLE_HARDENED_RUNTIME = YES;
+			ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+			EXTRACT_APP_INTENTS_METADATA = NO;
+			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_KEY_CFBundleDisplayName = Prism;
+			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+			INFOPLIST_KEY_LSUIElement = YES;
+			MACOSX_DEPLOYMENT_TARGET = 14.0;
+			MARKETING_VERSION = 2.2.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.mraz.prism;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			SWIFT_STRICT_CONCURRENCY = complete;
+			SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+			SWIFT_VERSION = 6.0;
+			VERSIONING_SYSTEM = "apple-generic";
+		}; name = Release; };
+		AA0000000000000000000092 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			BUNDLE_LOADER = "$(TEST_HOST)";
+			CODE_SIGN_STYLE = Automatic;
+			GENERATE_INFOPLIST_FILE = YES;
+			MACOSX_DEPLOYMENT_TARGET = 14.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.mraz.prism.tests;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_STRICT_CONCURRENCY = complete;
+			SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+			SWIFT_VERSION = 6.0;
+			TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Prism.app/Contents/MacOS/Prism";
+		}; name = Debug; };
+		AA0000000000000000000093 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			BUNDLE_LOADER = "$(TEST_HOST)";
+			CODE_SIGN_STYLE = Automatic;
+			GENERATE_INFOPLIST_FILE = YES;
+			MACOSX_DEPLOYMENT_TARGET = 14.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.mraz.prism.tests;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_STRICT_CONCURRENCY = complete;
+			SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+			SWIFT_VERSION = 6.0;
+			TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Prism.app/Contents/MacOS/Prism";
+		}; name = Release; };
+		AA0000000000000000000094 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			CODE_SIGN_STYLE = Automatic;
+			GENERATE_INFOPLIST_FILE = YES;
+			MACOSX_DEPLOYMENT_TARGET = 14.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.mraz.prism.uitests;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_STRICT_CONCURRENCY = complete;
+			SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+			SWIFT_VERSION = 6.0;
+			TEST_TARGET_NAME = Prism;
+		}; name = Debug; };
+		AA0000000000000000000095 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			CODE_SIGN_STYLE = Automatic;
+			GENERATE_INFOPLIST_FILE = YES;
+			MACOSX_DEPLOYMENT_TARGET = 14.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.mraz.prism.uitests;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_STRICT_CONCURRENCY = complete;
+			SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+			SWIFT_VERSION = 6.0;
+			TEST_TARGET_NAME = Prism;
+		}; name = Release; };
+		AA0000000000000000000096 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; GCC_C_LANGUAGE_STANDARD = gnu17; MACOSX_DEPLOYMENT_TARGET = 14.0; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }; name = Debug; };
+		AA0000000000000000000097 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; GCC_C_LANGUAGE_STANDARD = gnu17; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000000000000000000080 /* Build configuration list for PBXNativeTarget "Prism" */ = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000090 /* Debug */, AA0000000000000000000091 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000081 /* Build configuration list for PBXNativeTarget "PrismTests" */ = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000092 /* Debug */, AA0000000000000000000093 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000082 /* Build configuration list for PBXNativeTarget "PrismUITests" */ = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000094 /* Debug */, AA0000000000000000000095 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000083 /* Build configuration list for PBXProject "Prism" */ = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000096 /* Debug */, AA0000000000000000000097 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = AA0000000000000000000001 /* Project object */;
+}
