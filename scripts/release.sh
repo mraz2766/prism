@@ -67,9 +67,16 @@ if [[ "$(print -r -- "$current_build" | wc -l | tr -d ' ')" != 1 || ! "$current_
   exit 65
 fi
 
-IFS=. read -r major minor patch <<< "$current_version"
+parts=("${(@s/./)current_version}")
+major="${parts[1]}"
+minor="${parts[2]}"
+patch="${parts[3]:-0}"
 if [[ "$release_kind" == small ]]; then
-  next_version="$major.$((minor + 1)).0"
+  if (( patch < 9 )); then
+    next_version="$major.$minor.$((patch + 1))"
+  else
+    next_version="$major.$((minor + 1)).0"
+  fi
 else
   next_version="$((major + 1)).0.0"
 fi
