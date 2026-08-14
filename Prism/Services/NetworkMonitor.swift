@@ -48,7 +48,7 @@ final class NetworkMonitor {
             return
         }
         debounceTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: .milliseconds(100))
             guard !Task.isCancelled else { return }
             self?.emit(.onlineChanged)
         }

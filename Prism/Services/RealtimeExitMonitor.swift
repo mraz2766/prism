@@ -19,10 +19,10 @@ final class RealtimeExitMonitor {
     init(
         probe: any ExitAddressProbing,
         lookupService: NetworkLookupService,
-        interval: Duration = .seconds(1),
+        interval: Duration = .milliseconds(500),
         retryBackoff: Duration = .seconds(5),
-        burstInterval: Duration = .milliseconds(250),
-        burstDuration: Duration = .seconds(5)
+        burstInterval: Duration = .milliseconds(150),
+        burstDuration: Duration = .seconds(4)
     ) {
         self.probe = probe
         self.lookupService = lookupService

@@ -11,6 +11,8 @@ struct PrismApp: App {
                 .environment(appDelegate.environment)
                 .environment(appDelegate.environment.settings)
                 .environment(appDelegate.environment.settingsViewModel)
+                .tint(appDelegate.environment.settings.accentColorChoice.color)
+                .accentColor(appDelegate.environment.settings.accentColorChoice.color)
         }
         .commands { AppCommands(environment: appDelegate.environment) }
     }

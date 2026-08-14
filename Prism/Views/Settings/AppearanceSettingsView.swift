@@ -16,45 +16,51 @@ struct AppearanceSettingsView: View {
             }
 
             Section(String(localized: "Accent color")) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 12)], spacing: 14) {
+                HStack(spacing: 14) {
                     ForEach(AccentColorChoice.allCases) { choice in
-                        AccentColorButton(
+                        CompactAccentColorDot(
                             choice: choice,
                             isSelected: settings.accentColorChoice == choice
                         ) {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                            withAnimation(.spring(response: 0.2, dampingFraction: 0.75)) {
                                 settings.accentColorChoice = choice
                             }
                         }
                     }
+                    Spacer()
+                    Text(settings.accentColorChoice.label)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 3)
             }
 
             Section(String(localized: "Live preview")) {
-                HStack(spacing: 16) {
-                    Button(String(localized: "Active Button")) {}
+                HStack(spacing: 14) {
+                    Button(String(localized: "Action")) {}
                         .buttonStyle(.borderedProminent)
                         .tint(settings.accentColorChoice.color)
 
-                    Toggle(String(localized: "Sample Switch"), isOn: .constant(true))
+                    Toggle(String(localized: "Option"), isOn: .constant(true))
                         .tint(settings.accentColorChoice.color)
 
-                    Label(String(localized: "Connected"), systemImage: "bolt.horizontal.fill")
+                    Spacer()
+
+                    Label(String(localized: "Active"), systemImage: "bolt.horizontal.fill")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
+                        .padding(.vertical, 4)
                         .foregroundStyle(settings.accentColorChoice.color)
                         .background(settings.accentColorChoice.color.opacity(0.12), in: Capsule())
                 }
-                .padding(.vertical, 6)
+                .padding(.vertical, 3)
             }
         }
         .formStyle(.grouped)
     }
 }
 
-private struct AccentColorButton: View {
+private struct CompactAccentColorDot: View {
     let choice: AccentColorChoice
     let isSelected: Bool
     let action: () -> Void
@@ -62,42 +68,30 @@ private struct AccentColorButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(choice.color)
-                        .frame(width: 28, height: 28)
-                        .shadow(color: isSelected ? choice.color.opacity(0.4) : .clear, radius: 4, y: 1)
+            ZStack {
+                Circle()
+                    .fill(choice.color)
+                    .frame(width: 22, height: 22)
+                    .shadow(color: isSelected ? choice.color.opacity(0.4) : .clear, radius: 3, y: 1)
 
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .black))
+                        .foregroundStyle(.white)
                 }
-                .overlay(
-                    Circle()
-                        .strokeBorder(Color.primary.opacity(isSelected ? 0.2 : (isHovered ? 0.1 : 0.0)), lineWidth: 2)
-                        .padding(-3)
-                )
-
-                Text(choice.label)
-                    .font(.caption)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-                    .lineLimit(1)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color(nsColor: .quaternaryLabelColor).opacity(0.4) : (isHovered ? Color(nsColor: .quaternaryLabelColor).opacity(0.2) : Color.clear))
+            .overlay(
+                Circle()
+                    .strokeBorder(Color.primary.opacity(isSelected ? 0.35 : (isHovered ? 0.15 : 0.05)), lineWidth: 1.5)
+                    .padding(-3)
             )
-            .contentShape(Rectangle())
+            .scaleEffect(isHovered && !isSelected ? 1.1 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.1)) { isHovered = hovering }
         }
+        .help(choice.label)
         .accessibilityLabel(choice.label)
     }
 }

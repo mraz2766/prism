@@ -17,7 +17,9 @@ struct SettingsRootView: View {
                 .tabItem { Label(String(localized: "Privacy"), systemImage: "lock.shield") }
         }
         .padding(18)
-        .frame(width: 540, height: 480)
+        .frame(width: 540, height: 460)
         .tint(settings.accentColorChoice.color)
+        .accentColor(settings.accentColorChoice.color)
+        .id(settings.accentColorChoice)
     }
 }

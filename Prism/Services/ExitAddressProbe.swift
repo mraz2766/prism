@@ -20,7 +20,7 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
     init(
         client: any HTTPClient = URLSessionHTTPClient(
             requestTimeout: 2,
-            sessionLifetime: .rotating(maxAge: 1.5)
+            sessionLifetime: .rotating(maxAge: 0.3)
         ),
         ipv4Endpoint: URL? = nil,
         ipv6Endpoint: URL? = nil,
