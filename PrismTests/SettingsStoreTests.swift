@@ -34,4 +34,11 @@ final class SettingsStoreTests: XCTestCase {
         let reloaded = SettingsStore(defaults: defaults)
         XCTAssertEqual(reloaded.accentColorChoice, .sunsetOrange)
     }
+
+    func testDynamicAccentColorRuntimeInstallation() {
+        DynamicAccentColorRuntime.install()
+        DynamicAccentColorRuntime.apply(choice: .auroraPurple)
+        XCTAssertNotNil(NSColor(named: "AccentColor"))
+        XCTAssertNotNil(NSColor.controlAccentColor)
+    }
 }

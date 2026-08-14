@@ -21,5 +21,24 @@ struct SettingsRootView: View {
         .tint(settings.accentColorChoice.color)
         .accentColor(settings.accentColorChoice.color)
         .id(settings.accentColorChoice)
+        .background(SettingsToolbarSynchronizer(choice: settings.accentColorChoice))
+    }
+}
+
+private struct SettingsToolbarSynchronizer: NSViewRepresentable {
+    let choice: AccentColorChoice
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            DynamicAccentColorRuntime.apply(choice: choice)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            DynamicAccentColorRuntime.apply(choice: choice)
+        }
     }
 }

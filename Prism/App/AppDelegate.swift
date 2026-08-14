@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        DynamicAccentColorRuntime.install()
+        DynamicAccentColorRuntime.apply(choice: environment.settings.accentColorChoice)
         environment.dashboardWindowController = DashboardWindowController(environment: environment)
         statusBarController = StatusBarController(environment: environment)
         installSettingsBridge()

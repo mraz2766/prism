@@ -88,45 +88,49 @@ enum AccentColorChoice: String, CaseIterable, Codable, Identifiable, Sendable {
         }
     }
 
-    var color: Color {
+    var nsColor: NSColor {
         switch self {
         case .prismBlue:
-            Color(nsColor: NSColor(name: nil) { appearance in
+            NSColor(name: nil) { appearance in
                 appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     ? NSColor(red: 0.380, green: 0.620, blue: 0.965, alpha: 1.0)
                     : NSColor(red: 0.188, green: 0.482, blue: 0.933, alpha: 1.0)
-            })
+            }
         case .oceanicTeal:
-            Color(nsColor: NSColor(name: nil) { appearance in
+            NSColor(name: nil) { appearance in
                 appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     ? NSColor(red: 0.18, green: 0.83, blue: 0.75, alpha: 1.0)
                     : NSColor(red: 0.05, green: 0.58, blue: 0.53, alpha: 1.0)
-            })
+            }
         case .sunsetOrange:
-            Color(nsColor: NSColor(name: nil) { appearance in
+            NSColor(name: nil) { appearance in
                 appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     ? NSColor(red: 0.98, green: 0.57, blue: 0.24, alpha: 1.0)
                     : NSColor(red: 0.92, green: 0.35, blue: 0.05, alpha: 1.0)
-            })
+            }
         case .emeraldGreen:
-            Color(nsColor: NSColor(name: nil) { appearance in
+            NSColor(name: nil) { appearance in
                 appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     ? NSColor(red: 0.29, green: 0.87, blue: 0.50, alpha: 1.0)
                     : NSColor(red: 0.09, green: 0.64, blue: 0.29, alpha: 1.0)
-            })
+            }
         case .auroraPurple:
-            Color(nsColor: NSColor(name: nil) { appearance in
+            NSColor(name: nil) { appearance in
                 appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     ? NSColor(red: 0.65, green: 0.55, blue: 0.98, alpha: 1.0)
                     : NSColor(red: 0.49, green: 0.23, blue: 0.93, alpha: 1.0)
-            })
+            }
         case .graphite:
-            Color(nsColor: NSColor(name: nil) { appearance in
+            NSColor(name: nil) { appearance in
                 appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     ? NSColor(red: 0.61, green: 0.64, blue: 0.69, alpha: 1.0)
                     : NSColor(red: 0.29, green: 0.33, blue: 0.39, alpha: 1.0)
-            })
+            }
         }
+    }
+
+    var color: Color {
+        Color(nsColor: nsColor)
     }
 }
 

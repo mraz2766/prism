@@ -11,7 +11,13 @@ final class SettingsStore {
     var menuBarDisplayMode: MenuBarDisplayMode { didSet { persist(); emit() } }
     var customMenuTemplate: String { didSet { persist(); emit() } }
     var appearanceMode: AppearanceMode { didSet { persist(); emit() } }
-    var accentColorChoice: AccentColorChoice { didSet { persist(); emit() } }
+    var accentColorChoice: AccentColorChoice {
+        didSet {
+            persist()
+            emit()
+            DynamicAccentColorRuntime.apply(choice: accentColorChoice)
+        }
+    }
 
     var automaticRefreshEnabled: Bool {
         get { refreshInterval != .networkChangesOnly }
