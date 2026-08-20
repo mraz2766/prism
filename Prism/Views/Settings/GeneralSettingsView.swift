@@ -28,7 +28,7 @@ struct GeneralSettingsView: View {
 
             Section {
                 LabeledContent(String(localized: "Real-time exit detection")) {
-                    Text(String(localized: "Adaptive (1s / 250ms)"))
+                    Text(String(localized: "Automatic (5s / 250ms)"))
                         .foregroundStyle(.secondary)
                 }
 
@@ -46,7 +46,7 @@ struct GeneralSettingsView: View {
             } header: {
                 Text(String(localized: "Refresh & Detection"))
             } footer: {
-                Text(String(localized: "Prism checks once per second while stable and briefly switches to 250 ms confirmation after a possible change."))
+                Text(String(localized: "Prism checks every 5 seconds while stable, briefly switches to 250 ms confirmation after a possible change, and reduces activity in Low Power Mode."))
             }
 
             Section {

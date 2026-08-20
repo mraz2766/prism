@@ -34,8 +34,17 @@ final class AppEnvironment {
     @ObservationIgnored private var started = false
 
     init(isUITesting: Bool = ProcessInfo.processInfo.arguments.contains("--ui-testing")) {
-        settings = SettingsStore()
-        historyStore = NetworkHistoryStore()
+        settings = SettingsStore(defaults: isUITesting ? Self.makeUITestDefaults() : .standard)
+        if isUITesting {
+            historyStore = NetworkHistoryStore(
+                fileURL: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("prism-ui-tests-\(UUID().uuidString).json"),
+                settlingDelay: .zero,
+                initialEntries: [NetworkHistoryEntry(info: .preview)]
+            )
+        } else {
+            historyStore = NetworkHistoryStore()
+        }
         let cache = NetworkInfoCache()
         providerHealth = ProviderHealthRegistry()
         let publicIP: any PublicIPProviding = isUITesting
@@ -79,6 +88,13 @@ final class AppEnvironment {
             settings: settings,
             realtimeExitMonitor: realtimeExitMonitor
         )
+    }
+
+    private static func makeUITestDefaults() -> UserDefaults {
+        let suiteName = "com.mraz.prism.ui-tests.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else { return .standard }
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
     }
 
     func start() {

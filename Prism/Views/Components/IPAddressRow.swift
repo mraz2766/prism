@@ -4,6 +4,7 @@ import SwiftUI
 struct IPAddressRow: View {
     let label: String
     let address: String?
+    var accessibilityIdentifier: String? = nil
     @State private var copied = false
     @State private var isHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -54,6 +55,7 @@ struct IPAddressRow: View {
             .help(String(localized: "Copy IP address"))
             .accessibilityLabel(String(localized: "Copy IP address"))
         }
+        .accessibilityIdentifier(accessibilityIdentifier ?? "")
     }
 
     private func copy() {

@@ -5,8 +5,10 @@ actor RealtimeExitMonitor {
     private let probe: any ExitAddressProbing
     private let lookupService: NetworkLookupService
     private let stableInterval: Duration
+    private let lowPowerInterval: Duration
     private let burstInterval: Duration
     private let burstDuration: Duration
+    private let isLowPowerModeEnabled: @Sendable () -> Bool
     private let clock = ContinuousClock()
     private let logger = Logger(subsystem: "com.mraz.prism", category: "realtime-exit")
 
@@ -22,16 +24,22 @@ actor RealtimeExitMonitor {
     init(
         probe: any ExitAddressProbing,
         lookupService: NetworkLookupService,
-        interval: Duration = .seconds(1),
+        interval: Duration = .seconds(5),
+        lowPowerInterval: Duration = .seconds(15),
         retryBackoff: Duration = .seconds(5),
         burstInterval: Duration = .milliseconds(250),
-        burstDuration: Duration = .seconds(4)
+        burstDuration: Duration = .seconds(2),
+        isLowPowerModeEnabled: @escaping @Sendable () -> Bool = {
+            ProcessInfo.processInfo.isLowPowerModeEnabled
+        }
     ) {
         self.probe = probe
         self.lookupService = lookupService
         self.stableInterval = interval
+        self.lowPowerInterval = lowPowerInterval
         self.burstInterval = burstInterval
         self.burstDuration = burstDuration
+        self.isLowPowerModeEnabled = isLowPowerModeEnabled
         _ = retryBackoff
     }
 
@@ -165,7 +173,7 @@ actor RealtimeExitMonitor {
     }
 
     private var currentInterval: Duration {
-        guard let burstUntil, clock.now < burstUntil else { return stableInterval }
-        return burstInterval
+        if let burstUntil, clock.now < burstUntil { return burstInterval }
+        return isLowPowerModeEnabled() ? lowPowerInterval : stableInterval
     }
 }

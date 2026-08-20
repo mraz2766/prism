@@ -9,7 +9,7 @@ final class PopoverHost {
         popover = NSPopover()
         popover.behavior = .applicationDefined
         popover.animates = false
-        popover.contentSize = NSSize(width: 360, height: 450)
+        popover.contentSize = NSSize(width: 360, height: 300)
         let controller = NSHostingController(
             rootView: MenuBarPopoverView()
                 .environment(environment)

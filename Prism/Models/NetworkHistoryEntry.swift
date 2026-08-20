@@ -27,6 +27,12 @@ struct NetworkHistoryEntry: Codable, Equatable, Sendable, Identifiable {
         asn == info.network.asn
     }
 
+    func representsSameExit(as entry: NetworkHistoryEntry) -> Bool {
+        addresses == entry.addresses &&
+        countryCode == entry.countryCode &&
+        asn == entry.asn
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, recordedAt, addresses, countryCode, city, asn, routeMode, exitSource
     }

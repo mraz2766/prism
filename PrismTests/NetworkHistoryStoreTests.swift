@@ -6,7 +6,7 @@ final class NetworkHistoryStoreTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let url = directory.appendingPathComponent("history.json")
-        let store = NetworkHistoryStore(fileURL: url, maximumEntries: 2)
+        let store = NetworkHistoryStore(fileURL: url, maximumEntries: 2, settlingDelay: .zero)
 
         let recordedBaseline = await store.recordIfChanged(.preview)
         let recordedDuplicate = await store.recordIfChanged(.preview)
@@ -67,6 +67,62 @@ final class NetworkHistoryStoreTests: XCTestCase {
         XCTAssertEqual(entries.count, 1)
         XCTAssertEqual(entries.first?.routeMode, .unknown)
         XCTAssertEqual(entries.first?.exitSource, .unknown)
+    }
+
+    func testTransientExitChangeIsDiscardedWhenOriginalExitReturns() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let store = NetworkHistoryStore(
+            fileURL: directory.appendingPathComponent("history.json"),
+            settlingDelay: .milliseconds(30)
+        )
+        let baseline = NetworkInfo.preview
+        let transient = changedInfo(ip: "203.0.113.20")
+
+        let recordedBaseline = await store.recordIfChanged(baseline)
+        let acceptedTransient = await store.recordIfChanged(transient)
+        let acceptedReturn = await store.recordIfChanged(baseline)
+        XCTAssertTrue(recordedBaseline)
+        XCTAssertTrue(acceptedTransient)
+        XCTAssertFalse(acceptedReturn)
+        try await Task.sleep(for: .milliseconds(50))
+
+        let entries = await store.snapshot()
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.addresses, baseline.addresses)
+    }
+
+    func testStableExitChangeCommitsAfterSettlingDelay() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let store = NetworkHistoryStore(
+            fileURL: directory.appendingPathComponent("history.json"),
+            settlingDelay: .milliseconds(20)
+        )
+        let changed = changedInfo(ip: "203.0.113.20")
+
+        let recordedBaseline = await store.recordIfChanged(.preview)
+        let acceptedChange = await store.recordIfChanged(changed)
+        let pendingCount = await store.snapshot().count
+        XCTAssertTrue(recordedBaseline)
+        XCTAssertTrue(acceptedChange)
+        XCTAssertEqual(pendingCount, 1)
+        try await Task.sleep(for: .milliseconds(40))
+
+        let entries = await store.snapshot()
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries.last?.addresses, changed.addresses)
+    }
+
+    private func changedInfo(ip: String) -> NetworkInfo {
+        NetworkInfo(
+            addresses: IPAddressSet(ipv4: ip, ipv6: nil),
+            location: NetworkInfo.preview.location,
+            network: NetworkInfo.preview.network,
+            privacy: .unavailable,
+            providerIdentifier: "test",
+            checkedAt: .now
+        )
     }
 }
 

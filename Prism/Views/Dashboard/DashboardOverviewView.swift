@@ -13,6 +13,7 @@ struct DashboardOverviewView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(String(localized: "Network Exit"))
                                 .font(.title2.weight(.semibold))
+                                .accessibilityIdentifier("dashboard.network-exit-title")
                             Text(String(localized: "Your current public route to the internet"))
                                 .foregroundStyle(.secondary)
                         }

@@ -4,17 +4,28 @@ import OSLog
 actor NetworkHistoryStore {
     private let fileURL: URL
     private let maximumEntries: Int
+    private let settlingDelay: Duration
     private var entries: [NetworkHistoryEntry]
+    private var pendingEntry: PendingEntry?
+    private var pendingTask: Task<Void, Never>?
     private var continuations: [UUID: AsyncStream<[NetworkHistoryEntry]>.Continuation] = [:]
     private let logger = Logger(subsystem: "com.mraz.prism", category: "history")
 
-    init(fileURL: URL? = nil, maximumEntries: Int = 100) {
-        self.fileURL = fileURL ?? Self.defaultURL()
+    init(
+        fileURL: URL? = nil,
+        maximumEntries: Int = 100,
+        settlingDelay: Duration = .seconds(3),
+        initialEntries: [NetworkHistoryEntry]? = nil
+    ) {
+        let resolvedURL = fileURL ?? Self.defaultURL()
+        let loadedEntries = initialEntries ?? Self.load(from: resolvedURL)
+        let trimmedEntries = loadedEntries.count > maximumEntries
+            ? Array(loadedEntries.suffix(maximumEntries))
+            : loadedEntries
+        self.fileURL = resolvedURL
         self.maximumEntries = maximumEntries
-        self.entries = Self.load(from: self.fileURL)
-        if entries.count > maximumEntries {
-            entries = Array(entries.suffix(maximumEntries))
-        }
+        self.settlingDelay = settlingDelay
+        self.entries = trimmedEntries
     }
 
     nonisolated func stream() -> AsyncStream<[NetworkHistoryEntry]> {
@@ -31,20 +42,64 @@ actor NetworkHistoryStore {
 
     @discardableResult
     func recordIfChanged(_ info: NetworkInfo, at date: Date = .now) -> Bool {
-        if let last = entries.last, last.representsSameExit(as: info) { return false }
-        entries.append(NetworkHistoryEntry(recordedAt: date, info: info))
+        if let last = entries.last, last.representsSameExit(as: info) {
+            cancelPendingEntry()
+            return false
+        }
+        if let pendingEntry, pendingEntry.entry.representsSameExit(as: info) {
+            return false
+        }
+
+        let entry = NetworkHistoryEntry(recordedAt: date, info: info)
+        guard !entries.isEmpty, settlingDelay > .zero else {
+            cancelPendingEntry()
+            commit(entry)
+            return true
+        }
+
+        cancelPendingEntry()
+        let id = UUID()
+        pendingEntry = PendingEntry(id: id, entry: entry)
+        let delay = settlingDelay
+        pendingTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: delay)
+            } catch {
+                return
+            }
+            await self?.commitPendingEntry(id: id)
+        }
+        return true
+    }
+
+    private func commit(_ entry: NetworkHistoryEntry) {
+        entries.append(entry)
         if entries.count > maximumEntries {
             entries.removeFirst(entries.count - maximumEntries)
         }
         persist()
         emit()
-        return true
     }
 
     func clear() {
+        cancelPendingEntry()
         entries.removeAll()
         persist()
         emit()
+    }
+
+    private func commitPendingEntry(id: UUID) {
+        guard let pendingEntry, pendingEntry.id == id else { return }
+        self.pendingEntry = nil
+        pendingTask = nil
+        guard entries.last?.representsSameExit(as: pendingEntry.entry) != true else { return }
+        commit(pendingEntry.entry)
+    }
+
+    private func cancelPendingEntry() {
+        pendingTask?.cancel()
+        pendingTask = nil
+        pendingEntry = nil
     }
 
     private func register(id: UUID, continuation: AsyncStream<[NetworkHistoryEntry]>.Continuation) {
@@ -88,5 +143,10 @@ actor NetworkHistoryStore {
         )) ?? FileManager.default.temporaryDirectory
         return base.appendingPathComponent("Prism", isDirectory: true)
             .appendingPathComponent("network-history.json")
+    }
+
+    private struct PendingEntry {
+        let id: UUID
+        let entry: NetworkHistoryEntry
     }
 }

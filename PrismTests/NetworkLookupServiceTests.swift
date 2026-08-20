@@ -13,7 +13,10 @@ final class NetworkLookupServiceTests: XCTestCase {
             geoProvider: geo,
             privacyProvider: privacy,
             cache: NetworkInfoCache(directory: directory),
-            history: NetworkHistoryStore(fileURL: directory.appendingPathComponent("history.json"))
+            history: NetworkHistoryStore(
+                fileURL: directory.appendingPathComponent("history.json"),
+                settlingDelay: .zero
+            )
         )
 
         async let first = service.refresh()
@@ -39,7 +42,10 @@ final class NetworkLookupServiceTests: XCTestCase {
             geoProvider: CountingGeoProvider(),
             privacyProvider: CountingPrivacyProvider(),
             cache: cache,
-            history: NetworkHistoryStore(fileURL: directory.appendingPathComponent("history.json"))
+            history: NetworkHistoryStore(
+                fileURL: directory.appendingPathComponent("history.json"),
+                settlingDelay: .zero
+            )
         )
 
         let initial = await service.snapshot()
@@ -69,7 +75,10 @@ final class NetworkLookupServiceTests: XCTestCase {
             geoProvider: geo,
             privacyProvider: privacy,
             cache: NetworkInfoCache(directory: directory),
-            history: NetworkHistoryStore(fileURL: directory.appendingPathComponent("history.json"))
+            history: NetworkHistoryStore(
+                fileURL: directory.appendingPathComponent("history.json"),
+                settlingDelay: .zero
+            )
         )
 
         _ = await service.refresh()
@@ -122,7 +131,10 @@ final class NetworkLookupServiceTests: XCTestCase {
             geoProvider: CountingGeoProvider(),
             privacyProvider: CountingPrivacyProvider(),
             cache: NetworkInfoCache(directory: directory),
-            history: NetworkHistoryStore(fileURL: directory.appendingPathComponent("history.json")),
+            history: NetworkHistoryStore(
+                fileURL: directory.appendingPathComponent("history.json"),
+                settlingDelay: .zero
+            ),
             hardTimeout: hardTimeout
         )
     }

@@ -18,18 +18,13 @@ struct MenuBarPopoverView: View {
                     .contentTransition(.opacity)
                 SectionCard(horizontalPadding: 14, verticalPadding: 12) {
                     VStack(spacing: 12) {
-                        IPAddressRow(label: String(localized: "Public IPv4"), address: info.addresses.ipv4)
+                        IPAddressRow(
+                            label: String(localized: "Public IPv4"),
+                            address: info.addresses.ipv4,
+                            accessibilityIdentifier: "popover.ipv4-row"
+                        )
                         Divider()
                         IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
-                    }
-                }
-                SectionCard(horizontalPadding: 14, verticalPadding: 12) {
-                    VStack(spacing: 10) {
-                        InfoRow(label: String(localized: "ISP"), value: info.network.isp ?? String(localized: "Unavailable"))
-                        InfoRow(label: String(localized: "ASN"), value: info.network.asnLabel ?? String(localized: "Unavailable"), monospaced: true)
-                        InfoRow(label: String(localized: "Organization"), value: info.network.organization ?? String(localized: "Unavailable"))
-                        InfoRow(label: String(localized: "Timezone"), value: info.location.timezone ?? String(localized: "Unavailable"))
-                        InfoRow(label: String(localized: "Proxy or VPN"), value: privacyLabel(info.privacy))
                     }
                 }
                 if case .stale(_, let reason) = status {
@@ -76,6 +71,17 @@ struct MenuBarPopoverView: View {
             }
             Spacer()
             PopoverActionButton(
+                systemName: "arrow.up.right.square",
+                help: String(localized: "Open Details")
+            ) {
+                NotificationCenter.default.post(name: .prismClosePopover, object: nil)
+                Task { @MainActor in
+                    await Task.yield()
+                    environment.showDashboard(.overview)
+                }
+            }
+
+            PopoverActionButton(
                 systemName: "arrow.clockwise",
                 help: String(localized: "Refresh"),
                 shortcutKey: "r",
@@ -110,13 +116,6 @@ struct MenuBarPopoverView: View {
         }
     }
 
-    private func privacyLabel(_ value: PrivacyClassification) -> String {
-        switch value {
-        case .suspected: String(localized: "Suspected")
-        case .notDetected: String(localized: "Not detected")
-        case .unavailable: String(localized: "Unavailable")
-        }
-    }
 }
 
 private struct PopoverActionButton: View {

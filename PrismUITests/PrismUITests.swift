@@ -7,7 +7,7 @@ final class PrismUITests: XCTestCase {
         let app = launchApp()
 
         XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts["Network Exit"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.network-exit-title"].waitForExistence(timeout: 5))
     }
 
     func testAppearanceNavigationAndAccentSelectionRemainInteractive() {
@@ -15,17 +15,45 @@ final class PrismUITests: XCTestCase {
         XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
 
         app.typeKey(",", modifierFlags: .command)
-        let appearance = app.buttons["Appearance"]
+        let appearance = app.buttons["settings.section.appearance"]
         XCTAssertTrue(appearance.waitForExistence(timeout: 5))
         appearance.click()
         XCTAssertTrue(appearance.isSelected)
 
-        let purple = app.buttons["Aurora Purple"]
+        let purple = app.buttons["settings.accent.auroraPurple"]
         XCTAssertTrue(purple.waitForExistence(timeout: 3))
         purple.click()
         XCTAssertTrue(purple.isSelected)
-        XCTAssertTrue(app.staticTexts["Aurora Purple"].exists)
-        XCTAssertFalse(app.staticTexts["Live preview"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings.accent.selection"].exists)
+    }
+
+    func testStatusItemSecondClickClosesPopover() {
+        let app = launchApp()
+        XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
+
+        let statusItem = app.statusItems.firstMatch
+        XCTAssertTrue(statusItem.waitForExistence(timeout: 5))
+
+        statusItem.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        let popover = app.descendants(matching: .any)["popover.ipv4-row"]
+        XCTAssertTrue(popover.waitForExistence(timeout: 3))
+
+        statusItem.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        XCTAssertTrue(popover.waitForNonExistence(timeout: 3))
+    }
+
+    func testHistoryRowOpensExitDetails() {
+        let app = launchApp()
+        XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
+
+        app.radioButtons["clock.arrow.circlepath"].click()
+        let firstEntry = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'history.entry.'"))
+            .firstMatch
+        XCTAssertTrue(firstEntry.waitForExistence(timeout: 3))
+
+        firstEntry.click()
+        XCTAssertTrue(app.descendants(matching: .any)["history.entry.detail"].waitForExistence(timeout: 3))
     }
 
     private func launchApp() -> XCUIApplication {

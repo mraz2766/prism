@@ -136,7 +136,8 @@ final class RealtimeExitMonitorTests: XCTestCase {
             lookupService: harness.lookup,
             interval: .milliseconds(10),
             burstInterval: .milliseconds(5),
-            burstDuration: .milliseconds(30)
+            burstDuration: .milliseconds(30),
+            isLowPowerModeEnabled: { false }
         )
 
         await monitor.start()
@@ -148,6 +149,27 @@ final class RealtimeExitMonitorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(callsAtStop, 2)
         let callsAfterStop = await probe.callCount
         XCTAssertEqual(callsAfterStop, callsAtStop)
+    }
+
+    func testLowPowerModeUsesSlowerStableInterval() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let probe = CountingObservationProbe(observation: observation(ip: "203.0.113.10", route: .proxy))
+        let monitor = RealtimeExitMonitor(
+            probe: probe,
+            lookupService: harness.lookup,
+            interval: .milliseconds(5),
+            lowPowerInterval: .milliseconds(60),
+            burstInterval: .milliseconds(2),
+            burstDuration: .zero,
+            isLowPowerModeEnabled: { true }
+        )
+
+        await monitor.start()
+        try await Task.sleep(for: .milliseconds(30))
+        await monitor.stop()
+
+        let callCount = await probe.callCount
+        XCTAssertEqual(callCount, 1)
     }
 
     func testConcurrentPollRequestsShareOneProbe() async throws {
@@ -173,7 +195,10 @@ final class RealtimeExitMonitorTests: XCTestCase {
         cache.saveInfo(cached)
         let publicIP = CountingPublicIPProvider(addresses: cached.addresses)
         let geo = CountingGeoProvider()
-        let history = NetworkHistoryStore(fileURL: directory.appendingPathComponent("history.json"))
+        let history = NetworkHistoryStore(
+            fileURL: directory.appendingPathComponent("history.json"),
+            settlingDelay: .zero
+        )
         let lookup = NetworkLookupService(
             publicIPProvider: publicIP,
             geoProvider: geo,

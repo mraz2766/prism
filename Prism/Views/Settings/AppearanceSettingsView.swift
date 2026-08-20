@@ -29,6 +29,7 @@ struct AppearanceSettingsView: View {
                     Text(settings.accentColorChoice.label)
                         .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("settings.accent.selection")
                 }
                 .padding(.vertical, 3)
             }
@@ -81,5 +82,6 @@ private struct CompactAccentColorDot: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isSelected)
         .help(choice.label)
         .accessibilityLabel(choice.label)
+        .accessibilityIdentifier("settings.accent.\(choice.rawValue)")
     }
 }

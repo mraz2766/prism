@@ -104,6 +104,7 @@ private struct SettingsNavigationBar: View {
                 .buttonStyle(.plain)
                 .focused($focusedSection, equals: section)
                 .accessibilityLabel(section.title)
+                .accessibilityIdentifier("settings.section.\(section.rawValue)")
                 .accessibilityValue(isSelected ? String(localized: "Selected") : "")
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }

@@ -4,28 +4,55 @@ struct HistoryView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var entries: [NetworkHistoryEntry] = []
     @State private var confirmsClear = false
+    @State private var selectedEntryID: UUID?
 
     var body: some View {
-        Group {
-            if entries.isEmpty {
-                ContentUnavailableView(
-                    String(localized: "No exit history"),
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text(String(localized: "Prism records a new item when the public IP, country, or ASN changes."))
-                )
-            } else {
-                List {
-                    ForEach(sections) { section in
-                        Section(section.title) {
-                            ForEach(section.entries) { entry in
-                                HistoryRow(displayEntry: entry)
+        ZStack {
+            Group {
+                if entries.isEmpty {
+                    ContentUnavailableView(
+                        String(localized: "No exit history"),
+                        systemImage: "clock.arrow.circlepath",
+                        description: Text(String(localized: "Prism records a new item when the public IP, country, or ASN changes."))
+                    )
+                } else {
+                    List(selection: $selectedEntryID) {
+                        ForEach(sections) { section in
+                            Section(section.title) {
+                                ForEach(section.entries) { entry in
+                                    HistoryRow(displayEntry: entry)
+                                        .tag(entry.current.id)
+                                        .accessibilityIdentifier("history.entry.\(entry.current.id.uuidString)")
+                                        .accessibilityHint(String(localized: "View exit details"))
+                                        .accessibilityAddTraits(.isButton)
+                                }
                             }
                         }
                     }
+                    .listStyle(.inset)
                 }
-                .listStyle(.inset)
+            }
+
+            if let selectedEntry {
+                Color.black.opacity(0.10)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture { selectedEntryID = nil }
+
+                HistoryEntryDetailView(entry: selectedEntry) {
+                    selectedEntryID = nil
+                }
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5))
+                )
+                .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+                .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }
         }
+        .animation(.easeOut(duration: 0.14), value: selectedEntryID)
+        .onExitCommand { selectedEntryID = nil }
         .navigationTitle(String(localized: "Exit History"))
         .safeAreaInset(edge: .bottom) {
             if !entries.isEmpty {
@@ -55,6 +82,10 @@ struct HistoryView: View {
                 entries = values.sorted { $0.recordedAt > $1.recordedAt }
             }
         }
+    }
+
+    private var selectedEntry: NetworkHistoryEntry? {
+        entries.first { $0.id == selectedEntryID }
     }
 
     private var sections: [HistorySection] {
@@ -152,6 +183,10 @@ private struct HistoryRow: View {
             Text(entry.recordedAt, style: .time)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
@@ -172,5 +207,66 @@ private struct HistoryRow: View {
         let previousLocation = previous.city.map { "\(previousCountry) · \($0)" } ?? previousCountry
         guard previousLocation != location else { return nil }
         return previousLocation
+    }
+}
+
+private struct HistoryEntryDetailView: View {
+    let entry: NetworkHistoryEntry
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 14) {
+                Text(CountryFlag.emoji(for: entry.countryCode) ?? "◎")
+                    .font(.system(size: 34))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(location)
+                        .font(.title3.weight(.semibold))
+                        .accessibilityIdentifier("history.entry.detail")
+                    Text(entry.recordedAt.formatted(date: .abbreviated, time: .standard))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Divider()
+
+            Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 12) {
+                detailRow(String(localized: "Public IPv4"), entry.addresses.ipv4 ?? "—", monospaced: true)
+                detailRow(String(localized: "Public IPv6"), entry.addresses.ipv6 ?? "—", monospaced: true)
+                detailRow(String(localized: "ASN"), entry.asn.map { "AS\($0)" } ?? "—", monospaced: true)
+                detailRow(String(localized: "Route"), entry.routeMode.label)
+                detailRow(String(localized: "Probe source"), entry.exitSource.label)
+            }
+
+            HStack {
+                Spacer()
+                Button(String(localized: "Close"), action: onClose)
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 440)
+    }
+
+    @ViewBuilder
+    private func detailRow(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
+        GridRow {
+            Text(label)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(monospaced ? .system(.callout, design: .monospaced) : .callout)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var location: String {
+        let country = Locale.autoupdatingCurrent.localizedString(forRegionCode: entry.countryCode) ?? entry.countryCode
+        guard let city = entry.city, !city.isEmpty else { return country }
+        return "\(country) · \(city)"
     }
 }
