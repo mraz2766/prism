@@ -147,9 +147,13 @@ struct MenuBarSettingsView: View {
             CountryFlagView(
                 countryCode: countryCode,
                 style: settings.countryFlagStyle,
-                diameter: 14,
-                containerSize: CGSize(width: 16, height: 16)
+                diameter: 16,
+                containerSize: CGSize(width: 18, height: 18)
             )
+        case .emoji(let countryCode):
+            Text(CountryFlag.emoji(for: countryCode) ?? "◎")
+                .font(.system(size: 14))
+                .frame(width: 20, height: 18)
         case .systemSymbol(let name):
             Image(systemName: name)
                 .font(.system(size: 12, weight: .medium))

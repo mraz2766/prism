@@ -26,7 +26,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .flag(countryCode: "CN")))
     }
 
-    func testEmojiFlagAndCodeStaysTextOnly() {
+    func testEmojiFlagAndCodeUsesImageIndicator() {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .flagAndCode,
@@ -34,7 +34,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
             customTemplate: ""
         )
 
-        XCTAssertEqual(value, MenuBarPresentation(title: "🇨🇳 CN", indicator: .none))
+        XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .emoji(countryCode: "CN")))
     }
 
     func testRouteAndCodeUsesCurrentRouteSymbol() {

@@ -3,6 +3,7 @@ import Foundation
 enum MenuBarIndicator: Equatable {
     case none
     case flag(countryCode: String)
+    case emoji(countryCode: String)
     case systemSymbol(name: String)
 }
 
@@ -30,7 +31,6 @@ enum MenuBarLabelRenderer {
         }
 
         let code = info.location.countryCode.uppercased()
-        let flag = CountryFlag.emoji(for: code) ?? "◎"
         let country = info.location.localizedCountry(locale: locale)
         let city = compactCityName(info.location.city, fallback: code)
         let statusGlyph = glyph(for: status)
@@ -48,7 +48,8 @@ enum MenuBarLabelRenderer {
         switch mode {
         case .flagAndCode:
             if flagStyle == .emoji {
-                value = "\(flag) \(code)"
+                indicator = .emoji(countryCode: code)
+                value = code
             } else {
                 indicator = .flag(countryCode: code)
                 value = code
@@ -76,7 +77,10 @@ enum MenuBarLabelRenderer {
             }
             let flagValue: String
             if flagStyle == .emoji {
-                flagValue = flag
+                flagValue = ""
+                if customTemplate.contains("{flag}") {
+                    indicator = .emoji(countryCode: code)
+                }
             } else {
                 flagValue = ""
                 if customTemplate.contains("{flag}") {

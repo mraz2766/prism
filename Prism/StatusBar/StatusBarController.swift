@@ -107,6 +107,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
                 for: countryCode,
                 style: environment.settings.countryFlagStyle
             )
+        case .emoji(let countryCode):
+            button.image = menuBarEmojiImage(for: countryCode)
         case .systemSymbol(let name):
             let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
             image?.isTemplate = true
@@ -129,20 +131,28 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     private func menuBarFlagImage(for countryCode: String, style: CountryFlagStyle) -> NSImage? {
         if style == .cartoon {
-            guard let source = CountryFlag.cartoonImage(for: countryCode),
-                  let image = source.copy() as? NSImage else { return nil }
-            image.size = NSSize(width: 18, height: 18)
+            guard let source = CountryFlag.cartoonImage(for: countryCode) else { return nil }
+            let size = NSSize(width: 18, height: 18)
+            let image = NSImage(size: size, flipped: false) { rect in
+                source.draw(
+                    in: NSRect(x: 1, y: 3, width: 16, height: 12),
+                    from: NSRect(x: 3, y: 15, width: 66, height: 42),
+                    operation: .sourceOver,
+                    fraction: 1
+                )
+                return true
+            }
             image.isTemplate = false
             return image
         }
 
         guard let source = CountryFlag.image(for: countryCode) else { return nil }
-        let size = NSSize(width: 17, height: 17)
+        let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.separatorColor.withAlphaComponent(0.58).setFill()
             NSBezierPath(ovalIn: rect).fill()
             source.draw(
-                in: rect.insetBy(dx: 0.8, dy: 0.8),
+                in: rect.insetBy(dx: 1, dy: 1),
                 from: .zero,
                 operation: .sourceOver,
                 fraction: 1
@@ -151,6 +161,28 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         }
         image.isTemplate = false
         return image
+    }
+
+    private func menuBarEmojiImage(for countryCode: String) -> NSImage? {
+        guard let emoji = CountryFlag.emoji(for: countryCode) else { return nil }
+        let size = NSSize(width: 20, height: 18)
+        let attributed = NSAttributedString(
+            string: emoji,
+            attributes: [.font: NSFont.systemFont(ofSize: 14)]
+        )
+        let textSize = attributed.size()
+        return NSImage(size: size, flipped: false) { _ in
+            let origin = NSPoint(
+                x: Self.pixelAligned((size.width - textSize.width) / 2),
+                y: Self.pixelAligned((size.height - textSize.height) / 2)
+            )
+            attributed.draw(at: origin)
+            return true
+        }
+    }
+
+    private static func pixelAligned(_ value: CGFloat) -> CGFloat {
+        (value * 2).rounded() / 2
     }
 
     private func observeChanges() {

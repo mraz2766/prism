@@ -41,17 +41,21 @@ struct CountryFlagView: View {
             switch style {
             case .emoji:
                 Text(CountryFlag.emoji(for: countryCode) ?? "◎")
-                    .font(.system(size: min(containerSize.width, containerSize.height) * 0.68))
+                    .font(.system(size: emojiFontSize))
             case .sticker:
                 ZStack {
                     Circle()
                         .fill(Color.accentColor.opacity(0.12))
                     Circle()
                         .fill(Color(nsColor: .controlBackgroundColor))
-                        .padding(max(2, min(containerSize.width, containerSize.height) * 0.08))
+                        .padding(pixelAligned(max(2, min(containerSize.width, containerSize.height) * 0.08)))
                     circleFlag
                 }
-                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                .shadow(
+                    color: .black.opacity(isCompact ? 0 : 0.08),
+                    radius: isCompact ? 0 : 2,
+                    y: isCompact ? 0 : 1
+                )
             case .cartoon:
                 cartoonFlag
             }
@@ -66,16 +70,27 @@ struct CountryFlagView: View {
             ZStack(alignment: .bottomLeading) {
                 Capsule()
                     .fill(Color(nsColor: .secondaryLabelColor).opacity(0.65))
-                    .frame(width: max(1.5, diameter * 0.055), height: diameter * 0.72)
-                    .offset(x: diameter * 0.08, y: diameter * 0.06)
+                    .frame(
+                        width: pixelAligned(max(1.5, diameter * 0.055)),
+                        height: pixelAligned(diameter * 0.72)
+                    )
+                    .offset(
+                        x: pixelAligned(diameter * 0.08),
+                        y: pixelAligned(diameter * 0.06)
+                    )
 
                 Image(nsImage: image)
                     .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(1, contentMode: .fit)
-                    .frame(width: diameter, height: diameter)
-                    .rotationEffect(.degrees(-4), anchor: .bottomLeading)
-                    .shadow(color: .black.opacity(0.14), radius: 1.5, y: 1)
+                    .interpolation(.medium)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: diameter, height: pixelAligned(diameter * 0.64))
+                    .clipped()
+                    .rotationEffect(.degrees(isCompact ? 0 : -3), anchor: .bottomLeading)
+                    .shadow(
+                        color: .black.opacity(isCompact ? 0 : 0.12),
+                        radius: isCompact ? 0 : 1,
+                        y: isCompact ? 0 : 1
+                    )
             }
             .frame(width: diameter, height: diameter)
         } else {
@@ -88,7 +103,7 @@ struct CountryFlagView: View {
         if let image = CountryFlag.image(for: countryCode) {
             Image(nsImage: image)
                 .resizable()
-                .interpolation(.high)
+                .interpolation(.medium)
                 .aspectRatio(1, contentMode: .fit)
                 .frame(width: diameter, height: diameter)
                 .clipShape(Circle())
@@ -110,6 +125,18 @@ struct CountryFlagView: View {
     private var accessibilityCountryName: String {
         let code = CountryFlag.normalizedCode(countryCode) ?? countryCode
         return Locale.autoupdatingCurrent.localizedString(forRegionCode: code) ?? code
+    }
+
+    private var isCompact: Bool {
+        min(containerSize.width, containerSize.height) <= 32
+    }
+
+    private var emojiFontSize: CGFloat {
+        (min(containerSize.width, containerSize.height) * 0.68).rounded()
+    }
+
+    private func pixelAligned(_ value: CGFloat) -> CGFloat {
+        (value * 2).rounded() / 2
     }
 }
 
