@@ -66,14 +66,14 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
     }
 
     static let preview = NetworkInfo(
-        addresses: IPAddressSet(ipv4: "103.21.244.8", ipv6: "2400:cb00:2048:1::c629:d7a2"),
+        addresses: IPAddressSet(ipv4: "203.0.113.8", ipv6: "2001:db8::8"),
         location: LocationInfo(
-            countryCode: "JP",
-            region: "Tokyo",
-            city: "Tokyo",
-            timezone: "Asia/Tokyo",
-            latitude: 35.6762,
-            longitude: 139.6503
+            countryCode: "CN",
+            region: "Shanghai",
+            city: "Shanghai",
+            timezone: "Asia/Shanghai",
+            latitude: 31.2304,
+            longitude: 121.4737
         ),
         network: NetworkIdentity(
             isp: "Example Network",
@@ -81,8 +81,10 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
             organization: "Example Organization",
             networkType: "ISP"
         ),
-        privacy: .suspected,
-        providerIdentifier: "ipwho.is",
+        privacy: .notDetected,
+        providerIdentifier: "preview",
+        routeMode: .direct,
+        exitSource: .domesticFallback,
         checkedAt: .now
     )
 }

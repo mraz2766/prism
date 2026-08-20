@@ -15,15 +15,15 @@ final class MenuBarLabelRendererTests: XCTestCase {
         }
     }
 
-    func testCircleFlagAndCodeUsesImageIndicator() {
+    func testStickerFlagAndCodeUsesImageIndicator() {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .flagAndCode,
-            flagStyle: .circle,
+            flagStyle: .sticker,
             customTemplate: ""
         )
 
-        XCTAssertEqual(value, MenuBarPresentation(title: "JP", indicator: .flag(countryCode: "JP")))
+        XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .flag(countryCode: "CN")))
     }
 
     func testEmojiFlagAndCodeStaysTextOnly() {
@@ -34,7 +34,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
             customTemplate: ""
         )
 
-        XCTAssertEqual(value, MenuBarPresentation(title: "🇯🇵 JP", indicator: .none))
+        XCTAssertEqual(value, MenuBarPresentation(title: "🇨🇳 CN", indicator: .none))
     }
 
     func testRouteAndCodeUsesCurrentRouteSymbol() {
@@ -45,8 +45,8 @@ final class MenuBarLabelRendererTests: XCTestCase {
             customTemplate: ""
         )
 
-        XCTAssertEqual(value.title, "JP")
-        XCTAssertEqual(value.indicator, .systemSymbol(name: "network"))
+        XCTAssertEqual(value.title, "CN")
+        XCTAssertEqual(value.indicator, .systemSymbol(name: "point.3.connected.trianglepath.dotted"))
     }
 
     func testIconOnlyUsesCurrentRouteSymbolWithoutTitle() {
@@ -58,7 +58,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         )
 
         XCTAssertEqual(value.title, "")
-        XCTAssertEqual(value.indicator, .systemSymbol(name: "network"))
+        XCTAssertEqual(value.indicator, .systemSymbol(name: "point.3.connected.trianglepath.dotted"))
     }
 
     func testInvalidCustomTemplateFallsBackToDefault() {
@@ -70,14 +70,14 @@ final class MenuBarLabelRendererTests: XCTestCase {
             locale: Locale(identifier: "en_US")
         )
 
-        XCTAssertEqual(value, MenuBarPresentation(title: "JP", indicator: .flag(countryCode: "JP")))
+        XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .flag(countryCode: "CN")))
     }
 
     func testOfflineWithoutCacheIsExplicit() {
         let value = MenuBarLabelRenderer.presentation(
             status: .offline(previous: nil),
             mode: .flagAndCode,
-            flagStyle: .circle,
+            flagStyle: .sticker,
             customTemplate: ""
         )
 
@@ -104,11 +104,11 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .custom,
-            flagStyle: .circle,
+            flagStyle: .sticker,
             customTemplate: "{city}"
         )
 
-        XCTAssertEqual(value, MenuBarPresentation(title: "Tokyo", indicator: .none))
+        XCTAssertEqual(value, MenuBarPresentation(title: "SH", indicator: .none))
     }
 
     func testCustomStickerFlagTokenUsesImageIndicator() {
@@ -119,7 +119,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
             customTemplate: "{flag} {code}"
         )
 
-        XCTAssertEqual(value, MenuBarPresentation(title: "JP", indicator: .flag(countryCode: "JP")))
+        XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .flag(countryCode: "CN")))
     }
 
     func testLongMultiwordCityUsesInitials() {

@@ -34,18 +34,21 @@ final class AppEnvironment {
     @ObservationIgnored private var started = false
 
     init(isUITesting: Bool = ProcessInfo.processInfo.arguments.contains("--ui-testing")) {
+        let uiTestDirectory = isUITesting
+            ? FileManager.default.temporaryDirectory
+                .appendingPathComponent("prism-ui-tests-\(UUID().uuidString)", isDirectory: true)
+            : nil
         settings = SettingsStore(defaults: isUITesting ? Self.makeUITestDefaults() : .standard)
         if isUITesting {
             historyStore = NetworkHistoryStore(
-                fileURL: FileManager.default.temporaryDirectory
-                    .appendingPathComponent("prism-ui-tests-\(UUID().uuidString).json"),
+                fileURL: uiTestDirectory!.appendingPathComponent("history.json"),
                 settlingDelay: .zero,
                 initialEntries: [NetworkHistoryEntry(info: .preview)]
             )
         } else {
             historyStore = NetworkHistoryStore()
         }
-        let cache = NetworkInfoCache()
+        let cache = NetworkInfoCache(directory: uiTestDirectory)
         providerHealth = ProviderHealthRegistry()
         let publicIP: any PublicIPProviding = isUITesting
             ? PreviewPublicIPProvider()

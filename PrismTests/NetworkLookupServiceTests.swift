@@ -32,7 +32,7 @@ final class NetworkLookupServiceTests: XCTestCase {
         XCTAssertEqual(privacyCalls, 1)
     }
 
-    func testFailedRefreshKeepsCachedInformationAsStale() async throws {
+    func testStartupHidesCachedInformationUntilARefreshFails() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let cache = NetworkInfoCache(directory: directory)
@@ -49,10 +49,9 @@ final class NetworkLookupServiceTests: XCTestCase {
         )
 
         let initial = await service.snapshot()
-        guard case .stale(let cached, _) = initial else {
-            return XCTFail("Cached data must never be presented as fresh")
-        }
-        XCTAssertEqual(cached.addresses, NetworkInfo.preview.addresses)
+        let cachedForComparison = await service.comparisonInfo()
+        XCTAssertEqual(initial, .idle, "Startup must not flash a previous country")
+        XCTAssertEqual(cachedForComparison?.addresses, NetworkInfo.preview.addresses)
 
         let refreshed = await service.refresh(showLoading: true)
         guard case .stale(let retained, let reason) = refreshed else {

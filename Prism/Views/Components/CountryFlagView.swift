@@ -22,7 +22,11 @@ enum CountryFlag {
     }
 
     static func image(for countryCode: String) -> NSImage? {
-        CountryFlagImageCache.shared.image(for: countryCode)
+        CountryFlagImageCache.shared.image(for: countryCode, source: .circle)
+    }
+
+    static func cartoonImage(for countryCode: String) -> NSImage? {
+        CountryFlagImageCache.shared.image(for: countryCode, source: .cartoon)
     }
 }
 
@@ -38,8 +42,6 @@ struct CountryFlagView: View {
             case .emoji:
                 Text(CountryFlag.emoji(for: countryCode) ?? "◎")
                     .font(.system(size: min(containerSize.width, containerSize.height) * 0.68))
-            case .circle:
-                circleFlag
             case .sticker:
                 ZStack {
                     Circle()
@@ -50,10 +52,35 @@ struct CountryFlagView: View {
                     circleFlag
                 }
                 .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+            case .cartoon:
+                cartoonFlag
             }
         }
         .frame(width: containerSize.width, height: containerSize.height)
         .accessibilityLabel(accessibilityCountryName)
+    }
+
+    @ViewBuilder
+    private var cartoonFlag: some View {
+        if let image = CountryFlag.cartoonImage(for: countryCode) {
+            ZStack(alignment: .bottomLeading) {
+                Capsule()
+                    .fill(Color(nsColor: .secondaryLabelColor).opacity(0.65))
+                    .frame(width: max(1.5, diameter * 0.055), height: diameter * 0.72)
+                    .offset(x: diameter * 0.08, y: diameter * 0.06)
+
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: diameter, height: diameter)
+                    .rotationEffect(.degrees(-4), anchor: .bottomLeading)
+                    .shadow(color: .black.opacity(0.14), radius: 1.5, y: 1)
+            }
+            .frame(width: diameter, height: diameter)
+        } else {
+            circleFlag
+        }
     }
 
     @ViewBuilder
@@ -90,16 +117,28 @@ private final class CountryFlagImageCache: @unchecked Sendable {
     static let shared = CountryFlagImageCache()
     private let cache = NSCache<NSString, NSImage>()
 
-    func image(for countryCode: String) -> NSImage? {
+    func image(for countryCode: String, source: CountryFlagAssetSource) -> NSImage? {
         guard let code = CountryFlag.normalizedCode(countryCode)?.lowercased() else { return nil }
-        let key = code as NSString
+        let resourceName = source.resourcePrefix + code
+        let key = "\(source.rawValue)/\(code)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
-        let url = Bundle.main.url(forResource: code, withExtension: "svg", subdirectory: "CircleFlags")
-            ?? Bundle.main.url(forResource: code, withExtension: "svg")
+        let url = Bundle.main.url(
+            forResource: resourceName,
+            withExtension: "svg",
+            subdirectory: source.subdirectory
+        ) ?? Bundle.main.url(forResource: resourceName, withExtension: "svg")
         guard let url, let image = NSImage(contentsOf: url) else { return nil }
         image.isTemplate = false
         cache.setObject(image, forKey: key)
         return image
     }
+}
+
+private enum CountryFlagAssetSource: String {
+    case circle
+    case cartoon
+
+    var resourcePrefix: String { self == .cartoon ? "cartoon-" : "" }
+    var subdirectory: String { self == .cartoon ? "CartoonFlags" : "CircleFlags" }
 }

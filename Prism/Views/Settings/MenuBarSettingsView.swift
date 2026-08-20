@@ -4,10 +4,10 @@ struct MenuBarSettingsView: View {
     @Environment(SettingsStore.self) private var settings
 
     private let availableTokens = [
-        ("{flag}", "🇯🇵"),
-        ("{country}", "Japan"),
-        ("{code}", "JP"),
-        ("{city}", "Tokyo"),
+        ("{flag}", "🇨🇳"),
+        ("{country}", "China"),
+        ("{code}", "CN"),
+        ("{city}", "Shanghai"),
         ("{status}", "●")
     ]
 
@@ -146,7 +146,7 @@ struct MenuBarSettingsView: View {
         case .flag(let countryCode):
             CountryFlagView(
                 countryCode: countryCode,
-                style: .circle,
+                style: settings.countryFlagStyle,
                 diameter: 14,
                 containerSize: CGSize(width: 16, height: 16)
             )

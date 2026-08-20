@@ -103,7 +103,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         case .none:
             button.image = nil
         case .flag(let countryCode):
-            button.image = menuBarFlagImage(for: countryCode)
+            button.image = menuBarFlagImage(
+                for: countryCode,
+                style: environment.settings.countryFlagStyle
+            )
         case .systemSymbol(let name):
             let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
             image?.isTemplate = true
@@ -124,7 +127,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         }
     }
 
-    private func menuBarFlagImage(for countryCode: String) -> NSImage? {
+    private func menuBarFlagImage(for countryCode: String, style: CountryFlagStyle) -> NSImage? {
+        if style == .cartoon {
+            guard let source = CountryFlag.cartoonImage(for: countryCode),
+                  let image = source.copy() as? NSImage else { return nil }
+            image.size = NSSize(width: 18, height: 18)
+            image.isTemplate = false
+            return image
+        }
+
         guard let source = CountryFlag.image(for: countryCode) else { return nil }
         let size = NSSize(width: 17, height: 17)
         let image = NSImage(size: size, flipped: false) { rect in

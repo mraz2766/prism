@@ -18,7 +18,7 @@ Prism 使用 App Sandbox，只申请客户端网络访问权限。它以菜单�
 open /Applications/Prism.app
 ```
 
-首次检测完成后，菜单栏默认显示圆形国旗和 ISO 国家代码，例如“日本圆旗 + JP”。
+首次检测完成后，菜单栏默认显示圆形国旗和 ISO 国家代码，例如“中国圆旗 + CN”。
 
 - 左键：第一次点击展开网络信息，第二次点击同一菜单栏图标关闭；点击面板外也会关闭
 - 右键：刷新、打开详细信息、设置或退出
@@ -35,7 +35,7 @@ open /Applications/Prism.app
 - 登录时启动
 - 中英文、键盘操作、Tooltip 和 VoiceOver
 - 跟随系统、浅色、深色外观和六套自适应强调色
-- 贴纸圆旗、简洁圆旗和系统 Emoji 三种视觉风格
+- 贴纸圆旗、卡通国旗和系统 Emoji 三种视觉风格
 
 Prism 不提供节点切换、测速、抓包、防火墙或自动更新。
 
@@ -57,7 +57,7 @@ Prism 不提供节点切换、测速、抓包、防火墙或自动更新。
 - 仅图标
 - 自定义模板
 
-国旗可选贴纸圆旗（默认）、简洁圆旗或系统 Emoji。选中的风格会同步应用到菜单栏弹窗、概览、历史列表和详情；贴纸样式在空间有限的系统菜单栏中会自动使用带细轮廓的紧凑圆旗。
+国旗可选贴纸圆旗（默认）、卡通国旗或系统 Emoji。选中的风格会同步应用到菜单栏弹窗、概览、历史列表和详情；所有样式在空间有限的系统菜单栏中都会自动使用紧凑布局。
 
 自定义模板支持：
 
@@ -182,3 +182,5 @@ Prism 是菜单栏应用。请在屏幕顶部菜单栏查找国家或地区标�
 ## 第三方资源
 
 内置圆形国旗来自 [Circle Flags](https://github.com/HatScripts/circle-flags)（提交 `379588b5da95`），采用 MIT 许可证。资源完全随 App 打包，不会在运行时下载；许可证副本位于 `Prism/Resources/CircleFlags/LICENSE.circle-flags.md`。
+
+卡通国旗来自 [OpenMoji](https://github.com/hfg-gmuend/openmoji) 17.0.0，图形采用 CC BY-SA 4.0 许可证。Prism 在原图基础上增加旗杆、轻微倾斜和阴影；许可证副本位于 `Prism/Resources/CartoonFlags/LICENSE.openmoji.txt`。

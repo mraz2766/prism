@@ -11,6 +11,7 @@ actor NetworkLookupService {
     private let logger = Logger(subsystem: "com.mraz.prism", category: "network")
 
     private var currentStatus: NetworkStatus
+    private var lastConfirmedInfo: NetworkInfo?
     private var privacyClassifications: [String: PrivacyClassification]
     private var inflight: Inflight?
     private var continuations: [UUID: AsyncStream<NetworkStatus>.Continuation] = [:]
@@ -30,7 +31,8 @@ actor NetworkLookupService {
         self.history = history
         self.hardTimeout = hardTimeout
         let cachedInfo = cache.loadInfo()
-        currentStatus = cachedInfo.map { .stale($0, reason: .serviceUnavailable) } ?? .idle
+        currentStatus = .idle
+        lastConfirmedInfo = cachedInfo
         privacyClassifications = cache.loadPrivacyClassifications()
     }
 
@@ -46,6 +48,10 @@ actor NetworkLookupService {
 
     func snapshot() -> NetworkStatus { currentStatus }
 
+    func comparisonInfo() -> NetworkInfo? {
+        currentStatus.info ?? lastConfirmedInfo
+    }
+
     func markVerifying(_ observation: ExitObservation) {
         emit(.verifying(previous: currentStatus.info, candidateAddress: observation.primaryAddress))
     }
@@ -54,6 +60,8 @@ actor NetworkLookupService {
         guard case .verifying(let previous, _) = currentStatus else { return }
         if let previous {
             emit(.online(previous))
+        } else if let lastConfirmedInfo {
+            emit(.online(lastConfirmedInfo))
         } else {
             emit(.idle)
         }
@@ -71,8 +79,9 @@ actor NetworkLookupService {
             }
             inflight.task.cancel()
         }
-        let previous = currentStatus.info
-        if showLoading { emit(.loading(previous: previous)) }
+        let visiblePrevious = currentStatus.info
+        let fallbackInfo = visiblePrevious ?? lastConfirmedInfo
+        if showLoading { emit(.loading(previous: visiblePrevious)) }
 
         let publicIPProvider = self.publicIPProvider
         let geoProvider = self.geoProvider
@@ -102,15 +111,15 @@ actor NetworkLookupService {
                     resolvedGeo = try await geoProvider.lookup(ipAddress: lookupIP)
                 }
                 let resolvedPrivacy = await privacy
-                let preservesPreviousRoute = previous?.addresses.ipv4 == lookupIP || previous?.addresses.ipv6 == lookupIP
+                let preservesPreviousRoute = fallbackInfo?.addresses.ipv4 == lookupIP || fallbackInfo?.addresses.ipv6 == lookupIP
                 return NetworkInfo(
                     addresses: addresses,
                     location: resolvedGeo.location,
                     network: resolvedGeo.network,
                     privacy: resolvedPrivacy,
                     providerIdentifier: resolvedGeo.providerIdentifier,
-                    routeMode: observation?.routeMode ?? (preservesPreviousRoute ? previous?.routeMode : nil) ?? .unknown,
-                    exitSource: observation?.source ?? (preservesPreviousRoute ? previous?.exitSource : nil) ?? .unknown,
+                    routeMode: observation?.routeMode ?? (preservesPreviousRoute ? fallbackInfo?.routeMode : nil) ?? .unknown,
+                    exitSource: observation?.source ?? (preservesPreviousRoute ? fallbackInfo?.exitSource : nil) ?? .unknown,
                     checkedAt: .now
                 )
             }
@@ -132,6 +141,7 @@ actor NetworkLookupService {
                 privacyClassifications[lookupIP] = info.privacy
                 cache.savePrivacyClassifications(privacyClassifications)
             }
+            lastConfirmedInfo = info
             cache.saveInfo(info)
             _ = await history.recordIfChanged(info)
             emit(.online(info))
@@ -139,8 +149,8 @@ actor NetworkLookupService {
             let failure = NetworkFailure.map(error)
             if failure == .cancelled, inflight?.id != requestID { return currentStatus }
             logger.error("Refresh failed: \(String(describing: failure), privacy: .public)")
-            if let previous {
-                emit(.stale(previous, reason: failure))
+            if let fallbackInfo {
+                emit(.stale(fallbackInfo, reason: failure))
             } else {
                 emit(.failed(failure))
             }
@@ -149,7 +159,7 @@ actor NetworkLookupService {
     }
 
     func markOffline() {
-        emit(.offline(previous: currentStatus.info))
+        emit(.offline(previous: currentStatus.info ?? lastConfirmedInfo))
     }
 
     private static func bestEffortPrivacy(

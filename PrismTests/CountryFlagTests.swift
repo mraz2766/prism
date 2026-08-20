@@ -16,4 +16,8 @@ final class CountryFlagTests: XCTestCase {
     func testBundledCircleFlagCanBeLoaded() {
         XCTAssertNotNil(CountryFlag.image(for: "JP"))
     }
+
+    func testBundledCartoonFlagCanBeLoaded() {
+        XCTAssertNotNil(CountryFlag.cartoonImage(for: "CN"))
+    }
 }

@@ -123,8 +123,8 @@ actor RealtimeExitMonitor {
 
         do {
             let observation = try await probe.observeExit()
-            let status = await lookupService.snapshot()
-            switch stabilizer.evaluate(observation, currentInfo: status.info) {
+            let currentInfo = await lookupService.comparisonInfo()
+            switch stabilizer.evaluate(observation, currentInfo: currentInfo) {
             case .unchanged:
                 if refreshUnchanged {
                     _ = await lookupService.refresh(observation: observation, showLoading: showLoading)
