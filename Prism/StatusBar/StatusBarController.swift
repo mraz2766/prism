@@ -16,58 +16,20 @@ enum PopoverPointerTarget: Equatable {
     case outside
 }
 
-struct PopoverPointerEventIdentity: Equatable {
-    let eventNumber: Int
-    let timestamp: TimeInterval
-    let typeRawValue: UInt
-    let buttonNumber: Int
-
-    init(eventNumber: Int, timestamp: TimeInterval, typeRawValue: UInt, buttonNumber: Int) {
-        self.eventNumber = eventNumber
-        self.timestamp = timestamp
-        self.typeRawValue = typeRawValue
-        self.buttonNumber = buttonNumber
-    }
-
-    init(event: NSEvent) {
-        eventNumber = event.eventNumber
-        timestamp = event.timestamp
-        typeRawValue = event.type.rawValue
-        buttonNumber = event.buttonNumber
-    }
-}
-
-struct PopoverPointerEventGate {
-    private(set) var lastHandledEvent: PopoverPointerEventIdentity?
-
-    mutating func consume(_ event: PopoverPointerEventIdentity) -> Bool {
-        guard event != lastHandledEvent else { return false }
-        lastHandledEvent = event
-        return true
-    }
-}
-
 struct PopoverPresentationState: Equatable {
-    enum Phase: Equatable {
-        case closed
-        case opening
-        case open
-        case closing
-    }
-
-    private(set) var phase: Phase = .closed
-    private(set) var wantsVisible = false
+    private(set) var isPresented = false
 
     static let closed = PopoverPresentationState()
 
-    mutating func requestToggle() -> PopoverPresentationAction? {
-        wantsVisible.toggle()
-        return reconcile()
+    mutating func requestToggle() -> PopoverPresentationAction {
+        isPresented.toggle()
+        return isPresented ? .open : .close
     }
 
     mutating func requestClose() -> PopoverPresentationAction? {
-        wantsVisible = false
-        return reconcile()
+        guard isPresented else { return nil }
+        isPresented = false
+        return .close
     }
 
     mutating func requestPointerDown(on target: PopoverPointerTarget) -> PopoverPresentationAction? {
@@ -81,33 +43,8 @@ struct PopoverPresentationState: Equatable {
         }
     }
 
-    mutating func didShow() -> PopoverPresentationAction? {
-        guard phase == .opening else { return nil }
-        phase = .open
-        return reconcile()
-    }
-
-    mutating func willClose() {
-        guard phase != .closed else { return }
-        phase = .closing
-    }
-
-    mutating func didClose() -> PopoverPresentationAction? {
-        phase = .closed
-        return reconcile()
-    }
-
-    private mutating func reconcile() -> PopoverPresentationAction? {
-        switch (phase, wantsVisible) {
-        case (.closed, true):
-            phase = .opening
-            return .open
-        case (.open, false):
-            phase = .closing
-            return .close
-        default:
-            return nil
-        }
+    mutating func didClose() {
+        isPresented = false
     }
 }
 
@@ -122,7 +59,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var closeObserver: NSObjectProtocol?
     private var observing = false
     private var presentationState = PopoverPresentationState.closed
-    private var pointerEventGate = PopoverPointerEventGate()
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -151,7 +87,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     @objc private func handleClick(_ sender: NSStatusBarButton) {
         guard let event = NSApp.currentEvent else { return }
-        guard pointerEventGate.consume(PopoverPointerEventIdentity(event: event)) else { return }
         if event.type == .rightMouseDown {
             requestClosePopover()
             showContextMenu()
@@ -197,21 +132,23 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private func openPopover() {
         guard let button = statusItem.button else {
             _ = presentationState.requestClose()
-            _ = presentationState.didClose()
+            presentationState.didClose()
             return
         }
         installDismissMonitors()
         NSApp.activate(ignoringOtherApps: true)
         popoverHost.popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popoverHost.popover.contentViewController?.view.window?.makeKey()
+        button.highlight(true)
     }
 
     private func closePopover() {
+        statusItem.button?.highlight(false)
         removeDismissMonitors()
         if popoverHost.popover.isShown {
             popoverHost.popover.performClose(nil)
         } else {
-            performPresentationAction(presentationState.didClose())
+            presentationState.didClose()
         }
     }
 
@@ -228,11 +165,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     private func requestClosePopover() {
         performPresentationAction(presentationState.requestClose())
-    }
-
-    private func requestClosePopover(for event: PopoverPointerEventIdentity) {
-        guard pointerEventGate.consume(event) else { return }
-        requestClosePopover()
     }
 
     private func requestClosePopoverForApplicationResign() {
@@ -253,15 +185,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     private func installDismissMonitors() {
         removeDismissMonitors()
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            let identity = PopoverPointerEventIdentity(event: event)
-            Task { @MainActor [weak self] in self?.requestClosePopover(for: identity) }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.requestClosePopover() }
         }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                guard event.window != nil else { return }
                 guard !self.isStatusItemEvent(event), !self.isPopoverEvent(event) else { return }
-                self.requestClosePopover(for: PopoverPointerEventIdentity(event: event))
+                self.requestClosePopover()
             }
             return event
         }
@@ -281,27 +213,24 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     nonisolated func popoverDidShow(_ notification: Notification) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let action = self.presentationState.didShow()
-            self.performPresentationAction(action)
+        MainActor.assumeIsolated { [weak self] in
+            self?.statusItem.button?.highlight(true)
         }
     }
 
     nonisolated func popoverWillClose(_ notification: Notification) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            self.presentationState.willClose()
-            self.removeDismissMonitors()
+        MainActor.assumeIsolated { [weak self] in
+            self?.removeDismissMonitors()
         }
     }
 
     nonisolated func popoverDidClose(_ notification: Notification) {
-        Task { @MainActor [weak self] in
+        MainActor.assumeIsolated { [weak self] in
             guard let self else { return }
-            let action = self.presentationState.didClose()
+            guard !self.popoverHost.popover.isShown else { return }
+            self.presentationState.didClose()
+            self.statusItem.button?.highlight(false)
             self.removeDismissMonitors()
-            self.performPresentationAction(action)
         }
     }
 

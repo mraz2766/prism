@@ -1,6 +1,16 @@
 import AppKit
 import SwiftUI
 
+struct AppLaunchBehavior {
+    static func shouldBootstrap(
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        if arguments.contains("--ui-testing") { return true }
+        return environment["XCTestConfigurationFilePath"] == nil
+    }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let environment = AppEnvironment()
@@ -8,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsBridgeWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard AppLaunchBehavior.shouldBootstrap() else { return }
         NSApp.setActivationPolicy(.accessory)
         environment.dashboardWindowController = DashboardWindowController(environment: environment)
         statusBarController = StatusBarController(environment: environment)
