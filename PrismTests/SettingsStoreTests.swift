@@ -45,7 +45,8 @@ final class SettingsStoreTests: XCTestCase {
         let initial = await changes.next()
         XCTAssertEqual(initial, settings.refreshConfiguration)
         settings.accentColorChoice = .auroraPurple
-        settings.menuBarDisplayMode = .flag
+        settings.menuBarDisplayMode = .iconOnly
+        settings.countryFlagStyle = .circle
         settings.appearanceMode = .dark
         settings.refreshInterval = .minutes5
 
@@ -54,6 +55,49 @@ final class SettingsStoreTests: XCTestCase {
             refreshChange,
             RefreshConfiguration(interval: .minutes5, refreshOnNetworkChange: true)
         )
+    }
+
+    func testFlagStyleDefaultsAndPersists() throws {
+        let suite = "PrismTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = SettingsStore(defaults: defaults)
+        XCTAssertEqual(settings.countryFlagStyle, .sticker)
+
+        settings.countryFlagStyle = .circle
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertEqual(reloaded.countryFlagStyle, .circle)
+    }
+
+    func testLegacyMenuBarModesMigrateToFlagAndCode() throws {
+        let legacyModes = ["flag", "flagAndCountry", "flagAndCity", "statusAndFlag"]
+
+        for legacyMode in legacyModes {
+            let suite = "PrismTests.\(UUID().uuidString)"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            defaults.set(legacyMode, forKey: "menuBar.displayMode")
+
+            let settings = SettingsStore(defaults: defaults)
+            XCTAssertEqual(settings.menuBarDisplayMode, .flagAndCode, "Failed to migrate \(legacyMode)")
+        }
+    }
+
+    func testDraftFlagStylesMigrateToCircleDesigns() throws {
+        let expectedStyles: [String: CountryFlagStyle] = [
+            "flat": .circle,
+            "badge": .sticker
+        ]
+
+        for (legacyStyle, expectedStyle) in expectedStyles {
+            let suite = "PrismTests.\(UUID().uuidString)"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            defaults.set(legacyStyle, forKey: "menuBar.flagStyle")
+
+            XCTAssertEqual(SettingsStore(defaults: defaults).countryFlagStyle, expectedStyle)
+        }
     }
 
     func testAssigningSameRefreshValueDoesNotEmitDuplicate() async throws {

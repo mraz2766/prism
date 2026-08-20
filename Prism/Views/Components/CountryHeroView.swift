@@ -3,15 +3,18 @@ import SwiftUI
 struct CountryHeroView: View {
     let info: NetworkInfo
     let status: NetworkStatus
+    var flagStyle: CountryFlagStyle = .sticker
     var compact = false
     var showsStatus = true
 
     var body: some View {
         HStack(alignment: .center, spacing: compact ? 12 : 18) {
-            Text(CountryFlag.emoji(for: info.location.countryCode) ?? "◎")
-                .font(compact ? .system(size: 30) : .system(size: 42))
-                .accessibilityLabel(info.location.localizedCountry())
-            .frame(width: compact ? 48 : 64, height: compact ? 48 : 64)
+            CountryFlagView(
+                countryCode: info.location.countryCode,
+                style: flagStyle,
+                diameter: compact ? 32 : 44,
+                containerSize: compact ? CGSize(width: 48, height: 48) : CGSize(width: 64, height: 64)
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {

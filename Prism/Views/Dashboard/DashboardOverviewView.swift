@@ -42,7 +42,12 @@ struct DashboardOverviewView: View {
                     }
 
                     SectionCard {
-                        CountryHeroView(info: info, status: status, showsStatus: false)
+                        CountryHeroView(
+                            info: info,
+                            status: status,
+                            flagStyle: environment.settings.countryFlagStyle,
+                            showsStatus: false
+                        )
                     }
 
                     HStack(alignment: .top, spacing: 22) {

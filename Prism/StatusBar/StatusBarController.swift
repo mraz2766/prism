@@ -91,19 +91,55 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func render() {
-        statusItem.button?.title = MenuBarLabelRenderer.render(
+        guard let button = statusItem.button else { return }
+        let presentation = MenuBarLabelRenderer.presentation(
             status: environment.networkViewModel.status,
             mode: environment.settings.menuBarDisplayMode,
+            flagStyle: environment.settings.countryFlagStyle,
             customTemplate: environment.settings.customMenuTemplate
         )
+        button.title = presentation.title
+        switch presentation.indicator {
+        case .none:
+            button.image = nil
+        case .flag(let countryCode):
+            button.image = menuBarFlagImage(for: countryCode)
+        case .systemSymbol(let name):
+            let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+            image?.isTemplate = true
+            image?.size = NSSize(width: 15, height: 15)
+            button.image = image
+        }
+        button.imagePosition = presentation.title.isEmpty ? .imageOnly : .imageLeading
+
         let status = environment.networkViewModel.status
         if let info = status.info {
             let city = info.location.city.map { " · \($0)" } ?? ""
             let address = info.addresses.preferredForLookup.map { " · \($0)" } ?? ""
-            statusItem.button?.toolTip = "\(status.shortLabel) · \(info.location.localizedCountry())\(city)\(address)"
+            button.toolTip = "\(status.shortLabel) · \(info.location.localizedCountry())\(city)\(address)"
+            button.setAccessibilityLabel("\(status.shortLabel), \(info.location.localizedCountry())")
         } else {
-            statusItem.button?.toolTip = status.shortLabel
+            button.toolTip = status.shortLabel
+            button.setAccessibilityLabel(status.shortLabel)
         }
+    }
+
+    private func menuBarFlagImage(for countryCode: String) -> NSImage? {
+        guard let source = CountryFlag.image(for: countryCode) else { return nil }
+        let size = NSSize(width: 17, height: 17)
+        let image = NSImage(size: size, flipped: false) { rect in
+            NSColor.separatorColor.withAlphaComponent(0.58).setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            source.draw(
+                in: rect.insetBy(dx: 0.8, dy: 0.8),
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1
+            )
+            return true
+        }
+        image.isTemplate = false
+        return image
     }
 
     private func observeChanges() {
@@ -112,6 +148,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         withObservationTracking {
             _ = environment.networkViewModel.status
             _ = environment.settings.menuBarDisplayMode
+            _ = environment.settings.countryFlagStyle
             _ = environment.settings.customMenuTemplate
             _ = environment.settings.appearanceMode
         } onChange: { [weak self] in

@@ -14,7 +14,12 @@ struct MenuBarPopoverView: View {
                         .foregroundStyle(.orange)
                         .accessibilityLabel(String(localized: "Confirming new exit"))
                 }
-                CountryHeroView(info: info, status: status, compact: true)
+                CountryHeroView(
+                    info: info,
+                    status: status,
+                    flagStyle: environment.settings.countryFlagStyle,
+                    compact: true
+                )
                     .contentTransition(.opacity)
                 SectionCard(horizontalPadding: 14, verticalPadding: 12) {
                     VStack(spacing: 12) {

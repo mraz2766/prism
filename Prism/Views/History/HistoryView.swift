@@ -20,7 +20,10 @@ struct HistoryView: View {
                         ForEach(sections) { section in
                             Section(section.title) {
                                 ForEach(section.entries) { entry in
-                                    HistoryRow(displayEntry: entry)
+                                    HistoryRow(
+                                        displayEntry: entry,
+                                        flagStyle: environment.settings.countryFlagStyle
+                                    )
                                         .tag(entry.current.id)
                                         .accessibilityIdentifier("history.entry.\(entry.current.id.uuidString)")
                                         .accessibilityHint(String(localized: "View exit details"))
@@ -39,7 +42,10 @@ struct HistoryView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { selectedEntryID = nil }
 
-                HistoryEntryDetailView(entry: selectedEntry) {
+                HistoryEntryDetailView(
+                    entry: selectedEntry,
+                    flagStyle: environment.settings.countryFlagStyle
+                ) {
                     selectedEntryID = nil
                 }
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -132,15 +138,18 @@ private struct HistoryDisplayEntry: Identifiable {
 
 private struct HistoryRow: View {
     let displayEntry: HistoryDisplayEntry
+    let flagStyle: CountryFlagStyle
 
     private var entry: NetworkHistoryEntry { displayEntry.current }
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(CountryFlag.emoji(for: entry.countryCode) ?? "◎")
-                .font(.system(size: 20))
-                .frame(width: 30)
-                .accessibilityLabel(country)
+            CountryFlagView(
+                countryCode: entry.countryCode,
+                style: flagStyle,
+                diameter: 22,
+                containerSize: CGSize(width: 30, height: 30)
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 if let previous = previousTransitionLabel {
@@ -212,13 +221,18 @@ private struct HistoryRow: View {
 
 private struct HistoryEntryDetailView: View {
     let entry: NetworkHistoryEntry
+    let flagStyle: CountryFlagStyle
     let onClose: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(spacing: 14) {
-                Text(CountryFlag.emoji(for: entry.countryCode) ?? "◎")
-                    .font(.system(size: 34))
+                CountryFlagView(
+                    countryCode: entry.countryCode,
+                    style: flagStyle,
+                    diameter: 36,
+                    containerSize: CGSize(width: 48, height: 48)
+                )
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 3) {

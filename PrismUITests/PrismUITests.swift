@@ -27,6 +27,20 @@ final class PrismUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["settings.accent.selection"].exists)
     }
 
+    func testMenuBarIdentificationAndFlagStyleControlsAreAvailable() {
+        let app = launchApp()
+        XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
+
+        app.typeKey(",", modifierFlags: .command)
+        let menuBar = app.buttons["settings.section.menuBar"]
+        XCTAssertTrue(menuBar.waitForExistence(timeout: 5))
+        menuBar.click()
+
+        XCTAssertTrue(app.descendants(matching: .any)["settings.menuBar.displayMode"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any)["settings.menuBar.flagStyle"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any)["settings.menuBar.preview"].waitForExistence(timeout: 3))
+    }
+
     func testStatusItemSecondClickClosesPopover() {
         let app = launchApp()
         XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))

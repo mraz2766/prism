@@ -34,7 +34,7 @@ struct SettingsRootView: View {
         case .general:
             settings.automaticRefreshEnabled ? 540 : 500
         case .menuBar:
-            settings.menuBarDisplayMode == .custom ? 560 : 400
+            settings.menuBarDisplayMode == .custom ? 620 : 500
         case .appearance:
             340
         case .network, .privacy:

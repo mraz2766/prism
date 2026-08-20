@@ -20,6 +20,7 @@ struct MenuBarSettingsView: View {
                         Text(mode.label).tag(mode)
                     }
                 }
+                .accessibilityIdentifier("settings.menuBar.displayMode")
 
                 if settings.menuBarDisplayMode == .custom {
                     VStack(alignment: .leading, spacing: 8) {
@@ -46,6 +47,21 @@ struct MenuBarSettingsView: View {
                 }
             }
 
+            Section(String(localized: "Country flag style")) {
+                Picker(String(localized: "Country flag style"), selection: $settings.countryFlagStyle) {
+                    ForEach(CountryFlagStyle.allCases) { style in
+                        Text(style.label).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("settings.menuBar.flagStyle")
+
+                Text(String(localized: "Flag style also applies to the popover, details, and history. Sticker style uses a compact circle flag in the menu bar."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section(String(localized: "Menu Bar Preview")) {
                 VStack(spacing: 8) {
                     simulatedMenuBar(String(localized: "Online"), status: .online(.preview))
@@ -63,7 +79,8 @@ struct MenuBarSettingsView: View {
     }
 
     private func simulatedMenuBar(_ stateLabel: String, status: NetworkStatus) -> some View {
-        HStack(spacing: 12) {
+        let presentation = preview(status: status)
+        return HStack(spacing: 12) {
             Text(stateLabel)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -72,9 +89,16 @@ struct MenuBarSettingsView: View {
             Spacer()
 
             HStack(spacing: 12) {
-                Text(preview(status: status))
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 4) {
+                    previewIndicator(presentation.indicator)
+                    if !presentation.title.isEmpty {
+                        Text(presentation.title)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.primary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("settings.menuBar.preview")
 
                 Image(systemName: "wifi")
                     .font(.system(size: 12))
@@ -105,11 +129,31 @@ struct MenuBarSettingsView: View {
         }
     }
 
-    private func preview(status: NetworkStatus) -> String {
-        MenuBarLabelRenderer.render(
+    private func preview(status: NetworkStatus) -> MenuBarPresentation {
+        MenuBarLabelRenderer.presentation(
             status: status,
             mode: settings.menuBarDisplayMode,
+            flagStyle: settings.countryFlagStyle,
             customTemplate: settings.customMenuTemplate
         )
+    }
+
+    @ViewBuilder
+    private func previewIndicator(_ indicator: MenuBarIndicator) -> some View {
+        switch indicator {
+        case .none:
+            EmptyView()
+        case .flag(let countryCode):
+            CountryFlagView(
+                countryCode: countryCode,
+                style: .circle,
+                diameter: 14,
+                containerSize: CGSize(width: 16, height: 16)
+            )
+        case .systemSymbol(let name):
+            Image(systemName: name)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 16, height: 16)
+        }
     }
 }

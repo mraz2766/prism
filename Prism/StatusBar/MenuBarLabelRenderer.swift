@@ -1,62 +1,108 @@
 import Foundation
 
-enum CountryFlag {
-    static func emoji(for countryCode: String) -> String? {
-        let code = countryCode.uppercased()
-        guard code.count == 2 else { return nil }
-        let base: UInt32 = 0x1F1E6
-        let scalars = code.unicodeScalars.compactMap { scalar -> Unicode.Scalar? in
-            guard (65...90).contains(scalar.value) else { return nil }
-            return Unicode.Scalar(base + scalar.value - 65)
-        }
-        guard scalars.count == 2 else { return nil }
-        return String(String.UnicodeScalarView(scalars))
-    }
+enum MenuBarIndicator: Equatable {
+    case none
+    case flag(countryCode: String)
+    case systemSymbol(name: String)
+}
+
+struct MenuBarPresentation: Equatable {
+    let title: String
+    let indicator: MenuBarIndicator
 }
 
 enum MenuBarLabelRenderer {
-    static func render(
+    static func presentation(
         status: NetworkStatus,
         mode: MenuBarDisplayMode,
+        flagStyle: CountryFlagStyle,
         customTemplate: String,
         locale: Locale = .autoupdatingCurrent
-    ) -> String {
+    ) -> MenuBarPresentation {
         guard let info = status.info else {
-            return fallbackStatusLabel(status)
+            if mode == .iconOnly {
+                return MenuBarPresentation(
+                    title: "",
+                    indicator: .systemSymbol(name: status.symbolName)
+                )
+            }
+            return MenuBarPresentation(title: fallbackStatusLabel(status), indicator: .none)
         }
-        let flag = CountryFlag.emoji(for: info.location.countryCode) ?? "◎"
-        let country = info.location.localizedCountry(locale: locale)
+
         let code = info.location.countryCode.uppercased()
+        let flag = CountryFlag.emoji(for: code) ?? "◎"
+        let country = info.location.localizedCountry(locale: locale)
         let city = compactCityName(info.location.city, fallback: code)
         let statusGlyph = glyph(for: status)
+        let isOnline: Bool
+        if case .online = status {
+            isOnline = true
+        } else {
+            isOnline = false
+        }
 
-        let value: String
+        var indicator: MenuBarIndicator = .none
+        var value: String
+        var alreadyShowsStatus = false
+
         switch mode {
-        case .flag: value = flag
-        case .flagAndCountry: value = "\(flag) \(country)"
-        case .countryCode: value = code
-        case .flagAndCode: value = "\(flag) \(code)"
-        case .flagAndCity: value = "\(flag) \(city)"
-        case .statusAndFlag: value = "\(statusGlyph) \(flag)"
+        case .flagAndCode:
+            if flagStyle == .emoji {
+                value = "\(flag) \(code)"
+            } else {
+                indicator = .flag(countryCode: code)
+                value = code
+            }
+        case .routeAndCode:
+            indicator = .systemSymbol(name: isOnline ? routeSymbol(for: info.routeMode) : status.symbolName)
+            value = code
+            alreadyShowsStatus = !isOnline
+        case .countryCode:
+            value = code
+        case .iconOnly:
+            indicator = .systemSymbol(name: isOnline ? routeSymbol(for: info.routeMode) : status.symbolName)
+            value = ""
+            alreadyShowsStatus = true
         case .custom:
             let tokens = ["{flag}", "{country}", "{code}", "{city}", "{status}"]
             guard tokens.contains(where: customTemplate.contains) else {
-                return truncate("\(flag) \(country)")
+                return presentation(
+                    status: status,
+                    mode: .flagAndCode,
+                    flagStyle: flagStyle,
+                    customTemplate: customTemplate,
+                    locale: locale
+                )
+            }
+            let flagValue: String
+            if flagStyle == .emoji {
+                flagValue = flag
+            } else {
+                flagValue = ""
+                if customTemplate.contains("{flag}") {
+                    indicator = .flag(countryCode: code)
+                }
             }
             value = customTemplate
-                .replacingOccurrences(of: "{flag}", with: flag)
+                .replacingOccurrences(of: "{flag}", with: flagValue)
                 .replacingOccurrences(of: "{country}", with: country)
                 .replacingOccurrences(of: "{code}", with: code)
                 .replacingOccurrences(of: "{city}", with: city)
                 .replacingOccurrences(of: "{status}", with: statusGlyph)
+            alreadyShowsStatus = customTemplate.contains("{status}")
         }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let shouldPrefixStatus: Bool = switch status {
-        case .online: false
-        case .idle, .loading, .verifying, .offline, .stale, .failed:
-            mode != .statusAndFlag && !(mode == .custom && customTemplate.contains("{status}"))
-        }
-        return truncate(shouldPrefixStatus ? "\(statusGlyph) \(trimmed)" : trimmed)
+
+        let trimmed = value
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+        let shouldPrefixStatus = !isOnline && !alreadyShowsStatus
+        let finalTitle = shouldPrefixStatus
+            ? [statusGlyph, trimmed].filter { !$0.isEmpty }.joined(separator: " ")
+            : trimmed
+        return MenuBarPresentation(
+            title: truncate(finalTitle),
+            indicator: indicator
+        )
     }
 
     static func glyph(for status: NetworkStatus) -> String {
@@ -66,6 +112,15 @@ enum MenuBarLabelRenderer {
         case .offline: "—"
         case .stale: "!"
         case .idle, .failed: "?"
+        }
+    }
+
+    static func routeSymbol(for routeMode: NetworkRouteMode) -> String {
+        switch routeMode {
+        case .proxy: "arrow.triangle.branch"
+        case .direct: "point.3.connected.trianglepath.dotted"
+        case .split: "arrow.triangle.swap"
+        case .unknown: "network"
         }
     }
 

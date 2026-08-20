@@ -36,6 +36,12 @@ final class SettingsStore {
             defaults.set(menuBarDisplayMode.rawValue, forKey: Keys.displayMode)
         }
     }
+    var countryFlagStyle: CountryFlagStyle {
+        didSet {
+            guard oldValue != countryFlagStyle else { return }
+            defaults.set(countryFlagStyle.rawValue, forKey: Keys.flagStyle)
+        }
+    }
     var customMenuTemplate: String {
         didSet {
             guard oldValue != customMenuTemplate else { return }
@@ -87,9 +93,9 @@ final class SettingsStore {
         refreshOnNetworkChange = defaults.object(forKey: Keys.refreshOnNetworkChange) as? Bool ?? true
         changeNotificationsEnabled = defaults.bool(forKey: Keys.changeNotifications)
         launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
-        menuBarDisplayMode = defaults.string(forKey: Keys.displayMode)
-            .flatMap(MenuBarDisplayMode.init(rawValue:)) ?? .flagAndCountry
-        customMenuTemplate = defaults.string(forKey: Keys.customTemplate) ?? "{flag} {country}"
+        menuBarDisplayMode = Self.migratedDisplayMode(defaults.string(forKey: Keys.displayMode))
+        countryFlagStyle = Self.migratedFlagStyle(defaults.string(forKey: Keys.flagStyle))
+        customMenuTemplate = defaults.string(forKey: Keys.customTemplate) ?? "{flag} {code}"
         appearanceMode = defaults.string(forKey: Keys.appearance)
             .flatMap(AppearanceMode.init(rawValue:)) ?? .system
         accentColorChoice = defaults.string(forKey: Keys.accentColor)
@@ -112,12 +118,30 @@ final class SettingsStore {
         continuations.values.forEach { $0.yield(configuration) }
     }
 
+    private static func migratedDisplayMode(_ rawValue: String?) -> MenuBarDisplayMode {
+        if let rawValue, let current = MenuBarDisplayMode(rawValue: rawValue) { return current }
+        return switch rawValue {
+        case "flag", "flagAndCountry", "flagAndCity", "statusAndFlag": .flagAndCode
+        default: .flagAndCode
+        }
+    }
+
+    private static func migratedFlagStyle(_ rawValue: String?) -> CountryFlagStyle {
+        if let rawValue, let current = CountryFlagStyle(rawValue: rawValue) { return current }
+        return switch rawValue {
+        case "flat": .circle
+        case "badge": .sticker
+        default: .sticker
+        }
+    }
+
     private enum Keys {
         static let refreshInterval = "refresh.interval"
         static let refreshOnNetworkChange = "refresh.onNetworkChange"
         static let changeNotifications = "notifications.exitChanges"
         static let launchAtLogin = "launchAtLogin"
         static let displayMode = "menuBar.displayMode"
+        static let flagStyle = "menuBar.flagStyle"
         static let customTemplate = "menuBar.customTemplate"
         static let appearance = "appearance.mode"
         static let accentColor = "appearance.accentColor"

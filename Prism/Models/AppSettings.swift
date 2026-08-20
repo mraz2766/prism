@@ -22,24 +22,36 @@ enum RefreshInterval: Int, CaseIterable, Codable, Identifiable, Sendable {
 }
 
 enum MenuBarDisplayMode: String, CaseIterable, Codable, Identifiable, Sendable {
-    case flag
-    case flagAndCountry
-    case countryCode
     case flagAndCode
-    case flagAndCity
-    case statusAndFlag
+    case routeAndCode
+    case countryCode
+    case iconOnly
     case custom
 
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .flag: String(localized: "Flag")
-        case .flagAndCountry: String(localized: "Flag and country")
-        case .countryCode: String(localized: "Country code")
         case .flagAndCode: String(localized: "Flag and country code")
-        case .flagAndCity: String(localized: "Flag and city")
-        case .statusAndFlag: String(localized: "Status and flag")
+        case .routeAndCode: String(localized: "Route and country code")
+        case .countryCode: String(localized: "Country code only")
+        case .iconOnly: String(localized: "Icon only")
         case .custom: String(localized: "Custom")
+        }
+    }
+}
+
+enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
+    case sticker
+    case circle
+    case emoji
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .sticker: String(localized: "Sticker flag")
+        case .circle: String(localized: "Circle flag")
+        case .emoji: String(localized: "System Emoji")
         }
     }
 }
