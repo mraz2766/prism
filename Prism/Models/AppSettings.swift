@@ -23,18 +23,18 @@ enum RefreshInterval: Int, CaseIterable, Codable, Identifiable, Sendable {
 
 enum MenuBarDisplayMode: String, CaseIterable, Codable, Identifiable, Sendable {
     case flagAndCode
-    case routeAndCode
+    case flagAndCity
     case countryCode
-    case iconOnly
+    case flagOnly
     case custom
 
     var id: String { rawValue }
     var label: String {
         switch self {
         case .flagAndCode: String(localized: "Flag and country code")
-        case .routeAndCode: String(localized: "Route and country code")
+        case .flagAndCity: String(localized: "Flag and city")
         case .countryCode: String(localized: "Country code only")
-        case .iconOnly: String(localized: "Icon only")
+        case .flagOnly: String(localized: "Flag only")
         case .custom: String(localized: "Custom")
         }
     }

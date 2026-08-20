@@ -121,7 +121,9 @@ final class SettingsStore {
     private static func migratedDisplayMode(_ rawValue: String?) -> MenuBarDisplayMode {
         if let rawValue, let current = MenuBarDisplayMode(rawValue: rawValue) { return current }
         return switch rawValue {
-        case "flag", "flagAndCountry", "flagAndCity", "statusAndFlag": .flagAndCode
+        case "routeAndCode": .flagAndCity
+        case "iconOnly", "flag": .flagOnly
+        case "flagAndCountry", "statusAndFlag": .flagAndCode
         default: .flagAndCode
         }
     }

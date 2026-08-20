@@ -37,28 +37,28 @@ final class MenuBarLabelRendererTests: XCTestCase {
         XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .emoji(countryCode: "CN")))
     }
 
-    func testRouteAndCodeUsesCurrentRouteSymbol() {
+    func testFlagAndCityUsesSelectedFlagAndCompactCity() {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
-            mode: .routeAndCode,
+            mode: .flagAndCity,
             flagStyle: .sticker,
             customTemplate: ""
         )
 
-        XCTAssertEqual(value.title, "CN")
-        XCTAssertEqual(value.indicator, .systemSymbol(name: "point.3.connected.trianglepath.dotted"))
+        XCTAssertEqual(value.title, "SH")
+        XCTAssertEqual(value.indicator, .flag(countryCode: "CN"))
     }
 
-    func testIconOnlyUsesCurrentRouteSymbolWithoutTitle() {
+    func testFlagOnlyUsesSelectedFlagWithoutTitle() {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
-            mode: .iconOnly,
+            mode: .flagOnly,
             flagStyle: .sticker,
             customTemplate: ""
         )
 
         XCTAssertEqual(value.title, "")
-        XCTAssertEqual(value.indicator, .systemSymbol(name: "point.3.connected.trianglepath.dotted"))
+        XCTAssertEqual(value.indicator, .flag(countryCode: "CN"))
     }
 
     func testInvalidCustomTemplateFallsBackToDefault() {

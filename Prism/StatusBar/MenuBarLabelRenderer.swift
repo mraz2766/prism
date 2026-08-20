@@ -21,7 +21,7 @@ enum MenuBarLabelRenderer {
         locale: Locale = .autoupdatingCurrent
     ) -> MenuBarPresentation {
         guard let info = status.info else {
-            if mode == .iconOnly {
+            if mode == .flagOnly {
                 return MenuBarPresentation(
                     title: "",
                     indicator: .systemSymbol(name: status.symbolName)
@@ -54,16 +54,18 @@ enum MenuBarLabelRenderer {
                 indicator = .flag(countryCode: code)
                 value = code
             }
-        case .routeAndCode:
-            indicator = .systemSymbol(name: isOnline ? routeSymbol(for: info.routeMode) : status.symbolName)
-            value = code
-            alreadyShowsStatus = !isOnline
+        case .flagAndCity:
+            indicator = flagStyle == .emoji
+                ? .emoji(countryCode: code)
+                : .flag(countryCode: code)
+            value = city
         case .countryCode:
             value = code
-        case .iconOnly:
-            indicator = .systemSymbol(name: isOnline ? routeSymbol(for: info.routeMode) : status.symbolName)
+        case .flagOnly:
+            indicator = flagStyle == .emoji
+                ? .emoji(countryCode: code)
+                : .flag(countryCode: code)
             value = ""
-            alreadyShowsStatus = true
         case .custom:
             let tokens = ["{flag}", "{country}", "{code}", "{city}", "{status}"]
             guard tokens.contains(where: customTemplate.contains) else {
@@ -116,15 +118,6 @@ enum MenuBarLabelRenderer {
         case .offline: "—"
         case .stale: "!"
         case .idle, .failed: "?"
-        }
-    }
-
-    static func routeSymbol(for routeMode: NetworkRouteMode) -> String {
-        switch routeMode {
-        case .proxy: "arrow.triangle.branch"
-        case .direct: "point.3.connected.trianglepath.dotted"
-        case .split: "arrow.triangle.swap"
-        case .unknown: "network"
         }
     }
 

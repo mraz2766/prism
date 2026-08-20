@@ -45,7 +45,7 @@ final class SettingsStoreTests: XCTestCase {
         let initial = await changes.next()
         XCTAssertEqual(initial, settings.refreshConfiguration)
         settings.accentColorChoice = .auroraPurple
-        settings.menuBarDisplayMode = .iconOnly
+        settings.menuBarDisplayMode = .flagOnly
         settings.countryFlagStyle = .rounded
         settings.appearanceMode = .dark
         settings.refreshInterval = .minutes5
@@ -70,17 +70,23 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.countryFlagStyle, .waved)
     }
 
-    func testLegacyMenuBarModesMigrateToFlagAndCode() throws {
-        let legacyModes = ["flag", "flagAndCountry", "flagAndCity", "statusAndFlag"]
+    func testLegacyMenuBarModesMigrateToLocationFocusedModes() throws {
+        let expectedModes: [String: MenuBarDisplayMode] = [
+            "flag": .flagOnly,
+            "flagAndCountry": .flagAndCode,
+            "statusAndFlag": .flagAndCode,
+            "routeAndCode": .flagAndCity,
+            "iconOnly": .flagOnly
+        ]
 
-        for legacyMode in legacyModes {
+        for (legacyMode, expectedMode) in expectedModes {
             let suite = "PrismTests.\(UUID().uuidString)"
             let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
             defer { defaults.removePersistentDomain(forName: suite) }
             defaults.set(legacyMode, forKey: "menuBar.displayMode")
 
             let settings = SettingsStore(defaults: defaults)
-            XCTAssertEqual(settings.menuBarDisplayMode, .flagAndCode, "Failed to migrate \(legacyMode)")
+            XCTAssertEqual(settings.menuBarDisplayMode, expectedMode, "Failed to migrate \(legacyMode)")
         }
     }
 
