@@ -20,4 +20,12 @@ final class CountryFlagTests: XCTestCase {
     func testBundledCartoonFlagCanBeLoaded() {
         XCTAssertNotNil(CountryFlag.cartoonImage(for: "CN"))
     }
+
+    func testBundledWavedFlagCanBeLoaded() {
+        XCTAssertNotNil(CountryFlag.wavedImage(for: "CN"))
+    }
+
+    func testBundledRoundedFlagCanBeLoaded() {
+        XCTAssertNotNil(CountryFlag.roundedImage(for: "CN"))
+    }
 }

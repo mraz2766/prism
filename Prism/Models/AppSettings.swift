@@ -43,6 +43,8 @@ enum MenuBarDisplayMode: String, CaseIterable, Codable, Identifiable, Sendable {
 enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     case sticker
     case cartoon
+    case waved
+    case rounded
     case emoji
 
     var id: String { rawValue }
@@ -51,6 +53,8 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
         switch self {
         case .sticker: String(localized: "Sticker flag")
         case .cartoon: String(localized: "Cartoon flag")
+        case .waved: String(localized: "Waved flag")
+        case .rounded: String(localized: "Rounded flag")
         case .emoji: String(localized: "System Emoji")
         }
     }

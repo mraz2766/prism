@@ -28,6 +28,14 @@ enum CountryFlag {
     static func cartoonImage(for countryCode: String) -> NSImage? {
         CountryFlagImageCache.shared.image(for: countryCode, source: .cartoon)
     }
+
+    static func wavedImage(for countryCode: String) -> NSImage? {
+        CountryFlagImageCache.shared.image(for: countryCode, source: .waved)
+    }
+
+    static func roundedImage(for countryCode: String) -> NSImage? {
+        CountryFlagImageCache.shared.image(for: countryCode, source: .rounded)
+    }
 }
 
 struct CountryFlagView: View {
@@ -58,10 +66,50 @@ struct CountryFlagView: View {
                 )
             case .cartoon:
                 cartoonFlag
+            case .waved:
+                wavedFlag
+            case .rounded:
+                roundedFlag
             }
         }
         .frame(width: containerSize.width, height: containerSize.height)
         .accessibilityLabel(accessibilityCountryName)
+    }
+
+    @ViewBuilder
+    private var wavedFlag: some View {
+        if let image = CountryFlag.wavedImage(for: countryCode) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.medium)
+                .aspectRatio(1, contentMode: .fit)
+                .frame(width: diameter, height: diameter)
+                .shadow(
+                    color: .black.opacity(isCompact ? 0 : 0.10),
+                    radius: isCompact ? 0 : 1,
+                    y: isCompact ? 0 : 1
+                )
+        } else {
+            circleFlag
+        }
+    }
+
+    @ViewBuilder
+    private var roundedFlag: some View {
+        if let image = CountryFlag.roundedImage(for: countryCode) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.medium)
+                .aspectRatio(1, contentMode: .fit)
+                .frame(width: diameter, height: diameter)
+                .shadow(
+                    color: .black.opacity(isCompact ? 0 : 0.08),
+                    radius: isCompact ? 0 : 1,
+                    y: isCompact ? 0 : 1
+                )
+        } else {
+            circleFlag
+        }
     }
 
     @ViewBuilder
@@ -165,7 +213,24 @@ private final class CountryFlagImageCache: @unchecked Sendable {
 private enum CountryFlagAssetSource: String {
     case circle
     case cartoon
+    case waved
+    case rounded
 
-    var resourcePrefix: String { self == .cartoon ? "cartoon-" : "" }
-    var subdirectory: String { self == .cartoon ? "CartoonFlags" : "CircleFlags" }
+    var resourcePrefix: String {
+        switch self {
+        case .circle: ""
+        case .cartoon: "cartoon-"
+        case .waved: "wave-"
+        case .rounded: "twemoji-"
+        }
+    }
+
+    var subdirectory: String {
+        switch self {
+        case .circle: "CircleFlags"
+        case .cartoon: "CartoonFlags"
+        case .waved: "WavedFlags"
+        case .rounded: "TwemojiFlags"
+        }
+    }
 }

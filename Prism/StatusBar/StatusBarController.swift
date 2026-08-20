@@ -130,7 +130,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func menuBarFlagImage(for countryCode: String, style: CountryFlagStyle) -> NSImage? {
-        if style == .cartoon {
+        switch style {
+        case .cartoon:
             guard let source = CountryFlag.cartoonImage(for: countryCode) else { return nil }
             let size = NSSize(width: 18, height: 18)
             let image = NSImage(size: size, flipped: false) { rect in
@@ -144,19 +145,37 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             }
             image.isTemplate = false
             return image
+        case .waved:
+            guard let source = CountryFlag.wavedImage(for: countryCode) else { return nil }
+            return fittedMenuBarImage(source)
+        case .rounded:
+            guard let source = CountryFlag.roundedImage(for: countryCode) else { return nil }
+            return fittedMenuBarImage(source)
+        case .sticker:
+            guard let source = CountryFlag.image(for: countryCode) else { return nil }
+            let size = NSSize(width: 18, height: 18)
+            let image = NSImage(size: size, flipped: false) { rect in
+                NSColor.separatorColor.withAlphaComponent(0.58).setFill()
+                NSBezierPath(ovalIn: rect).fill()
+                source.draw(
+                    in: rect.insetBy(dx: 1, dy: 1),
+                    from: .zero,
+                    operation: .sourceOver,
+                    fraction: 1
+                )
+                return true
+            }
+            image.isTemplate = false
+            return image
+        case .emoji:
+            return menuBarEmojiImage(for: countryCode)
         }
+    }
 
-        guard let source = CountryFlag.image(for: countryCode) else { return nil }
+    private func fittedMenuBarImage(_ source: NSImage) -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size, flipped: false) { rect in
-            NSColor.separatorColor.withAlphaComponent(0.58).setFill()
-            NSBezierPath(ovalIn: rect).fill()
-            source.draw(
-                in: rect.insetBy(dx: 1, dy: 1),
-                from: .zero,
-                operation: .sourceOver,
-                fraction: 1
-            )
+            source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
             return true
         }
         image.isTemplate = false

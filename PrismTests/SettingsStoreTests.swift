@@ -46,7 +46,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(initial, settings.refreshConfiguration)
         settings.accentColorChoice = .auroraPurple
         settings.menuBarDisplayMode = .iconOnly
-        settings.countryFlagStyle = .cartoon
+        settings.countryFlagStyle = .rounded
         settings.appearanceMode = .dark
         settings.refreshInterval = .minutes5
 
@@ -65,9 +65,9 @@ final class SettingsStoreTests: XCTestCase {
         let settings = SettingsStore(defaults: defaults)
         XCTAssertEqual(settings.countryFlagStyle, .sticker)
 
-        settings.countryFlagStyle = .cartoon
+        settings.countryFlagStyle = .waved
         let reloaded = SettingsStore(defaults: defaults)
-        XCTAssertEqual(reloaded.countryFlagStyle, .cartoon)
+        XCTAssertEqual(reloaded.countryFlagStyle, .waved)
     }
 
     func testLegacyMenuBarModesMigrateToFlagAndCode() throws {

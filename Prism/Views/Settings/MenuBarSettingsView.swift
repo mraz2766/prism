@@ -48,16 +48,14 @@ struct MenuBarSettingsView: View {
             }
 
             Section(String(localized: "Country flag style")) {
-                Picker(String(localized: "Country flag style"), selection: $settings.countryFlagStyle) {
+                Picker(String(localized: "Style"), selection: $settings.countryFlagStyle) {
                     ForEach(CountryFlagStyle.allCases) { style in
                         Text(style.label).tag(style)
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
                 .accessibilityIdentifier("settings.menuBar.flagStyle")
 
-                Text(String(localized: "Flag style also applies to the popover, details, and history. Sticker style uses a compact circle flag in the menu bar."))
+                Text(String(localized: "Flag style also applies to the popover, details, and history. Each style uses a compact menu bar rendering."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -72,6 +70,7 @@ struct MenuBarSettingsView: View {
                     simulatedMenuBar(String(localized: "Offline"), status: .offline(previous: .preview))
                 }
                 .padding(.vertical, 4)
+                .animation(.easeOut(duration: 0.12), value: settings.countryFlagStyle)
             }
         }
         .formStyle(.grouped)
