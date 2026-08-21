@@ -4,6 +4,8 @@ import SwiftUI
 struct IPAddressRow: View {
     let label: String
     let address: String?
+    var detail: String? = nil
+    var placeholder: String? = nil
     var accessibilityIdentifier: String? = nil
     @State private var copied = false
     @State private var isHovered = false
@@ -12,9 +14,17 @@ struct IPAddressRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(label)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    Text(label)
+                        .font(.caption.weight(.medium))
+                    if let detail {
+                        Text("· \(detail)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+                .foregroundStyle(.secondary)
                 if let address {
                     Text(address)
                         .font(.system(.body, design: .monospaced).weight(.medium))
@@ -23,7 +33,7 @@ struct IPAddressRow: View {
                         .truncationMode(.middle)
                         .textSelection(.enabled)
                 } else {
-                    Text(String(localized: "Unavailable"))
+                    Text(placeholder ?? String(localized: "Unavailable"))
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                 }

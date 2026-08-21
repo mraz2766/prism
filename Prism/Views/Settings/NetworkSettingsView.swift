@@ -66,7 +66,7 @@ struct NetworkSettingsView: View {
             Section {
                 Text(String(localized: "Prism checks IPv4 and IPv6 independently. Location lookup prefers IPv4 and uses IPv6 when IPv4 is unavailable."))
                     .font(.callout).foregroundStyle(.secondary)
-                Text(String(localized: "When overseas address services are unavailable, Prism uses a mainland-accessible IPIP fallback."))
+                Text(String(localized: "Prism uses a mainland-accessible IPIP endpoint for the domestic IPv4 observation and as a fallback when overseas address services are unavailable."))
                     .font(.callout).foregroundStyle(.secondary)
             }
         }

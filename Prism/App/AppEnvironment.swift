@@ -21,6 +21,7 @@ final class AppEnvironment {
     let historyStore: NetworkHistoryStore
     let lookupService: NetworkLookupService
     let networkViewModel: NetworkStatusViewModel
+    let domesticIPv4ViewModel: DomesticIPv4ViewModel
     let settingsViewModel: SettingsViewModel
     let refreshCoordinator: RefreshCoordinator
     let notificationService: NotificationService
@@ -71,6 +72,10 @@ final class AppEnvironment {
             history: historyStore
         )
         networkViewModel = NetworkStatusViewModel(service: lookupService)
+        let domesticProbe: any DomesticIPv4Probing = isUITesting
+            ? PreviewDomesticIPv4Probe()
+            : IPIPDomesticIPv4Probe()
+        domesticIPv4ViewModel = DomesticIPv4ViewModel(probe: domesticProbe)
         let launchService = LaunchAtLoginService()
         notificationService = NotificationService()
         settingsViewModel = SettingsViewModel(
@@ -89,7 +94,8 @@ final class AppEnvironment {
             lookupService: lookupService,
             monitor: NetworkMonitor(),
             settings: settings,
-            realtimeExitMonitor: realtimeExitMonitor
+            realtimeExitMonitor: realtimeExitMonitor,
+            domesticIPv4ViewModel: domesticIPv4ViewModel
         )
     }
 
@@ -125,7 +131,9 @@ final class AppEnvironment {
             var previous: NetworkInfo?
             for await status in lookupService.stream() {
                 guard let self, case .online(let current) = status else { continue }
+                let exitChanged = previous.map { $0.id != current.id } ?? false
                 defer { previous = current }
+                if exitChanged { domesticIPv4ViewModel.refresh() }
                 guard let old = previous,
                       old.id != current.id,
                       settings.changeNotificationsEnabled else { continue }
@@ -172,6 +180,16 @@ private struct PreviewGeoIPProvider: GeoIPProvider {
 
 private struct PreviewPrivacyProvider: PrivacyClassifying {
     func classify(ipAddress: String) async throws -> PrivacyClassification { .suspected }
+}
+
+private struct PreviewDomesticIPv4Probe: DomesticIPv4Probing {
+    func fetch() async throws -> DomesticIPv4Info {
+        DomesticIPv4Info(
+            address: "198.51.100.86",
+            isChinese: true,
+            checkedAt: .now
+        )
+    }
 }
 
 private struct PreviewExitAddressProbe: ExitAddressProbing {

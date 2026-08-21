@@ -7,6 +7,7 @@ final class RefreshCoordinator {
     private let monitor: NetworkMonitor
     private let settings: SettingsStore
     private let realtimeExitMonitor: RealtimeExitMonitor
+    private let domesticIPv4ViewModel: DomesticIPv4ViewModel
 
     private var timerTask: Task<Void, Never>?
     private var networkTask: Task<Void, Never>?
@@ -19,12 +20,14 @@ final class RefreshCoordinator {
         lookupService: NetworkLookupService,
         monitor: NetworkMonitor,
         settings: SettingsStore,
-        realtimeExitMonitor: RealtimeExitMonitor
+        realtimeExitMonitor: RealtimeExitMonitor,
+        domesticIPv4ViewModel: DomesticIPv4ViewModel
     ) {
         self.lookupService = lookupService
         self.monitor = monitor
         self.settings = settings
         self.realtimeExitMonitor = realtimeExitMonitor
+        self.domesticIPv4ViewModel = domesticIPv4ViewModel
     }
 
     func start() {
@@ -33,6 +36,7 @@ final class RefreshCoordinator {
         observeSettings()
         observeSleepWake()
         restartTimer(configuration: settings.refreshConfiguration)
+        domesticIPv4ViewModel.refresh()
         realtimeControlTask?.cancel()
         realtimeControlTask = Task { [realtimeExitMonitor] in
             guard !Task.isCancelled else { return }
@@ -48,6 +52,7 @@ final class RefreshCoordinator {
         realtimeControlTask = Task { [realtimeExitMonitor] in
             await realtimeExitMonitor.stop()
         }
+        domesticIPv4ViewModel.stop()
         let center = NSWorkspace.shared.notificationCenter
         observers.forEach(center.removeObserver)
         observers.removeAll()
@@ -55,6 +60,7 @@ final class RefreshCoordinator {
     }
 
     func triggerManual() {
+        domesticIPv4ViewModel.refresh()
         Task {
             await realtimeExitMonitor.boost()
             await realtimeExitMonitor.refreshNow(showLoading: true)
@@ -68,8 +74,10 @@ final class RefreshCoordinator {
                 switch event {
                 case .offline:
                     await lookupService.markOffline()
+                    domesticIPv4ViewModel.markOffline()
                 case .onlineChanged:
                     guard settings.refreshConfiguration.refreshOnNetworkChange, !isSleeping else { continue }
+                    domesticIPv4ViewModel.refresh()
                     await realtimeExitMonitor.boost()
                     await realtimeExitMonitor.refreshNow()
                 }
@@ -93,6 +101,7 @@ final class RefreshCoordinator {
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(seconds)) } catch { break }
                 guard let self, !isSleeping else { continue }
+                domesticIPv4ViewModel.refresh()
                 await realtimeExitMonitor.refreshNow()
             }
         }
@@ -122,6 +131,7 @@ final class RefreshCoordinator {
                 isSleeping = false
                 restartTimer(configuration: settings.refreshConfiguration)
                 try? await Task.sleep(for: .seconds(1.5))
+                domesticIPv4ViewModel.refresh()
                 await realtimeExitMonitor.resume()
                 await realtimeExitMonitor.refreshNow()
             }

@@ -30,6 +30,8 @@ struct MenuBarPopoverView: View {
                         )
                         Divider()
                         IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
+                        Divider()
+                        domesticIPv4Row(currentIPv4: info.addresses.ipv4)
                     }
                 }
                 if case .stale(_, let reason) = status {
@@ -39,6 +41,9 @@ struct MenuBarPopoverView: View {
                 }
             } else {
                 unavailableContent
+                SectionCard(horizontalPadding: 14, verticalPadding: 12) {
+                    domesticIPv4Row(currentIPv4: nil)
+                }
             }
             footer
         }
@@ -118,6 +123,36 @@ struct MenuBarPopoverView: View {
                     environment.openSettingsAction?()
                 }
             }
+        }
+    }
+
+    private func domesticIPv4Row(currentIPv4: String?) -> some View {
+        let domesticStatus = environment.domesticIPv4ViewModel.status
+        return IPAddressRow(
+            label: String(localized: "Domestic exit IPv4"),
+            address: domesticStatus.info?.address,
+            detail: domesticDetail(status: domesticStatus, currentIPv4: currentIPv4),
+            placeholder: domesticStatus.isLoading || domesticStatus == .idle
+                ? String(localized: "Detecting")
+                : nil,
+            accessibilityIdentifier: "popover.domestic-ipv4-row"
+        )
+        .animation(.easeOut(duration: 0.12), value: domesticStatus)
+    }
+
+    private func domesticDetail(
+        status: DomesticIPv4Status,
+        currentIPv4: String?
+    ) -> String? {
+        switch status {
+        case .idle:
+            nil
+        case .loading(let previous):
+            previous == nil ? nil : String(localized: "Detecting")
+        case .available(let info):
+            info.relationship(to: currentIPv4).label
+        case .failed(let previous, _):
+            previous == nil ? nil : String(localized: "Last known result")
         }
     }
 

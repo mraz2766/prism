@@ -26,6 +26,7 @@ struct PrivacySettingsView: View {
 
             Section(String(localized: "External Services Used")) {
                 providerRow("ipify.org", icon: "network", description: String(localized: "Discovers the current public IPv4 and IPv6 addresses."))
+                providerRow("myip.ipip.net", icon: "arrow.left.arrow.right", description: String(localized: "Observes the IPv4 address seen by a mainland endpoint."))
                 providerRow("ipwho.is / ip.guide / ipip.net", icon: "globe.asia.australia.fill", description: String(localized: "Looks up country, city, ISP, organization, ASN, and timezone when the public address changes."))
                 providerRow("ipapi.is", icon: "shield.lefthalf.filled", description: String(localized: "Performs a best-effort proxy or VPN classification only for a newly seen public address."))
             }
