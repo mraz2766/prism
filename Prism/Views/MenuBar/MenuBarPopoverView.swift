@@ -18,18 +18,25 @@ struct MenuBarPopoverView: View {
                     info: info,
                     status: status,
                     flagStyle: environment.settings.countryFlagStyle,
-                    compact: true
+                    compact: true,
+                    showsRoute: false
                 )
                     .contentTransition(.opacity)
                 SectionCard(horizontalPadding: 14, verticalPadding: 12) {
                     VStack(spacing: 12) {
-                        IPAddressRow(
-                            label: String(localized: "Public IPv4"),
-                            address: info.addresses.ipv4,
-                            accessibilityIdentifier: "popover.ipv4-row"
-                        )
-                        Divider()
-                        IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
+                        if let ipv4 = info.addresses.ipv4 {
+                            IPAddressRow(
+                                label: String(localized: "Public IPv4"),
+                                address: ipv4,
+                                accessibilityIdentifier: "popover.ipv4-row"
+                            )
+                        } else {
+                            IPAddressRow(
+                                label: String(localized: "Public IPv6"),
+                                address: info.addresses.ipv6,
+                                accessibilityIdentifier: "popover.ipv6-row"
+                            )
+                        }
                         Divider()
                         domesticIPv4Row(currentIPv4: info.addresses.ipv4)
                     }

@@ -6,6 +6,7 @@ struct CountryHeroView: View {
     var flagStyle: CountryFlagStyle = .sticker
     var compact = false
     var showsStatus = true
+    var showsRoute = true
 
     var body: some View {
         HStack(alignment: .center, spacing: compact ? 12 : 18) {
@@ -29,18 +30,22 @@ struct CountryHeroView: View {
                     }
                 }
 
-                HStack(spacing: 8) {
-                    Label(info.routeMode.label, systemImage: routeSymbol)
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color(nsColor: .quaternaryLabelColor).opacity(0.4), in: Capsule())
-                        .foregroundStyle(.secondary)
+                if showsRoute || (!compact && info.location.timezone != nil) {
+                    HStack(spacing: 8) {
+                        if showsRoute {
+                            Label(info.routeMode.label, systemImage: routeSymbol)
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color(nsColor: .quaternaryLabelColor).opacity(0.4), in: Capsule())
+                                .foregroundStyle(.secondary)
+                        }
 
-                    if let timezone = info.location.timezone, !compact {
-                        Label(timezone, systemImage: "clock")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                        if let timezone = info.location.timezone, !compact {
+                            Label(timezone, systemImage: "clock")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
                 }
             }
