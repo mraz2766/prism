@@ -7,6 +7,11 @@ struct HTTPResponse: Sendable {
 
 protocol HTTPClient: Sendable {
     func data(for request: URLRequest) async throws -> HTTPResponse
+    func invalidateConnections() async
+}
+
+extension HTTPClient {
+    func invalidateConnections() async {}
 }
 
 enum URLSessionLifetime: Equatable, Sendable {
@@ -57,6 +62,15 @@ final class URLSessionHTTPClient: HTTPClient, @unchecked Sendable {
             throw NetworkFailure.invalidResponse
         }
         return HTTPResponse(data: data, statusCode: httpResponse.statusCode)
+    }
+
+    func invalidateConnections() async {
+        let previousSession = stateLock.withLock {
+            let session = sessionState?.session
+            sessionState = nil
+            return session
+        }
+        previousSession?.invalidateAndCancel()
     }
 
     private func sessionForRequest() -> URLSession {

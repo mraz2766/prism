@@ -84,6 +84,18 @@ final class MenuBarLabelRendererTests: XCTestCase {
         XCTAssertTrue(value.title.contains("—"))
     }
 
+    func testOfflineWithRetainedInfoDoesNotRenderTheOldCountryFlag() {
+        let value = MenuBarLabelRenderer.presentation(
+            status: .offline(previous: .preview),
+            mode: .flagOnly,
+            flagStyle: .sticker,
+            customTemplate: ""
+        )
+
+        XCTAssertEqual(value.title, "")
+        XCTAssertEqual(value.indicator, .systemSymbol(name: "wifi.slash"))
+    }
+
     func testEveryDisplayModeMakesVerificationVisible() {
         let status = NetworkStatus.verifying(previous: .preview, candidateAddress: "203.0.113.50")
 

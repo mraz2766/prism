@@ -50,6 +50,21 @@ final class HTTPClientTests: XCTestCase {
 
         XCTAssertEqual(factory.count, 2)
     }
+
+    func testInvalidatingConnectionsForcesANewSessionGeneration() async throws {
+        let factory = SessionFactoryCounter()
+        let client = URLSessionHTTPClient(
+            sessionLifetime: .persistent,
+            sessionFactory: { factory.makeSession() }
+        )
+        let request = URLRequest(url: try XCTUnwrap(URL(string: "https://prism.test/ip")))
+
+        _ = try await client.data(for: request)
+        await client.invalidateConnections()
+        _ = try await client.data(for: request)
+
+        XCTAssertEqual(factory.count, 2)
+    }
 }
 
 private final class SessionFactoryCounter: @unchecked Sendable {

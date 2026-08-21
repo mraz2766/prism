@@ -8,11 +8,13 @@ final class RefreshCoordinator {
     private let settings: SettingsStore
     private let realtimeExitMonitor: RealtimeExitMonitor
     private let domesticIPv4ViewModel: DomesticIPv4ViewModel
+    private let proxyConfigurationMonitor: ProxyConfigurationMonitor
 
     private var timerTask: Task<Void, Never>?
     private var networkTask: Task<Void, Never>?
     private var settingsTask: Task<Void, Never>?
     private var realtimeControlTask: Task<Void, Never>?
+    private var proxyConfigurationTask: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
     private var isSleeping = false
 
@@ -21,18 +23,24 @@ final class RefreshCoordinator {
         monitor: NetworkMonitor,
         settings: SettingsStore,
         realtimeExitMonitor: RealtimeExitMonitor,
-        domesticIPv4ViewModel: DomesticIPv4ViewModel
+        domesticIPv4ViewModel: DomesticIPv4ViewModel,
+        proxyConfigurationMonitor: ProxyConfigurationMonitor
     ) {
         self.lookupService = lookupService
         self.monitor = monitor
         self.settings = settings
         self.realtimeExitMonitor = realtimeExitMonitor
         self.domesticIPv4ViewModel = domesticIPv4ViewModel
+        self.proxyConfigurationMonitor = proxyConfigurationMonitor
     }
 
     func start() {
-        monitor.start()
+        networkTask?.cancel()
+        proxyConfigurationTask?.cancel()
         observeNetwork()
+        observeProxyConfiguration()
+        monitor.start()
+        proxyConfigurationMonitor.start()
         observeSettings()
         observeSleepWake()
         restartTimer(configuration: settings.refreshConfiguration)
@@ -47,12 +55,14 @@ final class RefreshCoordinator {
     func stop() {
         timerTask?.cancel()
         networkTask?.cancel()
+        proxyConfigurationTask?.cancel()
         settingsTask?.cancel()
         realtimeControlTask?.cancel()
         realtimeControlTask = Task { [realtimeExitMonitor] in
             await realtimeExitMonitor.stop()
         }
         domesticIPv4ViewModel.stop()
+        proxyConfigurationMonitor.stop()
         let center = NSWorkspace.shared.notificationCenter
         observers.forEach(center.removeObserver)
         observers.removeAll()
@@ -73,14 +83,25 @@ final class RefreshCoordinator {
             for await event in monitor.events() {
                 switch event {
                 case .offline:
+                    await realtimeExitMonitor.networkBecameUnavailable()
                     await lookupService.markOffline()
                     domesticIPv4ViewModel.markOffline()
                 case .onlineChanged:
-                    guard settings.refreshConfiguration.refreshOnNetworkChange, !isSleeping else { continue }
+                    guard !isSleeping else { continue }
                     domesticIPv4ViewModel.refresh()
-                    await realtimeExitMonitor.boost()
-                    await realtimeExitMonitor.refreshNow()
+                    await realtimeExitMonitor.networkEnvironmentDidChange()
                 }
+            }
+        }
+    }
+
+    private func observeProxyConfiguration() {
+        proxyConfigurationTask = Task { [weak self] in
+            guard let self else { return }
+            for await _ in proxyConfigurationMonitor.events() {
+                guard !isSleeping else { continue }
+                domesticIPv4ViewModel.refresh()
+                await realtimeExitMonitor.networkEnvironmentDidChange()
             }
         }
     }

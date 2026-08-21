@@ -86,7 +86,9 @@ struct DashboardOverviewView: View {
                 ContentUnavailableView {
                     Label(status.shortLabel, systemImage: status.symbolName)
                 } description: {
-                    Text(String(localized: "Prism could not determine the current network exit."))
+                    Text(status.isOffline
+                        ? String(localized: "No internet connection")
+                        : String(localized: "Prism could not determine the current network exit."))
                 } actions: {
                     Button(String(localized: "Try Again")) { environment.refreshCoordinator.triggerManual() }
                 }

@@ -188,6 +188,53 @@ final class RealtimeExitMonitorTests: XCTestCase {
         XCTAssertEqual(metrics.maximumConcurrentCalls, 1)
     }
 
+    func testNetworkEnvironmentChangeDiscardsOldObservationAndForcesFreshConnection() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let domestic = observation(
+            ip: "198.51.100.30",
+            route: .direct,
+            geo: geoResult(country: "CN", region: "Shanghai", city: "Shanghai")
+        )
+        let probe = EnvironmentChangingObservationProbe(observations: [
+            observation(ip: "203.0.113.99", route: .proxy),
+            domestic,
+            domestic
+        ])
+        let monitor = RealtimeExitMonitor(probe: probe, lookupService: harness.lookup)
+
+        let oldPoll = Task { await monitor.pollNow() }
+        try await Task.sleep(for: .milliseconds(5))
+        await monitor.networkEnvironmentDidChange()
+        await oldPoll.value
+        await monitor.pollNow()
+
+        let info = (await harness.lookup.snapshot()).info
+        let metrics = await probe.metrics
+        XCTAssertEqual(info?.addresses.ipv4, "198.51.100.30")
+        XCTAssertEqual(info?.location.countryCode, "CN")
+        XCTAssertEqual(metrics.callCount, 3)
+        XCTAssertEqual(metrics.invalidationCount, 1)
+    }
+
+    func testSuccessfulStablePollRestoresOfflineStatusWhenRecoveryEventWasMissed() async {
+        let original = routedInfo(ip: "203.0.113.10", route: .proxy)
+        let harness = makeHarness(cached: original)
+        await harness.lookup.markOffline()
+        let monitor = RealtimeExitMonitor(
+            probe: SequenceObservationProbe(observations: [
+                observation(ip: "203.0.113.10", route: .proxy)
+            ]),
+            lookupService: harness.lookup
+        )
+
+        await monitor.pollNow()
+
+        guard case .online(let info) = await harness.lookup.snapshot() else {
+            return XCTFail("A successful observation must restore the online state")
+        }
+        XCTAssertEqual(info.addresses, original.addresses)
+    }
+
     private func makeHarness(cached: NetworkInfo) -> MonitorHarness {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -306,6 +353,35 @@ private actor SlowCountingObservationProbe: ExitAddressProbing {
         defer { concurrentCalls -= 1 }
         try await Task.sleep(for: .milliseconds(30))
         return observation
+    }
+}
+
+private actor EnvironmentChangingObservationProbe: ExitAddressProbing {
+    private var observations: [ExitObservation]
+    private var callCount = 0
+    private var invalidationCount = 0
+
+    init(observations: [ExitObservation]) {
+        self.observations = observations
+    }
+
+    var metrics: (callCount: Int, invalidationCount: Int) {
+        (callCount, invalidationCount)
+    }
+
+    func observeExit() async throws -> ExitObservation {
+        let index = callCount
+        callCount += 1
+        guard !observations.isEmpty else { throw NetworkFailure.serviceUnavailable }
+        let observation = observations.removeFirst()
+        if index == 0 {
+            try? await Task.sleep(for: .milliseconds(30))
+        }
+        return observation
+    }
+
+    func invalidateConnections() async {
+        invalidationCount += 1
     }
 }
 

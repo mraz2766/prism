@@ -90,12 +90,14 @@ final class AppEnvironment {
             probe: exitProbe,
             lookupService: lookupService
         )
+        let proxyConfigurationMonitor = ProxyConfigurationMonitor()
         refreshCoordinator = RefreshCoordinator(
             lookupService: lookupService,
             monitor: NetworkMonitor(),
             settings: settings,
             realtimeExitMonitor: realtimeExitMonitor,
-            domesticIPv4ViewModel: domesticIPv4ViewModel
+            domesticIPv4ViewModel: domesticIPv4ViewModel,
+            proxyConfigurationMonitor: proxyConfigurationMonitor
         )
     }
 

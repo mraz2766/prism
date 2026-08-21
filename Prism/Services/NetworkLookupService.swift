@@ -49,11 +49,11 @@ actor NetworkLookupService {
     func snapshot() -> NetworkStatus { currentStatus }
 
     func comparisonInfo() -> NetworkInfo? {
-        currentStatus.info ?? lastConfirmedInfo
+        currentStatus.retainedInfo ?? lastConfirmedInfo
     }
 
     func markVerifying(_ observation: ExitObservation) {
-        emit(.verifying(previous: currentStatus.info, candidateAddress: observation.primaryAddress))
+        emit(.verifying(previous: currentStatus.retainedInfo, candidateAddress: observation.primaryAddress))
     }
 
     func cancelVerification() {
@@ -65,6 +65,11 @@ actor NetworkLookupService {
         } else {
             emit(.idle)
         }
+    }
+
+    func cancelRefreshForEnvironmentChange() {
+        inflight?.task.cancel()
+        inflight = nil
     }
 
     @discardableResult
@@ -80,7 +85,7 @@ actor NetworkLookupService {
             inflight.task.cancel()
         }
         let visiblePrevious = currentStatus.info
-        let fallbackInfo = visiblePrevious ?? lastConfirmedInfo
+        let fallbackInfo = currentStatus.retainedInfo ?? lastConfirmedInfo
         if showLoading { emit(.loading(previous: visiblePrevious)) }
 
         let publicIPProvider = self.publicIPProvider
@@ -159,7 +164,9 @@ actor NetworkLookupService {
     }
 
     func markOffline() {
-        emit(.offline(previous: currentStatus.info ?? lastConfirmedInfo))
+        inflight?.task.cancel()
+        inflight = nil
+        emit(.offline(previous: currentStatus.retainedInfo ?? lastConfirmedInfo))
     }
 
     private static func bestEffortPrivacy(

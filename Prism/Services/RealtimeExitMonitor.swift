@@ -20,6 +20,7 @@ actor RealtimeExitMonitor {
     private var isPaused = false
     private var burstUntil: ContinuousClock.Instant?
     private var stabilizer = ExitStabilizer()
+    private var observationGeneration = 0
 
     init(
         probe: any ExitAddressProbing,
@@ -61,6 +62,7 @@ actor RealtimeExitMonitor {
         queuedRefreshesUnchanged = false
         queuedShowLoading = false
         burstUntil = nil
+        observationGeneration &+= 1
         stabilizer.reset()
     }
 
@@ -85,11 +87,36 @@ actor RealtimeExitMonitor {
         await observeAndApply(refreshUnchanged: true, showLoading: showLoading)
     }
 
-    private func observeAndApply(refreshUnchanged: Bool, showLoading: Bool) async {
+    func networkEnvironmentDidChange(showLoading: Bool = false) async {
+        guard !isPaused, !Task.isCancelled else { return }
+        observationGeneration &+= 1
+        stabilizer.reset()
+        boost()
+        await lookupService.cancelRefreshForEnvironmentChange()
+        await probe.invalidateConnections()
+        await observeAndApply(
+            refreshUnchanged: true,
+            showLoading: showLoading,
+            forceNewObservation: true
+        )
+    }
+
+    func networkBecameUnavailable() async {
+        observationGeneration &+= 1
+        stabilizer.reset()
+        await lookupService.cancelRefreshForEnvironmentChange()
+        await probe.invalidateConnections()
+    }
+
+    private func observeAndApply(
+        refreshUnchanged: Bool,
+        showLoading: Bool,
+        forceNewObservation: Bool = false
+    ) async {
         guard !isPaused, !Task.isCancelled else { return }
 
         if let observationTask {
-            if refreshUnchanged, !activeRefreshesUnchanged {
+            if forceNewObservation || (refreshUnchanged && !activeRefreshesUnchanged) {
                 queuedRefreshesUnchanged = true
                 queuedShowLoading = queuedShowLoading || showLoading
             }
@@ -98,11 +125,13 @@ actor RealtimeExitMonitor {
         }
 
         activeRefreshesUnchanged = refreshUnchanged
+        let generation = observationGeneration
         let task = Task<Void, Never> { [weak self] in
             guard let self else { return }
             await self.performObservation(
                 refreshUnchanged: refreshUnchanged,
-                showLoading: showLoading
+                showLoading: showLoading,
+                generation: generation
             )
         }
         observationTask = task
@@ -118,20 +147,27 @@ actor RealtimeExitMonitor {
         }
     }
 
-    private func performObservation(refreshUnchanged: Bool, showLoading: Bool) async {
+    private func performObservation(
+        refreshUnchanged: Bool,
+        showLoading: Bool,
+        generation: Int
+    ) async {
         guard !isPaused, !Task.isCancelled else { return }
 
         do {
             let observation = try await probe.observeExit()
+            guard generation == observationGeneration, !isPaused else { return }
             let currentInfo = await lookupService.comparisonInfo()
+            let restoresConnectivity = await lookupService.snapshot().isOffline
+            guard generation == observationGeneration, !isPaused else { return }
             switch stabilizer.evaluate(observation, currentInfo: currentInfo) {
             case .unchanged:
-                if refreshUnchanged {
+                if refreshUnchanged || restoresConnectivity {
                     _ = await lookupService.refresh(observation: observation, showLoading: showLoading)
                 }
             case .cancelled:
                 await lookupService.cancelVerification()
-                if refreshUnchanged {
+                if refreshUnchanged || restoresConnectivity {
                     _ = await lookupService.refresh(observation: observation, showLoading: showLoading)
                 }
             case .pending(let candidate):
@@ -144,6 +180,7 @@ actor RealtimeExitMonitor {
             }
             return
         } catch {
+            guard generation == observationGeneration else { return }
             if NetworkFailure.map(error) != .cancelled {
                 logger.debug("Realtime address probe failed: \(String(describing: error), privacy: .public)")
             }

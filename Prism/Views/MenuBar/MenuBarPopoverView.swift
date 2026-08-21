@@ -57,8 +57,10 @@ struct MenuBarPopoverView: View {
                 }
             } else {
                 unavailableContent
-                SectionCard(horizontalPadding: 14, verticalPadding: 12) {
-                    domesticIPv4Row(currentIPv4: nil)
+                if !status.isOffline {
+                    SectionCard(horizontalPadding: 14, verticalPadding: 12) {
+                        domesticIPv4Row(currentIPv4: nil)
+                    }
                 }
             }
             footer
@@ -77,6 +79,9 @@ struct MenuBarPopoverView: View {
             Text(status.shortLabel).font(.headline)
             if case .failed(let reason) = status {
                 Text(reason.userDescription).font(.caption).foregroundStyle(.secondary)
+            } else if status.isOffline {
+                Text(String(localized: "No internet connection"))
+                    .font(.caption).foregroundStyle(.secondary)
             } else {
                 Text(String(localized: "Checking your current network exit…"))
                     .font(.caption).foregroundStyle(.secondary)

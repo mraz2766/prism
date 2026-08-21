@@ -3,12 +3,15 @@ import Network
 
 protocol ExitAddressProbing: Sendable {
     func observeExit() async throws -> ExitObservation
+    func invalidateConnections() async
 }
 
 extension ExitAddressProbing {
     func fetchPrimaryAddress() async throws -> String {
         try await observeExit().primaryAddress
     }
+
+    func invalidateConnections() async {}
 }
 
 struct IPifyExitAddressProbe: ExitAddressProbing {
@@ -46,6 +49,10 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
 
         try Task.checkCancellation()
         return try await fetchDomesticFallback()
+    }
+
+    func invalidateConnections() async {
+        await client.invalidateConnections()
     }
 
     private func overseasAddresses() async -> IPAddressSet {

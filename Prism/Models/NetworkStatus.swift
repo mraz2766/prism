@@ -49,10 +49,23 @@ enum NetworkStatus: Equatable, Sendable {
 
     var info: NetworkInfo? {
         switch self {
+        case .loading(let previous), .verifying(let previous, _): previous
+        case .online(let info), .stale(let info, _): info
+        case .idle, .offline, .failed: nil
+        }
+    }
+
+    var retainedInfo: NetworkInfo? {
+        switch self {
         case .loading(let previous), .verifying(let previous, _), .offline(let previous): previous
         case .online(let info), .stale(let info, _): info
         case .idle, .failed: nil
         }
+    }
+
+    var isOffline: Bool {
+        if case .offline = self { return true }
+        return false
     }
 
     var isRefreshing: Bool {
