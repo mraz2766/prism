@@ -59,6 +59,8 @@ final class DomesticIPv4ProbeTests: XCTestCase {
         XCTAssertEqual(info.relationship(to: nil), .domesticObserved)
         XCTAssertEqual(info.relationship(to: "203.0.113.40"), .independentDomesticExit)
         XCTAssertEqual(info.relationship(to: "180.173.166.20"), .sameAsCurrentExit)
+        XCTAssertTrue(DomesticIPv4Status.available(info).matchesCurrentExit("180.173.166.20"))
+        XCTAssertFalse(DomesticIPv4Status.loading(previous: info).matchesCurrentExit("180.173.166.20"))
     }
 }
 

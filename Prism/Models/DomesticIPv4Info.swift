@@ -46,4 +46,10 @@ enum DomesticIPv4Status: Equatable, Sendable {
         if case .loading = self { return true }
         return false
     }
+
+    func matchesCurrentExit(_ currentIPv4: String?) -> Bool {
+        guard case .available(let info) = self,
+              let currentIPv4 else { return false }
+        return info.address == currentIPv4
+    }
 }

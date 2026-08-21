@@ -25,20 +25,29 @@ struct MenuBarPopoverView: View {
                 SectionCard(horizontalPadding: 14, verticalPadding: 12) {
                     VStack(spacing: 12) {
                         if let ipv4 = info.addresses.ipv4 {
+                            let domesticMatches = environment.domesticIPv4ViewModel.status
+                                .matchesCurrentExit(ipv4)
                             IPAddressRow(
                                 label: String(localized: "Public IPv4"),
                                 address: ipv4,
+                                detail: domesticMatches
+                                    ? String(localized: "Domestic exit matches")
+                                    : nil,
                                 accessibilityIdentifier: "popover.ipv4-row"
                             )
+                            if !domesticMatches {
+                                Divider()
+                                domesticIPv4Row(currentIPv4: ipv4)
+                            }
                         } else {
                             IPAddressRow(
                                 label: String(localized: "Public IPv6"),
                                 address: info.addresses.ipv6,
                                 accessibilityIdentifier: "popover.ipv6-row"
                             )
+                            Divider()
+                            domesticIPv4Row(currentIPv4: nil)
                         }
-                        Divider()
-                        domesticIPv4Row(currentIPv4: info.addresses.ipv4)
                     }
                 }
                 if case .stale(_, let reason) = status {
