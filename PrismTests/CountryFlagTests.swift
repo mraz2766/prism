@@ -28,4 +28,8 @@ final class CountryFlagTests: XCTestCase {
     func testBundledRoundedFlagCanBeLoaded() {
         XCTAssertNotNil(CountryFlag.roundedImage(for: "CN"))
     }
+
+    func testBundledGradientFlagCanBeLoaded() {
+        XCTAssertNotNil(CountryFlag.gradientImage(for: "CN"))
+    }
 }

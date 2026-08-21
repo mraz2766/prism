@@ -148,9 +148,20 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         case .waved:
             guard let source = CountryFlag.wavedImage(for: countryCode) else { return nil }
             return fittedMenuBarImage(source)
+        case .gradient:
+            guard let source = CountryFlag.gradientImage(for: countryCode) else { return nil }
+            return roundedMenuBarImage(
+                source,
+                targetRect: NSRect(x: 0, y: 2.5, width: 18, height: 13),
+                cornerRadius: 2.5
+            )
         case .rounded:
-            guard let source = CountryFlag.roundedImage(for: countryCode) else { return nil }
-            return fittedMenuBarImage(source)
+            guard let source = CountryFlag.roundedImage(for: countryCode, targetWidth: 16) else { return nil }
+            return roundedMenuBarImage(
+                source,
+                targetRect: NSRect(x: 1, y: 3, width: 16, height: 12),
+                cornerRadius: 2
+            )
         case .sticker:
             guard let source = CountryFlag.image(for: countryCode) else { return nil }
             let size = NSSize(width: 18, height: 18)
@@ -176,6 +187,32 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size, flipped: false) { rect in
             source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }
+
+    private func roundedMenuBarImage(
+        _ source: NSImage,
+        targetRect: NSRect,
+        cornerRadius: CGFloat
+    ) -> NSImage {
+        let size = NSSize(width: 18, height: 18)
+        let image = NSImage(size: size, flipped: false) { _ in
+            NSGraphicsContext.saveGraphicsState()
+            let clipPath = NSBezierPath(
+                roundedRect: targetRect,
+                xRadius: cornerRadius,
+                yRadius: cornerRadius
+            )
+            clipPath.addClip()
+            source.draw(in: targetRect, from: .zero, operation: .sourceOver, fraction: 1)
+            NSGraphicsContext.restoreGraphicsState()
+
+            NSColor.separatorColor.withAlphaComponent(0.45).setStroke()
+            clipPath.lineWidth = 0.5
+            clipPath.stroke()
             return true
         }
         image.isTemplate = false

@@ -57,6 +57,7 @@
     "Geo IP provider" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"GeoIP 服务"}}}},
     "GeoIP Providers" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"GeoIP 服务节点"}}}},
     "GeoIP location is requested fresh and is not reused from a city cache." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"GeoIP 位置每次变动均发起即时查询，不会复用过期城市缓存。"}}}},
+    "Gradient flag" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"渐变国旗"}}}},
     "Graphite" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"曜石灰"}}}},
     "History" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"历史"}}}},
     "Insert:" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"点击插入:"}}}},

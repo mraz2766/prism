@@ -44,6 +44,7 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     case sticker
     case cartoon
     case waved
+    case gradient
     case rounded
     case emoji
 
@@ -54,6 +55,7 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
         case .sticker: String(localized: "Sticker flag")
         case .cartoon: String(localized: "Cartoon flag")
         case .waved: String(localized: "Waved flag")
+        case .gradient: String(localized: "Gradient flag")
         case .rounded: String(localized: "Rounded flag")
         case .emoji: String(localized: "System Emoji")
         }
