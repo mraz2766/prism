@@ -150,7 +150,14 @@ UI 测试位于独立的 `PrismUITests` Scheme，需要本机签名和 macOS 自
 ./scripts/release.sh major
 ```
 
-发布脚本会提升版本和内部构建号，运行测试，生成并验证签名 Release 构建，最后替换 `/Applications/Prism.app`。测试或构建失败时不会覆盖当前安装版本。
+发布脚本会自动识别安装在 `/Applications/Xcode.app` 的完整 Xcode，提升版本和内部构建号，运行测试，生成并验证签名 Release 构建，最后替换并启动 `/Applications/Prism.app`。首次运行会自动打开概览窗口，后续保持纯菜单栏运行。测试、构建或启动失败时不会覆盖当前安装版本。
+
+如果 Xcode 刚安装且尚未完成首次设置，请先运行：
+
+```bash
+sudo xcodebuild -license
+sudo xcodebuild -runFirstLaunch
+```
 
 ## 项目结构
 

@@ -22,4 +22,34 @@ final class AppLaunchBehaviorTests: XCTestCase {
             environment: [:]
         ))
     }
+
+    func testFirstNormalLaunchShowsDashboardOnlyOnce() {
+        let suiteName = "com.mraz.prism.tests.launch.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        XCTAssertTrue(AppLaunchBehavior.shouldShowDashboard(
+            arguments: ["Prism"],
+            defaults: defaults
+        ))
+
+        AppLaunchBehavior.markFirstLaunchCompleted(defaults: defaults)
+
+        XCTAssertFalse(AppLaunchBehavior.shouldShowDashboard(
+            arguments: ["Prism"],
+            defaults: defaults
+        ))
+    }
+
+    func testUITestAlwaysShowsDashboard() {
+        let suiteName = "com.mraz.prism.tests.launch.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        AppLaunchBehavior.markFirstLaunchCompleted(defaults: defaults)
+
+        XCTAssertTrue(AppLaunchBehavior.shouldShowDashboard(
+            arguments: ["Prism", "--ui-testing"],
+            defaults: defaults
+        ))
+    }
 }

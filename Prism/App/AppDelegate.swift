@@ -2,12 +2,26 @@ import AppKit
 import SwiftUI
 
 struct AppLaunchBehavior {
+    private static let completedFirstLaunchKey = "app.completedFirstLaunch"
+
     static func shouldBootstrap(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
         if arguments.contains("--ui-testing") { return true }
         return environment["XCTestConfigurationFilePath"] == nil
+    }
+
+    static func shouldShowDashboard(
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        if arguments.contains("--ui-testing") { return true }
+        return !defaults.bool(forKey: completedFirstLaunchKey)
+    }
+
+    static func markFirstLaunchCompleted(defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: completedFirstLaunchKey)
     }
 }
 
@@ -24,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBarController = StatusBarController(environment: environment)
         installSettingsBridge()
         environment.start()
-        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+        if AppLaunchBehavior.shouldShowDashboard() {
+            AppLaunchBehavior.markFirstLaunchCompleted()
             environment.showDashboard()
         }
     }

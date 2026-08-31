@@ -23,6 +23,31 @@ previous_app=""
 version_changed=no
 install_changed=no
 
+configure_xcode() {
+  local selected_developer_dir="${DEVELOPER_DIR:-}"
+  if [[ -z "$selected_developer_dir" ]]; then
+    selected_developer_dir="$(xcode-select -p 2>/dev/null || true)"
+  fi
+
+  if [[ ! -x "$selected_developer_dir/usr/bin/xcodebuild" && \
+        -x "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild" ]]; then
+    selected_developer_dir="/Applications/Xcode.app/Contents/Developer"
+  fi
+
+  if [[ ! -x "$selected_developer_dir/usr/bin/xcodebuild" ]]; then
+    echo "未找到完整 Xcode。请从 App Store 安装 Xcode 后重试。" >&2
+    exit 69
+  fi
+
+  export DEVELOPER_DIR="$selected_developer_dir"
+  if ! xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
+    echo "Xcode 首次使用设置尚未完成。请先在终端运行：" >&2
+    echo "  sudo xcodebuild -license" >&2
+    echo "  sudo xcodebuild -runFirstLaunch" >&2
+    exit 69
+  fi
+}
+
 cleanup() {
   local exit_code=$?
 
@@ -46,13 +71,14 @@ cleanup() {
     rm -rf -- "$temporary_root"
   fi
 
-  if [[ "$exit_code" -ne 0 ]]; then
+  if [[ "$exit_code" -ne 0 && ("$version_changed" == yes || "$install_changed" == yes) ]]; then
     echo "发布失败：工程版本与已安装 App 已恢复。" >&2
   fi
 }
 trap cleanup EXIT
 
 cd "$project_root"
+configure_xcode
 cp -- "$project_file" "$project_backup"
 
 current_version="$(sed -n 's/^[[:space:]]*MARKETING_VERSION = \([^;]*\);/\1/p' "$project_file" | sort -u)"
@@ -146,6 +172,19 @@ if [[ "$installed_version" != "$next_version" || "$installed_build" != "$next_bu
   exit 68
 fi
 codesign --verify --deep --strict "$application_path"
+
+echo "启动 Prism…"
+open "$application_path"
+for _ in {1..20}; do
+  if pgrep -x Prism >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.25
+done
+if ! pgrep -x Prism >/dev/null 2>&1; then
+  echo "Prism 安装成功但未能启动，恢复之前的安装。" >&2
+  exit 69
+fi
 
 if [[ -e "$previous_app" ]]; then
   rm -rf -- "$previous_app"
