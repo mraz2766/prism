@@ -27,13 +27,17 @@ struct GeneralSettingsView: View {
             }
 
             Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(String(localized: "Detection sensitivity"))
-                        Spacer()
-                        Text(settings.detectionSensitivity.label)
-                            .foregroundStyle(.secondary)
-                    }
+                HStack(spacing: 8) {
+                    Text(String(localized: "Detection sensitivity"))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+
+                    Spacer(minLength: 16)
+
+                    Image(systemName: "leaf")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
 
                     Slider(
                         value: Binding(
@@ -45,14 +49,21 @@ struct GeneralSettingsView: View {
                         ),
                         in: Double(DetectionSensitivity.energySaver.rawValue)...Double(DetectionSensitivity.maximum.rawValue),
                         step: 1
-                    ) {
-                        Text(String(localized: "Detection sensitivity"))
-                    } minimumValueLabel: {
-                        Image(systemName: "leaf")
-                    } maximumValueLabel: {
-                        Image(systemName: "bolt.fill")
-                    }
+                    )
+                    .frame(minWidth: 180, idealWidth: 240, maxWidth: 280)
+                    .accessibilityLabel(String(localized: "Detection sensitivity"))
                     .accessibilityValue(settings.detectionSensitivity.label)
+
+                    Image(systemName: "bolt.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+
+                    Text(settings.detectionSensitivity.label)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(minWidth: 56, alignment: .trailing)
                 }
 
                 Toggle(String(localized: "Periodic metadata verification"), isOn: Binding(
