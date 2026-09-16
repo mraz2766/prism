@@ -27,9 +27,32 @@ struct GeneralSettingsView: View {
             }
 
             Section {
-                LabeledContent(String(localized: "Real-time exit detection")) {
-                    Text(String(localized: "Automatic (5s / 250ms)"))
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(String(localized: "Detection sensitivity"))
+                        Spacer()
+                        Text(settings.detectionSensitivity.label)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Slider(
+                        value: Binding(
+                            get: { Double(settings.detectionSensitivity.rawValue) },
+                            set: { value in
+                                let rawValue = Int(value.rounded())
+                                settings.detectionSensitivity = DetectionSensitivity(rawValue: rawValue) ?? .responsive
+                            }
+                        ),
+                        in: Double(DetectionSensitivity.energySaver.rawValue)...Double(DetectionSensitivity.maximum.rawValue),
+                        step: 1
+                    ) {
+                        Text(String(localized: "Detection sensitivity"))
+                    } minimumValueLabel: {
+                        Image(systemName: "leaf")
+                    } maximumValueLabel: {
+                        Image(systemName: "bolt.fill")
+                    }
+                    .accessibilityValue(settings.detectionSensitivity.label)
                 }
 
                 Toggle(String(localized: "Periodic metadata verification"), isOn: Binding(
@@ -46,7 +69,7 @@ struct GeneralSettingsView: View {
             } header: {
                 Text(String(localized: "Refresh & Detection"))
             } footer: {
-                Text(String(localized: "Prism checks every 5 seconds while stable, briefly switches to 250 ms confirmation after a possible change, and reduces activity in Low Power Mode."))
+                Text(String(localized: "Higher sensitivity notices VPN outages, recovery, and region changes sooner, but makes more network requests and uses more energy."))
             }
 
             Section {

@@ -68,6 +68,13 @@ enum NetworkStatus: Equatable, Sendable {
         return false
     }
 
+    var needsRecoveryRefresh: Bool {
+        switch self {
+        case .offline, .stale, .failed: true
+        case .idle, .loading, .verifying, .online: false
+        }
+    }
+
     var isRefreshing: Bool {
         switch self {
         case .loading, .verifying: true

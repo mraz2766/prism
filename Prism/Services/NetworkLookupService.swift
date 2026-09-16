@@ -169,6 +169,36 @@ actor NetworkLookupService {
         emit(.offline(previous: currentStatus.retainedInfo ?? lastConfirmedInfo))
     }
 
+    func markProbeUnavailable(_ failure: NetworkFailure) {
+        guard failure != .cancelled else { return }
+        if case .offline = currentStatus { return }
+        if let fallbackInfo = currentStatus.retainedInfo ?? lastConfirmedInfo {
+            emit(.stale(fallbackInfo, reason: failure))
+        } else {
+            emit(.failed(failure))
+        }
+    }
+
+    func restoreProbeAvailability(_ observation: ExitObservation) -> Bool {
+        guard let fallbackInfo = currentStatus.retainedInfo ?? lastConfirmedInfo,
+              fallbackInfo.addresses.ipv4 == observation.primaryAddress ||
+                fallbackInfo.addresses.ipv6 == observation.primaryAddress else { return false }
+        let restored = NetworkInfo(
+            addresses: observation.addresses,
+            location: fallbackInfo.location,
+            network: fallbackInfo.network,
+            privacy: fallbackInfo.privacy,
+            providerIdentifier: fallbackInfo.providerIdentifier,
+            routeMode: observation.routeMode,
+            exitSource: observation.source,
+            checkedAt: .now
+        )
+        lastConfirmedInfo = restored
+        cache.saveInfo(restored)
+        emit(.online(restored))
+        return true
+    }
+
     private static func bestEffortPrivacy(
         provider: any PrivacyClassifying,
         ipAddress: String

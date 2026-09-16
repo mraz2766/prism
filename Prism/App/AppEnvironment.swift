@@ -88,7 +88,8 @@ final class AppEnvironment {
             : IPifyExitAddressProbe()
         let realtimeExitMonitor = RealtimeExitMonitor(
             probe: exitProbe,
-            lookupService: lookupService
+            lookupService: lookupService,
+            sensitivity: settings.detectionSensitivity
         )
         let proxyConfigurationMonitor = ProxyConfigurationMonitor()
         refreshCoordinator = RefreshCoordinator(

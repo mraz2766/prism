@@ -18,6 +18,13 @@ final class SettingsStore {
             emit()
         }
     }
+    var detectionSensitivity: DetectionSensitivity {
+        didSet {
+            guard oldValue != detectionSensitivity else { return }
+            defaults.set(detectionSensitivity.rawValue, forKey: Keys.detectionSensitivity)
+            emit()
+        }
+    }
     var changeNotificationsEnabled: Bool {
         didSet {
             guard oldValue != changeNotificationsEnabled else { return }
@@ -76,7 +83,8 @@ final class SettingsStore {
     var refreshConfiguration: RefreshConfiguration {
         RefreshConfiguration(
             interval: refreshInterval,
-            refreshOnNetworkChange: refreshInterval == .networkChangesOnly ? true : refreshOnNetworkChange
+            refreshOnNetworkChange: refreshInterval == .networkChangesOnly ? true : refreshOnNetworkChange,
+            detectionSensitivity: detectionSensitivity
         )
     }
 
@@ -91,6 +99,13 @@ final class SettingsStore {
             refreshInterval = RefreshInterval(rawValue: defaults.integer(forKey: Keys.refreshInterval)) ?? .minute1
         }
         refreshOnNetworkChange = defaults.object(forKey: Keys.refreshOnNetworkChange) as? Bool ?? true
+        if defaults.object(forKey: Keys.detectionSensitivity) == nil {
+            detectionSensitivity = .responsive
+        } else {
+            detectionSensitivity = DetectionSensitivity(
+                rawValue: defaults.integer(forKey: Keys.detectionSensitivity)
+            ) ?? .responsive
+        }
         changeNotificationsEnabled = defaults.bool(forKey: Keys.changeNotifications)
         launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
         menuBarDisplayMode = Self.migratedDisplayMode(defaults.string(forKey: Keys.displayMode))
@@ -107,7 +122,7 @@ final class SettingsStore {
             let id = UUID()
             continuations[id] = continuation
             continuation.yield(refreshConfiguration)
-            continuation.onTermination = { @Sendable _ in
+            continuation.onTermination = { @Sendable [weak self] _ in
                 Task { @MainActor [weak self] in self?.continuations.removeValue(forKey: id) }
             }
         }
@@ -139,6 +154,7 @@ final class SettingsStore {
     private enum Keys {
         static let refreshInterval = "refresh.interval"
         static let refreshOnNetworkChange = "refresh.onNetworkChange"
+        static let detectionSensitivity = "detection.sensitivity"
         static let changeNotifications = "notifications.exitChanges"
         static let launchAtLogin = "launchAtLogin"
         static let displayMode = "menuBar.displayMode"

@@ -21,6 +21,64 @@ enum RefreshInterval: Int, CaseIterable, Codable, Identifiable, Sendable {
     }
 }
 
+enum DetectionSensitivity: Int, CaseIterable, Codable, Identifiable, Sendable {
+    case energySaver
+    case relaxed
+    case balanced
+    case responsive
+    case maximum
+
+    var id: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .energySaver: String(localized: "Energy Saver")
+        case .relaxed: String(localized: "Relaxed")
+        case .balanced: String(localized: "Balanced")
+        case .responsive: String(localized: "Responsive")
+        case .maximum: String(localized: "Maximum")
+        }
+    }
+
+    var stableInterval: Duration {
+        switch self {
+        case .energySaver: .seconds(12)
+        case .relaxed: .seconds(8)
+        case .balanced: .seconds(5)
+        case .responsive: .seconds(3)
+        case .maximum: .seconds(2)
+        }
+    }
+
+    var lowPowerInterval: Duration {
+        switch self {
+        case .energySaver: .seconds(30)
+        case .relaxed: .seconds(20)
+        case .balanced: .seconds(15)
+        case .responsive: .seconds(8)
+        case .maximum: .seconds(5)
+        }
+    }
+
+    var confirmationInterval: Duration {
+        switch self {
+        case .energySaver: .milliseconds(500)
+        case .relaxed: .milliseconds(350)
+        case .balanced: .milliseconds(250)
+        case .responsive: .milliseconds(150)
+        case .maximum: .milliseconds(100)
+        }
+    }
+
+    var unavailableFailureThreshold: Int {
+        switch self {
+        case .energySaver, .relaxed: 3
+        case .balanced, .responsive: 2
+        case .maximum: 1
+        }
+    }
+}
+
 enum MenuBarDisplayMode: String, CaseIterable, Codable, Identifiable, Sendable {
     case flagAndCode
     case flagAndCity
@@ -183,4 +241,15 @@ struct RGBColor: Equatable, Sendable {
 struct RefreshConfiguration: Equatable, Sendable {
     let interval: RefreshInterval
     let refreshOnNetworkChange: Bool
+    let detectionSensitivity: DetectionSensitivity
+
+    init(
+        interval: RefreshInterval,
+        refreshOnNetworkChange: Bool,
+        detectionSensitivity: DetectionSensitivity = .responsive
+    ) {
+        self.interval = interval
+        self.refreshOnNetworkChange = refreshOnNetworkChange
+        self.detectionSensitivity = detectionSensitivity
+    }
 }

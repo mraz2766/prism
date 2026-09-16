@@ -4,10 +4,11 @@ import OSLog
 actor RealtimeExitMonitor {
     private let probe: any ExitAddressProbing
     private let lookupService: NetworkLookupService
-    private let stableInterval: Duration
-    private let lowPowerInterval: Duration
-    private let burstInterval: Duration
-    private let burstDuration: Duration
+    private var stableInterval: Duration
+    private var lowPowerInterval: Duration
+    private var burstInterval: Duration
+    private var burstDuration: Duration
+    private var unavailableFailureThreshold: Int
     private let isLowPowerModeEnabled: @Sendable () -> Bool
     private let clock = ContinuousClock()
     private let logger = Logger(subsystem: "com.mraz.prism", category: "realtime-exit")
@@ -21,15 +22,36 @@ actor RealtimeExitMonitor {
     private var burstUntil: ContinuousClock.Instant?
     private var stabilizer = ExitStabilizer()
     private var observationGeneration = 0
+    private var consecutiveFailures = 0
+    private var probeWasUnavailable = false
 
     init(
         probe: any ExitAddressProbing,
         lookupService: NetworkLookupService,
-        interval: Duration = .seconds(5),
+        sensitivity: DetectionSensitivity = .responsive,
+        isLowPowerModeEnabled: @escaping @Sendable () -> Bool = {
+            ProcessInfo.processInfo.isLowPowerModeEnabled
+        }
+    ) {
+        self.probe = probe
+        self.lookupService = lookupService
+        stableInterval = sensitivity.stableInterval
+        lowPowerInterval = sensitivity.lowPowerInterval
+        burstInterval = sensitivity.confirmationInterval
+        burstDuration = .seconds(2)
+        unavailableFailureThreshold = sensitivity.unavailableFailureThreshold
+        self.isLowPowerModeEnabled = isLowPowerModeEnabled
+    }
+
+    init(
+        probe: any ExitAddressProbing,
+        lookupService: NetworkLookupService,
+        interval: Duration,
         lowPowerInterval: Duration = .seconds(15),
         retryBackoff: Duration = .seconds(5),
         burstInterval: Duration = .milliseconds(250),
         burstDuration: Duration = .seconds(2),
+        unavailableFailureThreshold: Int = 2,
         isLowPowerModeEnabled: @escaping @Sendable () -> Bool = {
             ProcessInfo.processInfo.isLowPowerModeEnabled
         }
@@ -40,6 +62,7 @@ actor RealtimeExitMonitor {
         self.lowPowerInterval = lowPowerInterval
         self.burstInterval = burstInterval
         self.burstDuration = burstDuration
+        self.unavailableFailureThreshold = max(1, unavailableFailureThreshold)
         self.isLowPowerModeEnabled = isLowPowerModeEnabled
         _ = retryBackoff
     }
@@ -63,6 +86,8 @@ actor RealtimeExitMonitor {
         queuedShowLoading = false
         burstUntil = nil
         observationGeneration &+= 1
+        consecutiveFailures = 0
+        probeWasUnavailable = false
         stabilizer.reset()
     }
 
@@ -79,6 +104,22 @@ actor RealtimeExitMonitor {
         burstUntil = clock.now.advanced(by: burstDuration)
     }
 
+    func updateSensitivity(_ sensitivity: DetectionSensitivity) {
+        stableInterval = sensitivity.stableInterval
+        lowPowerInterval = sensitivity.lowPowerInterval
+        burstInterval = sensitivity.confirmationInterval
+        unavailableFailureThreshold = sensitivity.unavailableFailureThreshold
+        consecutiveFailures = 0
+        probeWasUnavailable = false
+        boost()
+
+        guard loopTask != nil else { return }
+        loopTask?.cancel()
+        loopTask = Task { [weak self] in
+            await self?.runLoop()
+        }
+    }
+
     func pollNow() async {
         await observeAndApply(refreshUnchanged: false, showLoading: false)
     }
@@ -90,6 +131,8 @@ actor RealtimeExitMonitor {
     func networkEnvironmentDidChange(showLoading: Bool = false) async {
         guard !isPaused, !Task.isCancelled else { return }
         observationGeneration &+= 1
+        consecutiveFailures = 0
+        probeWasUnavailable = false
         stabilizer.reset()
         boost()
         await lookupService.cancelRefreshForEnvironmentChange()
@@ -103,6 +146,8 @@ actor RealtimeExitMonitor {
 
     func networkBecameUnavailable() async {
         observationGeneration &+= 1
+        consecutiveFailures = 0
+        probeWasUnavailable = false
         stabilizer.reset()
         await lookupService.cancelRefreshForEnvironmentChange()
         await probe.invalidateConnections()
@@ -157,17 +202,24 @@ actor RealtimeExitMonitor {
         do {
             let observation = try await probe.observeExit()
             guard generation == observationGeneration, !isPaused else { return }
+            consecutiveFailures = 0
+            let restoresProbeAvailability = probeWasUnavailable
+            probeWasUnavailable = false
             let currentInfo = await lookupService.comparisonInfo()
-            let restoresConnectivity = await lookupService.snapshot().isOffline
+            let needsRecoveryRefresh = await lookupService.snapshot().needsRecoveryRefresh
             guard generation == observationGeneration, !isPaused else { return }
             switch stabilizer.evaluate(observation, currentInfo: currentInfo) {
             case .unchanged:
-                if refreshUnchanged || restoresConnectivity {
+                if restoresProbeAvailability,
+                   await lookupService.restoreProbeAvailability(observation) { return }
+                if refreshUnchanged || needsRecoveryRefresh {
                     _ = await lookupService.refresh(observation: observation, showLoading: showLoading)
                 }
             case .cancelled:
                 await lookupService.cancelVerification()
-                if refreshUnchanged || restoresConnectivity {
+                if restoresProbeAvailability,
+                   await lookupService.restoreProbeAvailability(observation) { return }
+                if refreshUnchanged || needsRecoveryRefresh {
                     _ = await lookupService.refresh(observation: observation, showLoading: showLoading)
                 }
             case .pending(let candidate):
@@ -181,8 +233,16 @@ actor RealtimeExitMonitor {
             return
         } catch {
             guard generation == observationGeneration else { return }
-            if NetworkFailure.map(error) != .cancelled {
-                logger.debug("Realtime address probe failed: \(String(describing: error), privacy: .public)")
+            let failure = NetworkFailure.map(error)
+            guard failure != .cancelled else { return }
+            logger.debug("Realtime address probe failed: \(String(describing: error), privacy: .public)")
+            consecutiveFailures += 1
+            if consecutiveFailures >= unavailableFailureThreshold {
+                burstUntil = nil
+                probeWasUnavailable = true
+                await lookupService.markProbeUnavailable(failure)
+            } else {
+                boost()
             }
             return
         }

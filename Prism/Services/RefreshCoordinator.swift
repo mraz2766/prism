@@ -110,6 +110,7 @@ final class RefreshCoordinator {
         settingsTask = Task { [weak self] in
             guard let self else { return }
             for await configuration in settings.changes() {
+                await realtimeExitMonitor.updateSensitivity(configuration.detectionSensitivity)
                 restartTimer(configuration: configuration)
             }
         }

@@ -35,6 +35,23 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.accentColorChoice, .sunsetOrange)
     }
 
+    func testDetectionSensitivityDefaultsPersistsAndEmitsConfiguration() async throws {
+        let suite = "PrismTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        var changes = settings.changes().makeAsyncIterator()
+
+        XCTAssertEqual(settings.detectionSensitivity, .responsive)
+        _ = await changes.next()
+
+        settings.detectionSensitivity = .maximum
+
+        let change = await changes.next()
+        XCTAssertEqual(change?.detectionSensitivity, .maximum)
+        XCTAssertEqual(SettingsStore(defaults: defaults).detectionSensitivity, .maximum)
+    }
+
     func testUnrelatedSettingsDoNotEmitRefreshConfiguration() async throws {
         let suite = "PrismTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

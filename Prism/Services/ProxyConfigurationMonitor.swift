@@ -87,7 +87,7 @@ final class ProxyConfigurationMonitor {
         AsyncStream { continuation in
             let id = UUID()
             continuations[id] = continuation
-            continuation.onTermination = { @Sendable _ in
+            continuation.onTermination = { @Sendable [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.continuations.removeValue(forKey: id)
                 }

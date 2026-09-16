@@ -235,6 +235,62 @@ final class RealtimeExitMonitorTests: XCTestCase {
         XCTAssertEqual(info.addresses, original.addresses)
     }
 
+    func testConsecutiveProbeFailuresMarkCachedExitUnavailable() async {
+        let original = routedInfo(ip: "203.0.113.10", route: .proxy)
+        let harness = makeHarness(cached: original)
+        let monitor = RealtimeExitMonitor(
+            probe: SteppedObservationProbe(steps: [
+                .failure(.serviceUnavailable),
+                .failure(.serviceUnavailable)
+            ]),
+            lookupService: harness.lookup,
+            interval: .seconds(5),
+            unavailableFailureThreshold: 2
+        )
+
+        await monitor.pollNow()
+        let firstFailureStatus = await harness.lookup.snapshot()
+        XCTAssertEqual(firstFailureStatus, .idle)
+
+        await monitor.pollNow()
+
+        let unavailableStatus = await harness.lookup.snapshot()
+        guard case .stale(let unavailableInfo, let reason) = unavailableStatus else {
+            return XCTFail("Two consecutive failures should mark the cached exit unavailable")
+        }
+        XCTAssertEqual(unavailableInfo.addresses, original.addresses)
+        XCTAssertEqual(unavailableInfo.routeMode, original.routeMode)
+        XCTAssertEqual(reason, .serviceUnavailable)
+    }
+
+    func testSuccessfulUnchangedProbeRecoversUnavailableStatus() async {
+        let original = routedInfo(ip: "203.0.113.10", route: .proxy)
+        let harness = makeHarness(cached: original)
+        let monitor = RealtimeExitMonitor(
+            probe: SteppedObservationProbe(steps: [
+                .failure(.serviceUnavailable),
+                .observation(observation(ip: "203.0.113.10", route: .proxy))
+            ]),
+            lookupService: harness.lookup,
+            interval: .seconds(5),
+            unavailableFailureThreshold: 1
+        )
+
+        await monitor.pollNow()
+        guard case .stale = await harness.lookup.snapshot() else {
+            return XCTFail("A failed probe should mark the cached exit unavailable")
+        }
+
+        await monitor.pollNow()
+
+        guard case .online(let recovered) = await harness.lookup.snapshot() else {
+            return XCTFail("A successful unchanged probe should restore the online status")
+        }
+        XCTAssertEqual(recovered.addresses, original.addresses)
+        let geoCalls = await harness.geo.callCount
+        XCTAssertEqual(geoCalls, 0)
+    }
+
     private func makeHarness(cached: NetworkInfo) -> MonitorHarness {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -315,6 +371,27 @@ private actor SequenceObservationProbe: ExitAddressProbing {
     func observeExit() async throws -> ExitObservation {
         guard !observations.isEmpty else { throw NetworkFailure.serviceUnavailable }
         return observations.removeFirst()
+    }
+}
+
+private enum ObservationProbeStep: Sendable {
+    case observation(ExitObservation)
+    case failure(NetworkFailure)
+}
+
+private actor SteppedObservationProbe: ExitAddressProbing {
+    private var steps: [ObservationProbeStep]
+
+    init(steps: [ObservationProbeStep]) {
+        self.steps = steps
+    }
+
+    func observeExit() async throws -> ExitObservation {
+        guard !steps.isEmpty else { throw NetworkFailure.serviceUnavailable }
+        switch steps.removeFirst() {
+        case .observation(let observation): return observation
+        case .failure(let failure): throw failure
+        }
     }
 }
 
