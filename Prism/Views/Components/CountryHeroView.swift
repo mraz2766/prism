@@ -4,6 +4,7 @@ struct CountryHeroView: View {
     let info: NetworkInfo
     let status: NetworkStatus
     var flagStyle: CountryFlagStyle = .sticker
+    var cityOverride: String? = nil
     var compact = false
     var showsStatus = true
     var showsRoute = true
@@ -22,7 +23,7 @@ struct CountryHeroView: View {
                     Text(info.location.localizedCountry())
                         .font(compact ? .title3.weight(.bold) : .title2.weight(.bold))
                         .lineLimit(1)
-                    if let city = info.location.city, !city.isEmpty {
+                    if let city = cityOverride ?? info.location.city, !city.isEmpty {
                         Text(city)
                             .font(compact ? .subheadline : .headline)
                             .foregroundStyle(.secondary)

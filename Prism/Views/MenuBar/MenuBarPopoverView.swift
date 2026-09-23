@@ -2,8 +2,19 @@ import SwiftUI
 
 struct MenuBarPopoverView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.locale) private var locale
+    @State private var isVisible = false
+    @State private var chineseCities: [CityLookupKey: String] = [:]
 
     private var status: NetworkStatus { environment.networkViewModel.status }
+
+    private var cityLookupKey: CityLookupKey? {
+        guard isVisible,
+              locale.language.languageCode?.identifier == "zh",
+              let info = status.info,
+              let address = info.addresses.preferredForLookup else { return nil }
+        return CityLookupKey(address: address, countryCode: info.location.countryCode)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -18,6 +29,12 @@ struct MenuBarPopoverView: View {
                     info: info,
                     status: status,
                     flagStyle: environment.settings.countryFlagStyle,
+                    cityOverride: LocalizedCityName.chineseName(
+                        for: info.location.city,
+                        countryCode: info.location.countryCode,
+                        localizedCity: cityLookupKey.flatMap { chineseCities[$0] },
+                        locale: locale
+                    ),
                     compact: true,
                     showsRoute: false
                 )
@@ -69,6 +86,19 @@ struct MenuBarPopoverView: View {
         .frame(width: 360)
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(environment.settings.accentColorChoice.color)
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
+        .task(id: cityLookupKey) {
+            guard let key = cityLookupKey,
+                  chineseCities[key] == nil else { return }
+            guard let result = try? await IPWhoIsGeoProvider(language: "zh-CN")
+                .lookup(ipAddress: key.address),
+                  !Task.isCancelled,
+                  result.location.countryCode == key.countryCode,
+                  let city = result.location.city,
+                  !city.isEmpty else { return }
+            chineseCities[key] = city
+        }
     }
 
     private var unavailableContent: some View {
@@ -177,6 +207,11 @@ struct MenuBarPopoverView: View {
         }
     }
 
+}
+
+private struct CityLookupKey: Hashable {
+    let address: String
+    let countryCode: String
 }
 
 private struct PopoverActionButton: View {

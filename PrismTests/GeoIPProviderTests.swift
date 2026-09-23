@@ -29,6 +29,19 @@ final class GeoIPProviderTests: XCTestCase {
         XCTAssertEqual(result.network.isp, "Example ISP")
     }
 
+    func testIPWhoIsRequestsChineseCityWhenAsked() async throws {
+        let base = try XCTUnwrap(URL(string: "https://example.test/"))
+        let endpoint = try XCTUnwrap(URL(string: "https://example.test/203.0.113.10?lang=zh-CN"))
+        let client = RoutingHTTPClient(responses: [
+            endpoint.absoluteString: response(#"{"success":true,"country_code":"JP","city":"東京都"}"#)
+        ])
+
+        let result = try await IPWhoIsGeoProvider(client: client, baseURL: base, language: "zh-CN")
+            .lookup(ipAddress: "203.0.113.10")
+
+        XCTAssertEqual(result.location.city, "東京都")
+    }
+
     func testFallbackUsesSecondProvider() async throws {
         let expected = GeoIPResult(
             location: NetworkInfo.preview.location,

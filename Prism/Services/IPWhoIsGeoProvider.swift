@@ -4,17 +4,24 @@ struct IPWhoIsGeoProvider: GeoIPProvider {
     let identifier = "ipwho.is"
     private let client: any HTTPClient
     private let baseURL: URL
+    private let language: String?
 
     init(
         client: any HTTPClient = URLSessionHTTPClient(requestTimeout: 1.5, sessionLifetime: .singleRequest),
-        baseURL: URL? = nil
+        baseURL: URL? = nil,
+        language: String? = nil
     ) {
         self.client = client
         self.baseURL = baseURL ?? Self.defaultBaseURL()
+        self.language = language
     }
 
     func lookup(ipAddress: String) async throws -> GeoIPResult {
-        let url = baseURL.appendingPathComponent(ipAddress)
+        var components = URLComponents(url: baseURL.appendingPathComponent(ipAddress), resolvingAgainstBaseURL: false)
+        if let language {
+            components?.queryItems = [URLQueryItem(name: "lang", value: language)]
+        }
+        guard let url = components?.url else { throw NetworkFailure.invalidResponse }
         var request = URLRequest(url: url)
         request.timeoutInterval = 1.5
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
