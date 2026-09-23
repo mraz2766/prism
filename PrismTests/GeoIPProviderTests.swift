@@ -45,6 +45,33 @@ final class GeoIPProviderTests: XCTestCase {
         XCTAssertEqual(result, expected)
     }
 
+    func testFallbackPrefersCityOverEarlierCountryOnlyResponse() async throws {
+        let countryOnly = GeoIPResult(
+            location: LocationInfo(
+                countryCode: "JP", region: "Tokyo", city: nil,
+                timezone: nil, latitude: nil, longitude: nil
+            ),
+            network: NetworkInfo.preview.network,
+            providerIdentifier: "country-only"
+        )
+        let withCity = GeoIPResult(
+            location: LocationInfo(
+                countryCode: "JP", region: "Tokyo", city: "Tokyo",
+                timezone: nil, latitude: nil, longitude: nil
+            ),
+            network: NetworkInfo.preview.network,
+            providerIdentifier: "with-city"
+        )
+        let provider = FallbackGeoIPProvider(providers: [
+            StubGeoProvider(identifier: "country-only", result: .success(countryOnly)),
+            StubGeoProvider(identifier: "with-city", result: .success(withCity))
+        ])
+
+        let result = try await provider.lookup(ipAddress: "203.0.113.1")
+
+        XCTAssertEqual(result, withCity)
+    }
+
     func testProviderHealthOpensCircuitAfterRepeatedFailuresAndSuccessResetsIt() async {
         let health = ProviderHealthRegistry(failureThreshold: 2, cooldown: 30)
         await health.recordFailure("primary", failure: .timeout, latency: .milliseconds(800))

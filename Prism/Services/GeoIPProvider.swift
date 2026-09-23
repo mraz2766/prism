@@ -56,11 +56,16 @@ struct FallbackGeoIPProvider: GeoIPProvider {
             }
 
             var firstFailure: NetworkFailure?
+            var countryOnlyResult: GeoIPResult?
             while let attempt = try await group.next() {
                 switch attempt {
                 case .success(let result):
-                    group.cancelAll()
-                    return result
+                    if let city = result.location.city,
+                       !city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        group.cancelAll()
+                        return result
+                    }
+                    if countryOnlyResult == nil { countryOnlyResult = result }
                 case .failure(let failure):
                     if failure != .cancelled, firstFailure == nil { firstFailure = failure }
                 case .skipped:
@@ -68,6 +73,7 @@ struct FallbackGeoIPProvider: GeoIPProvider {
                 }
             }
             try Task.checkCancellation()
+            if let countryOnlyResult { return countryOnlyResult }
             throw firstFailure ?? NetworkFailure.serviceUnavailable
         }
     }

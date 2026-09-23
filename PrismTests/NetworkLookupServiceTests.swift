@@ -90,6 +90,39 @@ final class NetworkLookupServiceTests: XCTestCase {
         XCTAssertEqual(privacyCallCount, 2, "Privacy results remain cached once per IP")
     }
 
+    func testPopoverCityRefreshEnrichesCurrentIPWithoutAnotherExitProbe() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let publicIP = CountingPublicIPProvider(delay: .zero)
+        let geo = CityEnrichmentGeoProvider()
+        let cache = NetworkInfoCache(directory: directory)
+        let service = NetworkLookupService(
+            publicIPProvider: publicIP,
+            geoProvider: geo,
+            privacyProvider: CountingPrivacyProvider(),
+            cache: cache,
+            history: NetworkHistoryStore(
+                fileURL: directory.appendingPathComponent("history.json"),
+                settlingDelay: .zero
+            )
+        )
+
+        _ = await service.refresh()
+        let initialStatus = await service.snapshot()
+        XCTAssertNil(initialStatus.info?.location.city)
+
+        await service.refreshMissingCity()
+        await service.refreshMissingCity()
+
+        let enrichedStatus = await service.snapshot()
+        let publicIPCalls = await publicIP.callCount
+        let geoCalls = await geo.callCount
+        XCTAssertEqual(enrichedStatus.info?.location.city, "Tokyo")
+        XCTAssertEqual(cache.loadInfo()?.location.city, "Tokyo")
+        XCTAssertEqual(publicIPCalls, 1)
+        XCTAssertEqual(geoCalls, 2)
+    }
+
     func testHardDeadlineStopsAStalledRefresh() async {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -162,6 +195,24 @@ private actor CountingGeoProvider: GeoIPProvider {
         callCount += 1
         return GeoIPResult(
             location: NetworkInfo.preview.location,
+            network: NetworkInfo.preview.network,
+            providerIdentifier: identifier
+        )
+    }
+}
+
+private actor CityEnrichmentGeoProvider: GeoIPProvider {
+    nonisolated let identifier = "city-enrichment"
+    private(set) var callCount = 0
+
+    func lookup(ipAddress: String) async throws -> GeoIPResult {
+        callCount += 1
+        return GeoIPResult(
+            location: LocationInfo(
+                countryCode: "JP", region: "Tokyo",
+                city: callCount == 1 ? nil : "Tokyo",
+                timezone: "Asia/Tokyo", latitude: nil, longitude: nil
+            ),
             network: NetworkInfo.preview.network,
             providerIdentifier: identifier
         )

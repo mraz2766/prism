@@ -14,6 +14,7 @@ actor NetworkLookupService {
     private var lastConfirmedInfo: NetworkInfo?
     private var privacyClassifications: [String: PrivacyClassification]
     private var inflight: Inflight?
+    private var cityLookupAddresses: Set<String> = []
     private var continuations: [UUID: AsyncStream<NetworkStatus>.Continuation] = [:]
 
     init(
@@ -50,6 +51,37 @@ actor NetworkLookupService {
 
     func comparisonInfo() -> NetworkInfo? {
         currentStatus.retainedInfo ?? lastConfirmedInfo
+    }
+
+    func refreshMissingCity() async {
+        guard case .online(let info) = currentStatus,
+              info.location.city?.isEmpty != false,
+              let address = info.addresses.preferredForLookup,
+              !cityLookupAddresses.contains(address) else { return }
+
+        cityLookupAddresses.insert(address)
+        defer { cityLookupAddresses.remove(address) }
+
+        guard let geo = try? await geoProvider.lookup(ipAddress: address),
+              let city = geo.location.city,
+              !city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              case .online(let current) = currentStatus,
+              current.addresses.preferredForLookup == address,
+              current.location.countryCode == geo.location.countryCode else { return }
+
+        let enriched = NetworkInfo(
+            addresses: current.addresses,
+            location: geo.location,
+            network: geo.network,
+            privacy: current.privacy,
+            providerIdentifier: geo.providerIdentifier,
+            routeMode: current.routeMode,
+            exitSource: current.exitSource,
+            checkedAt: current.checkedAt
+        )
+        lastConfirmedInfo = enriched
+        cache.saveInfo(enriched)
+        emit(.online(enriched))
     }
 
     func markVerifying(_ observation: ExitObservation) {

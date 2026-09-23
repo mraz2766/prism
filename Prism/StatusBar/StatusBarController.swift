@@ -266,6 +266,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             presentationState.didClose()
             return
         }
+        if case .online(let info) = environment.networkViewModel.status,
+           info.location.city?.isEmpty != false {
+            Task { await environment.lookupService.refreshMissingCity() }
+        }
         installDismissMonitors()
         popoverHost.popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         button.highlight(true)
