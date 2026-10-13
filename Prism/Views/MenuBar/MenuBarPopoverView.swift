@@ -5,6 +5,7 @@ struct MenuBarPopoverView: View {
     @Environment(\.locale) private var locale
     @State private var isVisible = false
     @State private var chineseCities: [CityLookupKey: String] = [:]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var status: NetworkStatus { environment.networkViewModel.status }
 
@@ -19,12 +20,6 @@ struct MenuBarPopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let info = status.info {
-                if case .verifying(_, let candidateAddress) = status {
-                    Label("\(String(localized: "Confirming new exit")) · \(candidateAddress)", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.orange)
-                        .accessibilityLabel(String(localized: "Confirming new exit"))
-                }
                 CountryHeroView(
                     info: info,
                     status: status,
@@ -38,7 +33,6 @@ struct MenuBarPopoverView: View {
                     compact: true,
                     showsRoute: false
                 )
-                    .contentTransition(.opacity)
                 SectionCard(horizontalPadding: 14, verticalPadding: 12) {
                     VStack(spacing: 12) {
                         if let ipv4 = info.addresses.ipv4 {
@@ -67,11 +61,6 @@ struct MenuBarPopoverView: View {
                         }
                     }
                 }
-                if case .stale(_, let reason) = status {
-                    Label(reason.userDescription, systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
             } else {
                 unavailableContent
                 if !status.isOffline {
@@ -84,7 +73,6 @@ struct MenuBarPopoverView: View {
         }
         .padding(14)
         .frame(width: 360)
-        .background(Color(nsColor: .windowBackgroundColor))
         .tint(environment.settings.accentColorChoice.color)
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
@@ -121,16 +109,57 @@ struct MenuBarPopoverView: View {
         .padding(.vertical, 70)
     }
 
+    /// 确认中与更新失败的提示放在固定高度的底栏，避免弹窗高度在状态切换时跳动。
+    private var footerStatusKind: Int {
+        switch status {
+        case .verifying: 1
+        case .stale: 2
+        default: 0
+        }
+    }
+
+    @ViewBuilder
+    private var footerStatus: some View {
+        switch status {
+        case .verifying(_, let candidateAddress):
+            Label {
+                Text("\(String(localized: "Confirming new exit")) · \(candidateAddress)")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            } icon: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(StatusPalette.confirming)
+            .accessibilityLabel(String(localized: "Confirming new exit"))
+            .transition(.opacity)
+        case .stale(_, let reason):
+            Label {
+                Text(reason.userDescription)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
+            .font(.caption)
+            .foregroundStyle(StatusPalette.stale)
+            .help(reason.userDescription)
+            .transition(.opacity)
+        default:
+            if let info = status.info {
+                Text(info.checkedAt, style: .relative)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .transition(.opacity)
+            }
+        }
+    }
+
     private var footer: some View {
         HStack(alignment: .center) {
-            if let info = status.info {
-                TimelineView(.periodic(from: .now, by: 30)) { _ in
-                    Text(info.checkedAt, style: .relative)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
+            footerStatus
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: footerStatusKind)
+            Spacer(minLength: 8)
             PopoverActionButton(
                 systemName: "arrow.up.right.square",
                 help: String(localized: "Open Details")

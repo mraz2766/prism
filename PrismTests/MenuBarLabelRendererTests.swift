@@ -107,6 +107,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
                 customTemplate: "{flag} {country}"
             )
             let statusIsVisible = value.title.contains("◌")
+                || value.badge == .confirming
                 || value.indicator == .systemSymbol(name: status.symbolName)
             XCTAssertTrue(statusIsVisible, "Verification was hidden for \(mode)")
         }
@@ -158,5 +159,29 @@ final class MenuBarLabelRendererTests: XCTestCase {
         XCTAssertEqual(MenuBarLabelRenderer.compactCityName("Shanghai", fallback: "CN"), "SH")
         XCTAssertEqual(MenuBarLabelRenderer.compactCityName("Hangzhou", fallback: "CN"), "HA")
         XCTAssertEqual(MenuBarLabelRenderer.compactCityName("Yiwu", fallback: "CN"), "Yiwu")
+    }
+
+    func testFlagModesKeepTitleWidthWhileConfirming() {
+        let status = NetworkStatus.verifying(previous: .preview, candidateAddress: "203.0.113.50")
+        let value = MenuBarLabelRenderer.presentation(
+            status: status,
+            mode: .flagAndCode,
+            flagStyle: .sticker,
+            customTemplate: ""
+        )
+
+        XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .flag(countryCode: "CN"), badge: .confirming))
+    }
+
+    func testCodeOnlyModeStillPrefixesStatusGlyph() {
+        let value = MenuBarLabelRenderer.presentation(
+            status: .stale(.preview, reason: .timeout),
+            mode: .countryCode,
+            flagStyle: .sticker,
+            customTemplate: ""
+        )
+
+        XCTAssertEqual(value.title, "! CN")
+        XCTAssertNil(value.badge)
     }
 }

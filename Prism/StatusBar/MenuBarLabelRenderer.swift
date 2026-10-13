@@ -7,9 +7,16 @@ enum MenuBarIndicator: Equatable {
     case systemSymbol(name: String)
 }
 
+/// 有国旗时把状态画成国旗右下角的小圆点，而不是在文字前加符号，避免菜单栏项宽度跳动。
+enum MenuBarStatusBadge: String, Equatable, Sendable {
+    case confirming
+    case stale
+}
+
 struct MenuBarPresentation: Equatable {
     let title: String
     let indicator: MenuBarIndicator
+    var badge: MenuBarStatusBadge? = nil
 }
 
 enum MenuBarLabelRenderer {
@@ -101,14 +108,24 @@ enum MenuBarLabelRenderer {
         let trimmed = value
             .split(whereSeparator: \.isWhitespace)
             .joined(separator: " ")
-        let shouldPrefixStatus = !isOnline && !alreadyShowsStatus
+        let needsStatus = !isOnline && !alreadyShowsStatus
+        let shouldPrefixStatus = needsStatus && indicator == .none
         let finalTitle = shouldPrefixStatus
             ? [statusGlyph, trimmed].filter { !$0.isEmpty }.joined(separator: " ")
             : trimmed
         return MenuBarPresentation(
             title: truncate(finalTitle),
-            indicator: indicator
+            indicator: indicator,
+            badge: needsStatus && indicator != .none ? badge(for: status) : nil
         )
+    }
+
+    static func badge(for status: NetworkStatus) -> MenuBarStatusBadge? {
+        switch status {
+        case .loading, .verifying: .confirming
+        case .stale: .stale
+        case .online, .offline, .idle, .failed: nil
+        }
     }
 
     static func glyph(for status: NetworkStatus) -> String {

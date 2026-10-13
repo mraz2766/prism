@@ -21,7 +21,10 @@ struct SettingsRootView: View {
                 case .privacy: PrivacySettingsView()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .id(selection)
+            .transition(.opacity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .clipped()
         }
         .frame(width: 620, height: preferredHeight)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -78,14 +81,22 @@ private struct SettingsNavigationBar: View {
     @Environment(SettingsStore.self) private var settings
     @Binding var selection: SettingsSection
     @FocusState private var focusedSection: SettingsSection?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 切换页面时窗口高度随内容平滑过渡，内容交叉淡入。
+    private func select(_ section: SettingsSection) {
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.26)) {
+            selection = section
+        }
+        focusedSection = section
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             ForEach(SettingsSection.allCases) { section in
                 let isSelected = selection == section
                 Button {
-                    selection = section
-                    focusedSection = section
+                    select(section)
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: section.systemImage)
@@ -114,8 +125,7 @@ private struct SettingsNavigationBar: View {
                   let currentIndex = SettingsSection.allCases.firstIndex(of: selection) else { return }
             let delta = direction == .left ? -1 : 1
             let nextIndex = min(max(currentIndex + delta, 0), SettingsSection.allCases.count - 1)
-            selection = SettingsSection.allCases[nextIndex]
-            focusedSection = selection
+            select(SettingsSection.allCases[nextIndex])
         }
     }
 }

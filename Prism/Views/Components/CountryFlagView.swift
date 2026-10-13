@@ -247,9 +247,53 @@ private final class CountryFlagImageCache: @unchecked Sendable {
             withExtension: "svg",
             subdirectory: source.subdirectory
         ) ?? Bundle.main.url(forResource: resourceName, withExtension: "svg")
-        guard let url, let image = NSImage(contentsOf: url) else { return nil }
+        guard let url, let vector = NSImage(contentsOf: url) else { return nil }
+        // SVG 每次绘制都会重新矢量渲染（波浪国旗单个文件可达数百 KB），
+        // 首次加载时栅格化为位图，之后菜单栏、列表和详情都只做位图缩放。
+        let image = Self.rasterized(vector)
         image.isTemplate = false
         cache.setObject(image, forKey: key)
+        return image
+    }
+
+    private static func rasterized(_ vector: NSImage, maximumPixelDimension: CGFloat = 176) -> NSImage {
+        let size = vector.size
+        guard size.width > 0, size.height > 0 else { return vector }
+        let longestSide = max(size.width, size.height)
+        let targetLongestSide = min(maximumPixelDimension, longestSide * 4)
+        let scale = targetLongestSide / longestSide
+        let pixelsWide = max(1, Int((size.width * scale).rounded(.up)))
+        let pixelsHigh = max(1, Int((size.height * scale).rounded(.up)))
+        guard let representation = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixelsWide,
+            pixelsHigh: pixelsHigh,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ), let context = NSGraphicsContext(bitmapImageRep: representation) else {
+            return vector
+        }
+        // 保持原始点尺寸，调用方基于源坐标的裁剪矩形（如卡通国旗）无需修改。
+        representation.size = size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
+        vector.draw(
+            in: NSRect(origin: .zero, size: size),
+            from: .zero,
+            operation: .copy,
+            fraction: 1
+        )
+        context.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+
+        let image = NSImage(size: size)
+        image.addRepresentation(representation)
         return image
     }
 }

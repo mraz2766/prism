@@ -7,58 +7,40 @@ struct HistoryView: View {
     @State private var selectedEntryID: UUID?
 
     var body: some View {
-        ZStack {
-            Group {
-                if entries.isEmpty {
-                    ContentUnavailableView(
-                        String(localized: "No exit history"),
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text(String(localized: "Prism records a new item when the public IP, country, or ASN changes."))
-                    )
-                } else {
-                    List(selection: $selectedEntryID) {
-                        ForEach(sections) { section in
-                            Section(section.title) {
-                                ForEach(section.entries) { entry in
-                                    HistoryRow(
-                                        displayEntry: entry,
-                                        flagStyle: environment.settings.countryFlagStyle
-                                    )
-                                        .tag(entry.current.id)
-                                        .accessibilityIdentifier("history.entry.\(entry.current.id.uuidString)")
-                                        .accessibilityHint(String(localized: "View exit details"))
-                                        .accessibilityAddTraits(.isButton)
+        Group {
+            if entries.isEmpty {
+                ContentUnavailableView(
+                    String(localized: "No exit history"),
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text(String(localized: "Prism records a new item when the public IP, country, or ASN changes."))
+                )
+            } else {
+                List(selection: $selectedEntryID) {
+                    ForEach(sections) { section in
+                        Section(section.title) {
+                            ForEach(section.items) { item in
+                                switch item {
+                                case .single(let entry):
+                                    historyRow(entry)
+                                case .unstable(_, let flapEntries):
+                                    DisclosureGroup {
+                                        ForEach(flapEntries) { entry in
+                                            historyRow(entry)
+                                        }
+                                    } label: {
+                                        UnstableHistoryRow(
+                                            entries: flapEntries,
+                                            flagStyle: environment.settings.countryFlagStyle
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                    .listStyle(.inset)
                 }
-            }
-
-            if let selectedEntry {
-                Color.black.opacity(0.10)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture { selectedEntryID = nil }
-
-                HistoryEntryDetailView(
-                    entry: selectedEntry,
-                    flagStyle: environment.settings.countryFlagStyle
-                ) {
-                    selectedEntryID = nil
-                }
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5))
-                )
-                .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
-                .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                .listStyle(.inset)
             }
         }
-        .animation(.easeOut(duration: 0.14), value: selectedEntryID)
-        .onExitCommand { selectedEntryID = nil }
         .navigationTitle(String(localized: "Exit History"))
         .safeAreaInset(edge: .bottom) {
             if !entries.isEmpty {
@@ -70,6 +52,20 @@ struct HistoryView: View {
                 }
                 .padding(.horizontal, 20).padding(.vertical, 10)
                 .background(.bar)
+            }
+        }
+        // 使用系统 Sheet：原生出现动画、Esc 关闭与焦点管理。
+        .sheet(isPresented: Binding(
+            get: { selectedEntry != nil },
+            set: { if !$0 { selectedEntryID = nil } }
+        )) {
+            if let selectedEntry {
+                HistoryEntryDetailView(
+                    entry: selectedEntry,
+                    flagStyle: environment.settings.countryFlagStyle
+                ) {
+                    selectedEntryID = nil
+                }
             }
         }
         .confirmationDialog(
@@ -90,6 +86,17 @@ struct HistoryView: View {
         }
     }
 
+    private func historyRow(_ entry: HistoryDisplayEntry) -> some View {
+        HistoryRow(
+            displayEntry: entry,
+            flagStyle: environment.settings.countryFlagStyle
+        )
+        .tag(entry.current.id)
+        .accessibilityIdentifier("history.entry.\(entry.current.id.uuidString)")
+        .accessibilityHint(String(localized: "View exit details"))
+        .accessibilityAddTraits(.isButton)
+    }
+
     private var selectedEntry: NetworkHistoryEntry? {
         entries.first { $0.id == selectedEntryID }
     }
@@ -103,8 +110,9 @@ struct HistoryView: View {
                 previous: index > 0 ? chronological[index - 1] : nil
             )
         }
-        let grouped = Dictionary(grouping: displayEntries) {
-            calendar.startOfDay(for: $0.current.recordedAt)
+        let items = HistoryItem.folding(displayEntries)
+        let grouped = Dictionary(grouping: items) {
+            calendar.startOfDay(for: $0.latestDate)
         }
         return grouped.keys.sorted(by: >).map { day in
             let title: String
@@ -118,7 +126,7 @@ struct HistoryView: View {
             return HistorySection(
                 id: day,
                 title: title,
-                entries: (grouped[day] ?? []).sorted { $0.current.recordedAt > $1.current.recordedAt }
+                items: (grouped[day] ?? []).sorted { $0.latestDate > $1.latestDate }
             )
         }
     }
@@ -127,13 +135,129 @@ struct HistoryView: View {
 private struct HistorySection: Identifiable {
     let id: Date
     let title: String
-    let entries: [HistoryDisplayEntry]
+    let items: [HistoryItem]
 }
 
-private struct HistoryDisplayEntry: Identifiable {
+struct HistoryDisplayEntry: Identifiable {
     let current: NetworkHistoryEntry
     let previous: NetworkHistoryEntry?
     var id: UUID { current.id }
+}
+
+/// 短时间内在出口之间来回切换（A → B → A）折叠为一条“出口不稳定”，避免淹没主历史。
+enum HistoryItem: Identifiable {
+    case single(HistoryDisplayEntry)
+    case unstable(id: UUID, entries: [HistoryDisplayEntry])
+
+    static let flapWindow: TimeInterval = 90
+
+    var id: UUID {
+        switch self {
+        case .single(let entry): entry.id
+        case .unstable(let id, _): id
+        }
+    }
+
+    var latestDate: Date {
+        switch self {
+        case .single(let entry): entry.current.recordedAt
+        case .unstable(_, let entries): entries.first?.current.recordedAt ?? .distantPast
+        }
+    }
+
+    /// `chronological` 按时间升序；返回的不稳定分组内部按时间降序。
+    static func folding(_ chronological: [HistoryDisplayEntry]) -> [HistoryItem] {
+        var items: [HistoryItem] = []
+        var run: [HistoryDisplayEntry] = []
+
+        func flush() {
+            defer { run.removeAll() }
+            guard !run.isEmpty else { return }
+            if isFlap(run) {
+                items.append(.unstable(id: run[0].id, entries: Array(run.reversed())))
+            } else {
+                items.append(contentsOf: run.map(HistoryItem.single))
+            }
+        }
+
+        for entry in chronological {
+            if let last = run.last,
+               entry.current.recordedAt.timeIntervalSince(last.current.recordedAt) > flapWindow {
+                flush()
+            }
+            run.append(entry)
+        }
+        flush()
+        return items
+    }
+
+    static func isFlap(_ run: [HistoryDisplayEntry]) -> Bool {
+        guard run.count >= 3 else { return false }
+        for index in 2..<run.count {
+            let returning = run[index].current
+            if run[0..<(index - 1)].contains(where: { $0.current.representsSameExit(as: returning) }) {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+private struct UnstableHistoryRow: View {
+    let entries: [HistoryDisplayEntry]
+    let flagStyle: CountryFlagStyle
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack(alignment: .bottomTrailing) {
+                CountryFlagView(
+                    countryCode: entries.first?.current.countryCode ?? "",
+                    style: flagStyle,
+                    diameter: 22,
+                    containerSize: CGSize(width: 30, height: 30)
+                )
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(2.5)
+                    .background(StatusPalette.confirming, in: Circle())
+                    .offset(x: 2, y: 2)
+                    .accessibilityHidden(true)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "Unstable exit"))
+                    .font(.subheadline.weight(.semibold))
+                Text(summary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            if let newest = entries.first?.current.recordedAt,
+               let oldest = entries.last?.current.recordedAt {
+                Text("\(oldest.formatted(date: .omitted, time: .shortened)) – \(newest.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+        .help(String(localized: "The exit switched back and forth within a short time"))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var summary: String {
+        let countText = String(format: String(localized: "%lld changes"), Int64(entries.count))
+        var seen: [String] = []
+        for entry in entries.reversed() {
+            let code = entry.current.countryCode.uppercased()
+            let label = entry.current.city.map { "\(code) \($0)" } ?? code
+            if !seen.contains(label) { seen.append(label) }
+        }
+        return "\(countText) · \(seen.joined(separator: " ⇄ "))"
+    }
 }
 
 private struct HistoryRow: View {

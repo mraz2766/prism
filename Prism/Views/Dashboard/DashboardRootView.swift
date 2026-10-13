@@ -2,17 +2,21 @@ import SwiftUI
 
 struct DashboardRootView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         @Bindable var navigation = environment.dashboardNavigation
-        Group {
+        ZStack {
             switch navigation.destination {
             case .overview:
                 DashboardOverviewView()
+                    .transition(.opacity)
             case .history:
                 HistoryView()
+                    .transition(.opacity)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: navigation.destination)
         .frame(minWidth: 640, minHeight: 460)
         .tint(environment.settings.accentColorChoice.color)
         .toolbar {

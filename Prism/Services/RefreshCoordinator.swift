@@ -15,8 +15,15 @@ final class RefreshCoordinator {
     private var settingsTask: Task<Void, Never>?
     private var realtimeControlTask: Task<Void, Never>?
     private var proxyConfigurationTask: Task<Void, Never>?
+    private var environmentChangeTask: Task<Void, Never>?
+    private var pendingSettingsTask: Task<Void, Never>?
+    private var appliedConfiguration: RefreshConfiguration?
     private var observers: [NSObjectProtocol] = []
     private var isSleeping = false
+    /// 一次 VPN/代理切换通常同时触发 NWPath 与 SCDynamicStore，合并为一次重新确认。
+    private let environmentChangeDebounce: Duration = .milliseconds(200)
+    /// 拖动灵敏度滑杆时只应用最终值。
+    private let settingsDebounce: Duration = .milliseconds(300)
 
     init(
         lookupService: NetworkLookupService,
@@ -41,6 +48,7 @@ final class RefreshCoordinator {
         observeProxyConfiguration()
         monitor.start()
         proxyConfigurationMonitor.start()
+        appliedConfiguration = settings.refreshConfiguration
         observeSettings()
         observeSleepWake()
         restartTimer(configuration: settings.refreshConfiguration)
@@ -57,6 +65,8 @@ final class RefreshCoordinator {
         networkTask?.cancel()
         proxyConfigurationTask?.cancel()
         settingsTask?.cancel()
+        environmentChangeTask?.cancel()
+        pendingSettingsTask?.cancel()
         realtimeControlTask?.cancel()
         realtimeControlTask = Task { [realtimeExitMonitor] in
             await realtimeExitMonitor.stop()
@@ -83,13 +93,14 @@ final class RefreshCoordinator {
             for await event in monitor.events() {
                 switch event {
                 case .offline:
+                    environmentChangeTask?.cancel()
+                    environmentChangeTask = nil
                     await realtimeExitMonitor.networkBecameUnavailable()
                     await lookupService.markOffline()
                     domesticIPv4ViewModel.markOffline()
                 case .onlineChanged:
                     guard !isSleeping else { continue }
-                    domesticIPv4ViewModel.refresh()
-                    await realtimeExitMonitor.networkEnvironmentDidChange()
+                    scheduleEnvironmentChange()
                 }
             }
         }
@@ -100,9 +111,19 @@ final class RefreshCoordinator {
             guard let self else { return }
             for await _ in proxyConfigurationMonitor.events() {
                 guard !isSleeping else { continue }
-                domesticIPv4ViewModel.refresh()
-                await realtimeExitMonitor.networkEnvironmentDidChange()
+                scheduleEnvironmentChange()
             }
+        }
+    }
+
+    private func scheduleEnvironmentChange() {
+        environmentChangeTask?.cancel()
+        let delay = environmentChangeDebounce
+        environmentChangeTask = Task { [weak self] in
+            do { try await Task.sleep(for: delay) } catch { return }
+            guard let self, !Task.isCancelled, !isSleeping else { return }
+            domesticIPv4ViewModel.refresh()
+            await realtimeExitMonitor.networkEnvironmentDidChange()
         }
     }
 
@@ -110,9 +131,25 @@ final class RefreshCoordinator {
         settingsTask = Task { [weak self] in
             guard let self else { return }
             for await configuration in settings.changes() {
-                await realtimeExitMonitor.updateSensitivity(configuration.detectionSensitivity)
-                restartTimer(configuration: configuration)
+                pendingSettingsTask?.cancel()
+                let delay = settingsDebounce
+                pendingSettingsTask = Task { [weak self] in
+                    do { try await Task.sleep(for: delay) } catch { return }
+                    guard let self, !Task.isCancelled else { return }
+                    await apply(configuration)
+                }
             }
+        }
+    }
+
+    private func apply(_ configuration: RefreshConfiguration) async {
+        let previous = appliedConfiguration
+        appliedConfiguration = configuration
+        if previous?.detectionSensitivity != configuration.detectionSensitivity {
+            await realtimeExitMonitor.updateSensitivity(configuration.detectionSensitivity)
+        }
+        if previous?.interval != configuration.interval {
+            restartTimer(configuration: configuration)
         }
     }
 

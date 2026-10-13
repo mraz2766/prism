@@ -115,8 +115,9 @@ actor RealtimeExitMonitor {
 
         guard loopTask != nil else { return }
         loopTask?.cancel()
+        // 只改变探测节奏，不需要重新查询 GeoIP 与隐私分类。
         loopTask = Task { [weak self] in
-            await self?.runLoop()
+            await self?.runLoop(refreshMetadataFirst: false)
         }
     }
 
@@ -248,8 +249,8 @@ actor RealtimeExitMonitor {
         }
     }
 
-    private func runLoop() async {
-        var shouldRefreshMetadata = true
+    private func runLoop(refreshMetadataFirst: Bool = true) async {
+        var shouldRefreshMetadata = refreshMetadataFirst
         while !Task.isCancelled {
             let cycleStarted = clock.now
             if shouldRefreshMetadata {

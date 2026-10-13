@@ -8,6 +8,12 @@ struct CountryHeroView: View {
     var compact = false
     var showsStatus = true
     var showsRoute = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 出口或城市变化时触发过渡；仅时间戳变化不会产生动画。
+    private var transitionKey: String {
+        "\(info.id)|\(cityOverride ?? info.location.city ?? "")"
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: compact ? 12 : 18) {
@@ -17,17 +23,28 @@ struct CountryHeroView: View {
                 diameter: compact ? 32 : 44,
                 containerSize: compact ? CGSize(width: 48, height: 48) : CGSize(width: 64, height: 64)
             )
+            .id(info.location.countryCode)
+            .transition(
+                reduceMotion
+                    ? AnyTransition.opacity
+                    : AnyTransition.asymmetric(
+                        insertion: AnyTransition.opacity.combined(with: .scale(scale: 0.82)),
+                        removal: AnyTransition.opacity.combined(with: .scale(scale: 1.08))
+                    )
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(info.location.localizedCountry())
                         .font(compact ? .title3.weight(.bold) : .title2.weight(.bold))
                         .lineLimit(1)
+                        .contentTransition(.opacity)
                     if let city = cityOverride ?? info.location.city, !city.isEmpty {
                         Text(city)
                             .font(compact ? .subheadline : .headline)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .contentTransition(.opacity)
                     }
                 }
 
@@ -53,6 +70,7 @@ struct CountryHeroView: View {
             Spacer(minLength: 8)
             if showsStatus { StatusBadge(status: status) }
         }
+        .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.32), value: transitionKey)
     }
 
     private var routeSymbol: String {

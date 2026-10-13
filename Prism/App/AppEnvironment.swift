@@ -136,7 +136,7 @@ final class AppEnvironment {
                 guard let self, case .online(let current) = status else { continue }
                 let exitChanged = previous.map { $0.id != current.id } ?? false
                 defer { previous = current }
-                if exitChanged { domesticIPv4ViewModel.refresh() }
+                if exitChanged { domesticIPv4ViewModel.refreshIfStale() }
                 guard let old = previous,
                       old.id != current.id,
                       settings.changeNotificationsEnabled else { continue }

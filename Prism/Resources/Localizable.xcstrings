@@ -1,6 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld changes" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"%lld 次切换"}}}},
     "Accent color" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"强调色"}}}},
     "Active Button" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"主操作按钮"}}}},
     "Active Provider" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"当前生效服务"}}}},
@@ -162,6 +163,7 @@
     "System Emoji" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"系统 Emoji"}}}},
     "System integration" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"系统集成"}}}},
     "Temporarily paused" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"暂时停用"}}}},
+    "The exit switched back and forth within a short time" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"短时间内在多个出口之间来回切换"}}}},
     "The request timed out" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"请求超时"}}}},
     "The request was cancelled" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"请求已取消"}}}},
     "The service returned an unexpected response" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"服务返回了无法识别的内容"}}}},
@@ -175,6 +177,7 @@
     "Unavailable" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"不可用"}}}},
     "Unknown" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"未知"}}}},
     "Unknown route" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"未知路线"}}}},
+    "Unstable exit" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"出口不稳定"}}}},
     "Update unavailable" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"暂时无法更新"}}}},
     "Verification interval" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"校验间隔"}}}},
     "Waved flag" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"波浪国旗"}}}},

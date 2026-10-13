@@ -23,7 +23,9 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
     init(
         client: any HTTPClient = URLSessionHTTPClient(
             requestTimeout: 2,
-            sessionLifetime: .rotating(maxAge: 1.5)
+            // 复用 TLS 连接，避免每轮轮询都重新握手；网络/代理变化与探测失败时会主动废弃连接，
+            // 30 秒上限兜底代理软件切换节点但系统未发出事件的情况。
+            sessionLifetime: .rotating(maxAge: 30)
         ),
         ipv4Endpoint: URL? = nil,
         ipv6Endpoint: URL? = nil,
@@ -48,7 +50,14 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
         }
 
         try Task.checkCancellation()
-        return try await fetchDomesticFallback()
+        // 海外链全部失败时，旧连接可能已绑定到失效的代理节点，下一轮使用全新连接。
+        await client.invalidateConnections()
+        do {
+            return try await fetchDomesticFallback()
+        } catch {
+            await client.invalidateConnections()
+            throw error
+        }
     }
 
     func invalidateConnections() async {

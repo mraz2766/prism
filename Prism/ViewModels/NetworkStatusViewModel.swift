@@ -30,7 +30,8 @@ final class NetworkStatusViewModel {
         switch (previous, current) {
         case (_, .verifying) where !previous.isRefreshing:
             announcement = String(localized: "Confirming new exit")
-        case (.verifying, .online(let info)):
+        case (.verifying(let previousInfo, _), .online(let info)) where previousInfo?.id != info.id:
+            // 候选被撤销、回到原出口时不播报“已变化”。
             let city = info.location.city.map { ", \($0)" } ?? ""
             announcement = "\(String(localized: "Network exit changed")): \(info.location.localizedCountry())\(city)"
         default:

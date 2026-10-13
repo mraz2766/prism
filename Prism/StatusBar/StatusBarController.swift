@@ -59,6 +59,19 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var closeObserver: NSObjectProtocol?
     private var observing = false
     private var presentationState = PopoverPresentationState.closed
+    private var lastRendered: RenderedState?
+    private var pendingRenderTask: Task<Void, Never>?
+    private var imageCache: [String: NSImage] = [:]
+    /// 绝大多数候选在 500ms 内确认或撤销；短暂候选不在菜单栏闪烁。
+    private let confirmingRevealDelay: Duration = .milliseconds(350)
+
+    private struct RenderedState: Equatable {
+        let presentation: MenuBarPresentation
+        let flagStyle: CountryFlagStyle
+        let appearanceMode: AppearanceMode
+        let toolTip: String
+        let accessibilityLabel: String
+    }
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -90,43 +103,128 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         performPresentationAction(presentationState.requestPointerDown(on: .statusItem))
     }
 
+    private func scheduleRender() {
+        pendingRenderTask?.cancel()
+        pendingRenderTask = nil
+        let status = environment.networkViewModel.status
+        let isCandidate: Bool
+        if case .verifying = status { isCandidate = true } else { isCandidate = false }
+        guard isCandidate, lastRendered?.presentation.badge == nil else {
+            render()
+            return
+        }
+        let delay = confirmingRevealDelay
+        pendingRenderTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: delay) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            self.pendingRenderTask = nil
+            self.render()
+        }
+    }
+
     private func render() {
         guard let button = statusItem.button else { return }
+        let flagStyle = environment.settings.countryFlagStyle
+        let status = environment.networkViewModel.status
         let presentation = MenuBarLabelRenderer.presentation(
-            status: environment.networkViewModel.status,
+            status: status,
             mode: environment.settings.menuBarDisplayMode,
-            flagStyle: environment.settings.countryFlagStyle,
+            flagStyle: flagStyle,
             customTemplate: environment.settings.customMenuTemplate
         )
+
+        let toolTip: String
+        let accessibilityLabel: String
+        if let info = status.info {
+            let city = info.location.city.map { " · \($0)" } ?? ""
+            let address = info.addresses.preferredForLookup.map { " · \($0)" } ?? ""
+            toolTip = "\(status.shortLabel) · \(info.location.localizedCountry())\(city)\(address)"
+            accessibilityLabel = "\(status.shortLabel), \(info.location.localizedCountry())"
+        } else {
+            toolTip = status.shortLabel
+            accessibilityLabel = status.shortLabel
+        }
+
+        // 时间戳等无关字段变化时不重绘菜单栏。
+        let state = RenderedState(
+            presentation: presentation,
+            flagStyle: flagStyle,
+            appearanceMode: environment.settings.appearanceMode,
+            toolTip: toolTip,
+            accessibilityLabel: accessibilityLabel
+        )
+        guard state != lastRendered else { return }
+        if state.appearanceMode != lastRendered?.appearanceMode {
+            imageCache.removeAll()
+        }
+        lastRendered = state
+
         button.title = presentation.title
+        button.image = indicatorImage(for: presentation, style: flagStyle)
+        button.imagePosition = presentation.title.isEmpty ? .imageOnly : .imageLeading
+        button.toolTip = toolTip
+        button.setAccessibilityLabel(accessibilityLabel)
+    }
+
+    private func indicatorImage(for presentation: MenuBarPresentation, style: CountryFlagStyle) -> NSImage? {
+        let key: String
         switch presentation.indicator {
         case .none:
-            button.image = nil
+            return nil
         case .flag(let countryCode):
-            button.image = menuBarFlagImage(
-                for: countryCode,
-                style: environment.settings.countryFlagStyle
-            )
+            key = "flag/\(style.rawValue)/\(countryCode)/\(presentation.badge?.rawValue ?? "-")"
         case .emoji(let countryCode):
-            button.image = menuBarEmojiImage(for: countryCode)
+            key = "emoji/\(countryCode)/\(presentation.badge?.rawValue ?? "-")"
+        case .systemSymbol(let name):
+            key = "symbol/\(name)"
+        }
+        if let cached = imageCache[key] { return cached }
+
+        let base: NSImage?
+        switch presentation.indicator {
+        case .none:
+            base = nil
+        case .flag(let countryCode):
+            base = menuBarFlagImage(for: countryCode, style: style)
+        case .emoji(let countryCode):
+            base = menuBarEmojiImage(for: countryCode)
         case .systemSymbol(let name):
             let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
             image?.isTemplate = true
             image?.size = NSSize(width: 15, height: 15)
-            button.image = image
+            base = image
         }
-        button.imagePosition = presentation.title.isEmpty ? .imageOnly : .imageLeading
+        guard let base else { return nil }
+        let image = presentation.badge.map { badged(base, with: $0) } ?? base
 
-        let status = environment.networkViewModel.status
-        if let info = status.info {
-            let city = info.location.city.map { " · \($0)" } ?? ""
-            let address = info.addresses.preferredForLookup.map { " · \($0)" } ?? ""
-            button.toolTip = "\(status.shortLabel) · \(info.location.localizedCountry())\(city)\(address)"
-            button.setAccessibilityLabel("\(status.shortLabel), \(info.location.localizedCountry())")
-        } else {
-            button.toolTip = status.shortLabel
-            button.setAccessibilityLabel(status.shortLabel)
+        if imageCache.count >= 48 { imageCache.removeAll(keepingCapacity: true) }
+        imageCache[key] = image
+        return image
+    }
+
+    private func badged(_ base: NSImage, with badge: MenuBarStatusBadge) -> NSImage {
+        let size = base.size
+        let color: NSColor = switch badge {
+        case .confirming: StatusPalette.confirmingNSColor
+        case .stale: StatusPalette.staleNSColor
         }
+        let image = NSImage(size: size, flipped: false) { rect in
+            base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+            let dot = NSRect(x: rect.maxX - 6.5, y: 1, width: 6, height: 6)
+            // 先挖出一圈透明描边，让角标在任意壁纸和菜单栏颜色上都清晰。
+            if let context = NSGraphicsContext.current {
+                context.saveGraphicsState()
+                context.compositingOperation = .destinationOut
+                NSColor.black.setFill()
+                NSBezierPath(ovalIn: dot.insetBy(dx: -1.25, dy: -1.25)).fill()
+                context.restoreGraphicsState()
+            }
+            color.setFill()
+            NSBezierPath(ovalIn: dot).fill()
+            return true
+        }
+        image.isTemplate = false
+        return image
     }
 
     private func menuBarFlagImage(for countryCode: String, style: CountryFlagStyle) -> NSImage? {
@@ -254,7 +352,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.observing = false
-                self.render()
+                self.scheduleRender()
                 self.observeChanges()
             }
         }
@@ -271,10 +369,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             Task { await environment.lookupService.refreshMissingCity() }
         }
         installDismissMonitors()
+        popoverHost.popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         popoverHost.popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         button.highlight(true)
         button.setAccessibilityExpanded(true)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         popoverHost.popover.contentViewController?.view.window?.makeKey()
     }
 
@@ -424,7 +523,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     @objc private func refresh() { environment.refreshCoordinator.triggerManual() }
     @objc private func openDetails() { environment.showDashboard() }
     @objc private func openSettings() {
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         environment.openSettingsAction?()
     }
     @objc private func quit() { NSApp.terminate(nil) }

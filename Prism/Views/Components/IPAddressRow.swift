@@ -9,6 +9,7 @@ struct IPAddressRow: View {
     var accessibilityIdentifier: String? = nil
     @State private var copied = false
     @State private var isHovered = false
+    @State private var resetCopiedTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -32,6 +33,7 @@ struct IPAddressRow: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
+                        .contentTransition(reduceMotion ? .opacity : .numericText())
                 } else {
                     Text(placeholder ?? String(localized: "Unavailable"))
                         .font(.callout)
@@ -60,12 +62,14 @@ struct IPAddressRow: View {
             .buttonStyle(.plain)
             .disabled(address == nil)
             .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.12)) { isHovered = hovering }
             }
             .help(String(localized: "Copy IP address"))
             .accessibilityLabel(String(localized: "Copy IP address"))
         }
         .accessibilityIdentifier(accessibilityIdentifier ?? "")
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: address)
+        .onDisappear { resetCopiedTask?.cancel() }
     }
 
     private func copy() {
@@ -73,9 +77,11 @@ struct IPAddressRow: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(address, forType: .string)
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { copied = true }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.2))
-            withAnimation(.easeOut(duration: 0.2)) { copied = false }
+        // 连续复制时取消上一次的复位，避免“已复制”提前消失。
+        resetCopiedTask?.cancel()
+        resetCopiedTask = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(1.2)) } catch { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { copied = false }
         }
     }
 }

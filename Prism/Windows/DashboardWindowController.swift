@@ -27,7 +27,7 @@ final class DashboardWindowController: NSWindowController, NSWindowDelegate {
 
     func showWindow() {
         guard let window else { return }
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         window.makeKeyAndOrderFront(nil)
     }
 

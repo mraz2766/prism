@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardOverviewView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var status: NetworkStatus { environment.networkViewModel.status }
 
@@ -33,12 +34,17 @@ struct DashboardOverviewView: View {
                             Image(systemName: "arrow.triangle.2.circlepath")
                         }
                         .font(.callout.weight(.medium))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(StatusPalette.confirming)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                        .background(StatusPalette.confirming.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
                         .accessibilityLabel(String(localized: "Confirming new exit"))
+                        .transition(
+                            reduceMotion
+                                ? AnyTransition.opacity
+                                : AnyTransition.move(edge: .top).combined(with: .opacity)
+                        )
                     }
 
                     SectionCard {
@@ -59,10 +65,11 @@ struct DashboardOverviewView: View {
                             Divider()
                             IPAddressRow(label: String(localized: "Public IPv6"), address: info.addresses.ipv6)
                             Divider()
-                            InfoRow(label: String(localized: "Route"), value: info.routeMode.label)
-                            InfoRow(label: String(localized: "Source"), value: info.exitSource.label)
+                            detailGrid([
+                                (String(localized: "Source"), info.exitSource.label, false)
+                            ])
                         }
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
 
                         Divider()
 
@@ -70,17 +77,20 @@ struct DashboardOverviewView: View {
                             Text(String(localized: "Network Details"))
                                 .font(.subheadline.weight(.semibold))
                             Divider()
-                            InfoRow(label: String(localized: "Organization"), value: info.network.organization ?? String(localized: "Unavailable"), allowsWrapping: true)
-                            InfoRow(label: String(localized: "ISP"), value: info.network.isp ?? String(localized: "Unavailable"))
-                            InfoRow(label: String(localized: "ASN"), value: info.network.asnLabel ?? String(localized: "Unavailable"), monospaced: true)
-                            InfoRow(label: String(localized: "Timezone"), value: info.location.timezone ?? String(localized: "Unavailable"))
-                            InfoRow(label: String(localized: "Provider"), value: info.providerIdentifier)
-                            InfoRow(label: String(localized: "Proxy Risk"), value: privacyLabel(info.privacy))
+                            // 线路已在主卡片展示，数据来源移至“网络”设置的诊断信息。
+                            detailGrid([
+                                (String(localized: "Organization"), info.network.organization ?? String(localized: "Unavailable"), false),
+                                (String(localized: "ISP"), info.network.isp ?? String(localized: "Unavailable"), false),
+                                (String(localized: "ASN"), info.network.asnLabel ?? String(localized: "Unavailable"), true),
+                                (String(localized: "Timezone"), info.location.timezone ?? String(localized: "Unavailable"), false),
+                                (String(localized: "Proxy Risk"), privacyLabel(info.privacy), false)
+                            ])
                         }
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
                     .padding(.horizontal, 4)
                 }
+                .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: status.isRefreshing)
                 .padding(24)
             } else {
                 ContentUnavailableView {
@@ -96,6 +106,31 @@ struct DashboardOverviewView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    /// 标签列按内容自适应宽度，长值最多两行并在悬停时显示完整内容。
+    private func detailGrid(_ rows: [(String, String, Bool)]) -> some View {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 10) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                GridRow {
+                    Text(row.0)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize()
+                    Text(row.1)
+                        .font(row.2 ? .system(.callout, design: .monospaced) : .callout)
+                        .monospacedDigit()
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .help(row.1)
+                        .textSelection(.enabled)
+                        .contentTransition(.opacity)
+                }
+            }
+        }
+        .font(.callout)
     }
 
     private func privacyLabel(_ value: PrivacyClassification) -> String {
