@@ -278,19 +278,21 @@ private final class CountryFlagImageCache: @unchecked Sendable {
         ), let context = NSGraphicsContext(bitmapImageRep: representation) else {
             return vector
         }
-        // 保持原始点尺寸，调用方基于源坐标的裁剪矩形（如卡通国旗）无需修改。
-        representation.size = size
+        // 上下文以像素为坐标（此时 representation.size 仍等于像素尺寸），
+        // 因此按像素矩形绘制，绘制完成后再把点尺寸还原为原始尺寸。
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         context.imageInterpolation = .high
         vector.draw(
-            in: NSRect(origin: .zero, size: size),
+            in: NSRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh),
             from: .zero,
             operation: .copy,
             fraction: 1
         )
         context.flushGraphics()
         NSGraphicsContext.restoreGraphicsState()
+        // 保持原始点尺寸，调用方基于源坐标的裁剪矩形（如卡通国旗）无需修改。
+        representation.size = size
 
         let image = NSImage(size: size)
         image.addRepresentation(representation)
