@@ -34,6 +34,58 @@ final class CountryFlagTests: XCTestCase {
         XCTAssertNotNil(CountryFlag.squareImage(for: "CN"))
     }
 
+    func testSquareAndGradientFlagsContainNoUnresolvedShapeReferencesAndRender() throws {
+        let urls = try XCTUnwrap(Bundle.main.urls(forResourcesWithExtension: "svg", subdirectory: nil))
+            .filter {
+                let name = $0.deletingPathExtension().lastPathComponent
+                return name.hasPrefix("square-") || name.hasPrefix("flagkit-")
+            }
+        XCTAssertGreaterThanOrEqual(urls.count, 500)
+
+        for url in urls {
+            let name = url.deletingPathExtension().lastPathComponent
+            let source = try String(contentsOf: url, encoding: .utf8)
+            XCTAssertFalse(source.contains("<use"), "\(name) still contains an SVG use reference")
+
+            let isSquare = name.hasPrefix("square-")
+            let code = String(name.dropFirst(isSquare ? "square-".count : "flagkit-".count))
+            let image = try XCTUnwrap(
+                isSquare ? CountryFlag.squareImage(for: code) : CountryFlag.gradientImage(for: code),
+                name
+            )
+            let bitmap = try XCTUnwrap(image.representations.first as? NSBitmapImageRep, name)
+            var visibleSamples = 0
+            for row in 1...5 {
+                for column in 1...5 {
+                    let x = bitmap.pixelsWide * column / 6
+                    let y = bitmap.pixelsHigh * row / 6
+                    if (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 {
+                        visibleSamples += 1
+                    }
+                }
+            }
+            XCTAssertGreaterThan(visibleSamples, 5, "\(name) rendered as an empty flag")
+        }
+    }
+
+    func testChineseSquareFlagRendersYellowStars() throws {
+        let image = try XCTUnwrap(CountryFlag.squareImage(for: "CN"))
+        let bitmap = try XCTUnwrap(image.representations.first as? NSBitmapImageRep)
+        var yellowPixels = 0
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide {
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                if color.redComponent > 0.75,
+                   color.greenComponent > 0.6,
+                   color.blueComponent < 0.4,
+                   color.alphaComponent > 0.9 {
+                    yellowPixels += 1
+                }
+            }
+        }
+        XCTAssertGreaterThan(yellowPixels, 500, "Chinese square flag lost its yellow stars")
+    }
+
     func testBundledGradientFlagCanBeLoaded() {
         XCTAssertNotNil(CountryFlag.gradientImage(for: "CN"))
     }
