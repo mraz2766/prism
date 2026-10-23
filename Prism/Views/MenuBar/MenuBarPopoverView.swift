@@ -200,7 +200,7 @@ struct MenuBarPopoverView: View {
                 NotificationCenter.default.post(name: .prismClosePopover, object: nil)
                 Task { @MainActor in
                     await Task.yield()
-                    environment.openSettingsAction?()
+                    environment.openSettings()
                 }
             }
         }

@@ -37,6 +37,10 @@ enum CountryFlag {
         CountryFlagImageCache.shared.image(for: countryCode, source: .gradient)
     }
 
+    static func squareImage(for countryCode: String) -> NSImage? {
+        CountryFlagImageCache.shared.image(for: countryCode, source: .square)
+    }
+
     static func roundedImage(for countryCode: String, targetWidth: CGFloat = 32) -> NSImage? {
         let source: CountryFlagAssetSource
         if targetWidth <= 18 {
@@ -84,6 +88,10 @@ struct CountryFlagView: View {
                 gradientFlag
             case .rounded:
                 roundedFlag
+            case .square:
+                squareFlag
+            case .code:
+                codeBadge
             }
         }
         .frame(width: containerSize.width, height: containerSize.height)
@@ -154,6 +162,48 @@ struct CountryFlagView: View {
         } else {
             circleFlag
         }
+    }
+
+    @ViewBuilder
+    private var squareFlag: some View {
+        if let image = CountryFlag.squareImage(for: countryCode) {
+            let side = pixelAligned(diameter * 0.86)
+            let cornerRadius = max(2, side * 0.22)
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.medium)
+                .aspectRatio(1, contentMode: .fit)
+                .frame(width: side, height: side)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color(nsColor: .separatorColor).opacity(0.45), lineWidth: 0.5)
+                )
+                .shadow(
+                    color: .black.opacity(isCompact ? 0 : 0.08),
+                    radius: isCompact ? 0 : 1,
+                    y: isCompact ? 0 : 1
+                )
+        } else {
+            circleFlag
+        }
+    }
+
+    private var codeBadge: some View {
+        let height = pixelAligned(diameter * 0.62)
+        return Text(CountryFlag.normalizedCode(countryCode) ?? "◎")
+            .font(.system(size: height * 0.58, weight: .bold, design: .rounded))
+            .monospaced()
+            .foregroundStyle(Color.accentColor)
+            .frame(width: diameter, height: height)
+            .background(
+                RoundedRectangle(cornerRadius: height * 0.28, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.12))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: height * 0.28, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.75)
+            )
     }
 
     @ViewBuilder
@@ -305,6 +355,7 @@ private enum CountryFlagAssetSource: String {
     case cartoon
     case waved
     case gradient
+    case square
     case roundedSmall
     case roundedMedium
     case roundedLarge
@@ -315,6 +366,7 @@ private enum CountryFlagAssetSource: String {
         case .cartoon: "cartoon-"
         case .waved: "wave-"
         case .gradient: "flagkit-"
+        case .square: "square-"
         case .roundedSmall: "flagpack-s-"
         case .roundedMedium: "flagpack-m-"
         case .roundedLarge: "flagpack-l-"
@@ -327,6 +379,7 @@ private enum CountryFlagAssetSource: String {
         case .cartoon: "CartoonFlags"
         case .waved: "WavedFlags"
         case .gradient: "FlagKitFlags"
+        case .square: "SquareFlags"
         case .roundedSmall, .roundedMedium, .roundedLarge: "FlagpackFlags"
         }
     }

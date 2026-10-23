@@ -124,6 +124,26 @@ final class AppEnvironment {
         started = false
     }
 
+    /// 打开设置窗口。菜单栏 accessory 应用必须先激活，否则 SwiftUI Settings 窗口不会出现在前台。
+    func openSettings() {
+        NSApp.activate()
+        if let openSettingsAction {
+            openSettingsAction()
+        } else {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(120))
+            guard let window = NSApp.windows.first(where: Self.isSettingsWindow) else { return }
+            NSApp.activate()
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    private static func isSettingsWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.contains("Settings") == true && window.isVisible
+    }
+
     func showDashboard(_ destination: DashboardNavigationModel.Destination = .overview) {
         dashboardNavigation.destination = destination
         dashboardWindowController?.showWindow()

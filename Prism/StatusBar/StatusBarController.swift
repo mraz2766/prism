@@ -276,9 +276,43 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             }
             image.isTemplate = false
             return image
+        case .square:
+            guard let source = CountryFlag.squareImage(for: countryCode) else { return nil }
+            return roundedMenuBarImage(
+                source,
+                targetRect: NSRect(x: 2, y: 2, width: 14, height: 14),
+                cornerRadius: 3
+            )
+        case .code:
+            return menuBarCodeImage(for: countryCode)
         case .emoji:
             return menuBarEmojiImage(for: countryCode)
         }
+    }
+
+    /// 国家代码徽章使用模板图，自动跟随菜单栏深浅色。
+    private func menuBarCodeImage(for countryCode: String) -> NSImage? {
+        guard let code = CountryFlag.normalizedCode(countryCode) else { return nil }
+        let attributed = NSAttributedString(
+            string: code,
+            attributes: [.font: NSFont.monospacedSystemFont(ofSize: 9.5, weight: .bold)]
+        )
+        let textSize = attributed.size()
+        let size = NSSize(width: Self.pixelAligned(textSize.width + 7), height: 18)
+        let image = NSImage(size: size, flipped: false) { rect in
+            let badge = NSRect(x: 0.5, y: 3.5, width: rect.width - 1, height: 11)
+            let path = NSBezierPath(roundedRect: badge, xRadius: 3, yRadius: 3)
+            path.lineWidth = 1
+            NSColor.black.setStroke()
+            path.stroke()
+            attributed.draw(at: NSPoint(
+                x: Self.pixelAligned((rect.width - textSize.width) / 2),
+                y: Self.pixelAligned(badge.midY - textSize.height / 2)
+            ))
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     private func fittedMenuBarImage(_ source: NSImage) -> NSImage {
@@ -522,9 +556,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     @objc private func refresh() { environment.refreshCoordinator.triggerManual() }
     @objc private func openDetails() { environment.showDashboard() }
-    @objc private func openSettings() {
-        NSApp.activate()
-        environment.openSettingsAction?()
-    }
+    @objc private func openSettings() { environment.openSettings() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

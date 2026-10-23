@@ -30,6 +30,10 @@ final class CountryFlagTests: XCTestCase {
         XCTAssertNotNil(CountryFlag.roundedImage(for: "CN"))
     }
 
+    func testBundledSquareFlagCanBeLoaded() {
+        XCTAssertNotNil(CountryFlag.squareImage(for: "CN"))
+    }
+
     func testBundledGradientFlagCanBeLoaded() {
         XCTAssertNotNil(CountryFlag.gradientImage(for: "CN"))
     }
@@ -43,6 +47,7 @@ final class CountryFlagTests: XCTestCase {
             ("rounded-s", CountryFlag.roundedImage(for: "JP", targetWidth: 16), 0.9, 0.9),
             ("rounded-m", CountryFlag.roundedImage(for: "JP", targetWidth: 20), 0.9, 0.9),
             ("rounded-l", CountryFlag.roundedImage(for: "JP", targetWidth: 32), 0.9, 0.9),
+            ("square", CountryFlag.squareImage(for: "JP"), 0.9, 0.9),
             ("cartoon", CountryFlag.cartoonImage(for: "JP"), 0.8, 0.5)
         ]
 

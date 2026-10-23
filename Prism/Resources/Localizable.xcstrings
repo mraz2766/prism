@@ -143,6 +143,8 @@
     "Responsive" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"灵敏"}}}},
     "Route" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"出口路线"}}}},
     "Rounded flag" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"圆角国旗"}}}},
+    "Square flag" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"方形国旗"}}}},
+    "Country code" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国家代码"}}}},
     "Same as current exit" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"与当前出口一致"}}}},
     "Sample Switch" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"示例开关"}}}},
     "Settings" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"设置"}}}},

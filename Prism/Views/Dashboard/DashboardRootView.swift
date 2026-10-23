@@ -36,7 +36,7 @@ struct DashboardRootView: View {
                     .help(String(localized: "Refresh"))
                     .keyboardShortcut("r", modifiers: [.command])
                 Button {
-                    environment.openSettingsAction?()
+                    environment.openSettings()
                 } label: { Image(systemName: "gearshape") }
                     .help(String(localized: "Settings"))
             }
