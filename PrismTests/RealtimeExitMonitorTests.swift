@@ -151,6 +151,51 @@ final class RealtimeExitMonitorTests: XCTestCase {
         XCTAssertEqual(callsAfterStop, callsAtStop)
     }
 
+    func testPeriodicMetadataRefreshRunsHandlerOnInterval() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let probe = CountingObservationProbe(observation: observation(ip: "203.0.113.10", route: .proxy))
+        let monitor = RealtimeExitMonitor(
+            probe: probe,
+            lookupService: harness.lookup,
+            interval: .milliseconds(10),
+            burstInterval: .milliseconds(10),
+            burstDuration: .zero,
+            isLowPowerModeEnabled: { false }
+        )
+        let counter = PeriodicRefreshCounter()
+        await monitor.setPeriodicRefreshHandler { await counter.increment() }
+        await monitor.updateMetadataRefreshInterval(.milliseconds(25))
+
+        await monitor.start()
+        try await Task.sleep(for: .milliseconds(120))
+        await monitor.stop()
+
+        let refreshes = await counter.count
+        XCTAssertGreaterThanOrEqual(refreshes, 1)
+    }
+
+    func testNoPeriodicMetadataRefreshWithoutInterval() async throws {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let probe = CountingObservationProbe(observation: observation(ip: "203.0.113.10", route: .proxy))
+        let monitor = RealtimeExitMonitor(
+            probe: probe,
+            lookupService: harness.lookup,
+            interval: .milliseconds(10),
+            burstInterval: .milliseconds(10),
+            burstDuration: .zero,
+            isLowPowerModeEnabled: { false }
+        )
+        let counter = PeriodicRefreshCounter()
+        await monitor.setPeriodicRefreshHandler { await counter.increment() }
+
+        await monitor.start()
+        try await Task.sleep(for: .milliseconds(60))
+        await monitor.stop()
+
+        let refreshes = await counter.count
+        XCTAssertEqual(refreshes, 0)
+    }
+
     func testLowPowerModeUsesSlowerStableInterval() async throws {
         let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
         let probe = CountingObservationProbe(observation: observation(ip: "203.0.113.10", route: .proxy))
@@ -488,4 +533,9 @@ private actor CountingGeoProvider: GeoIPProvider {
 
 private actor MonitorPrivacyProvider: PrivacyClassifying {
     func classify(ipAddress: String) async throws -> PrivacyClassification { .notDetected }
+}
+
+private actor PeriodicRefreshCounter {
+    private(set) var count = 0
+    func increment() { count += 1 }
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsRootView: View {
+    @Environment(AppEnvironment.self) private var environment
     @Environment(SettingsStore.self) private var settings
     @State private var selection: SettingsSection = .general
 
@@ -30,6 +31,7 @@ struct SettingsRootView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(settings.accentColorChoice.color)
         .navigationTitle(selection.title)
+        .background(SettingsWindowAccessor { environment.registerSettingsWindow($0) })
     }
 
     private var preferredHeight: CGFloat {
@@ -126,6 +128,29 @@ private struct SettingsNavigationBar: View {
             let delta = direction == .left ? -1 : 1
             let nextIndex = min(max(currentIndex + delta, 0), SettingsSection.allCases.count - 1)
             select(SettingsSection.allCases[nextIndex])
+        }
+    }
+}
+
+/// 设置窗口挂载时回调一次，用于把窗口激活并置于最前。
+private struct SettingsWindowAccessor: NSViewRepresentable {
+    let onAttach: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> AttachView {
+        let view = AttachView()
+        view.onAttach = onAttach
+        return view
+    }
+
+    func updateNSView(_ nsView: AttachView, context: Context) {}
+
+    final class AttachView: NSView {
+        var onAttach: ((NSWindow) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else { return }
+            onAttach?(window)
         }
     }
 }

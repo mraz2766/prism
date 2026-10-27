@@ -35,17 +35,20 @@ final class CountryFlagTests: XCTestCase {
     }
 
     func testSquareAndGradientFlagsContainNoUnresolvedShapeReferencesAndRender() throws {
-        let urls = try XCTUnwrap(Bundle.main.urls(forResourcesWithExtension: "svg", subdirectory: nil))
-            .filter {
-                let name = $0.deletingPathExtension().lastPathComponent
-                return name.hasPrefix("square-") || name.hasPrefix("flagkit-")
-            }
+        // 方形国旗已预先栅格化为 PNG，<use> 引用须在栅格化前展开；渐变国旗仍为 SVG。
+        let gradientURLs = try XCTUnwrap(Bundle.main.urls(forResourcesWithExtension: "svg", subdirectory: nil))
+            .filter { $0.deletingPathExtension().lastPathComponent.hasPrefix("flagkit-") }
+        let squareURLs = try XCTUnwrap(Bundle.main.urls(forResourcesWithExtension: "png", subdirectory: nil))
+            .filter { $0.deletingPathExtension().lastPathComponent.hasPrefix("square-") }
+        let urls = gradientURLs + squareURLs
         XCTAssertGreaterThanOrEqual(urls.count, 500)
 
         for url in urls {
             let name = url.deletingPathExtension().lastPathComponent
-            let source = try String(contentsOf: url, encoding: .utf8)
-            XCTAssertFalse(source.contains("<use"), "\(name) still contains an SVG use reference")
+            if url.pathExtension == "svg" {
+                let source = try String(contentsOf: url, encoding: .utf8)
+                XCTAssertFalse(source.contains("<use"), "\(name) still contains an SVG use reference")
+            }
 
             let isSquare = name.hasPrefix("square-")
             let code = String(name.dropFirst(isSquare ? "square-".count : "flagkit-".count))

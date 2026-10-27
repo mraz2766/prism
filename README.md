@@ -208,4 +208,8 @@ Prism 是菜单栏应用。请在屏幕顶部菜单栏查找国家或地区标�
 
 渐变国旗来自 [FlagKit](https://github.com/madebybowtie/FlagKit)（提交 `f12111d91902`），采用 MIT 许可证；许可证副本位于 `Prism/Resources/FlagKitFlags/LICENSE.flagkit.txt`。
 
-圆角国旗来自 [Flagpack](https://github.com/Yummygum/flagpack-core)（提交 `6e57695337a4`），采用 MIT 许可证。Prism 会分别使用其 16×12、20×15 和 32×24 SVG，以匹配菜单栏、列表和详情尺寸；许可证副本位于 `Prism/Resources/FlagpackFlags/LICENSE.flagpack.txt`。
+圆角国旗来自 [Flagpack](https://github.com/Yummygum/flagpack-core)（提交 `6e57695337a4`），采用 MIT 许可证。Prism 会分别使用其 16×12、20×15 和 32×24 三种尺寸，以匹配菜单栏、列表和详情尺寸；许可证副本位于 `Prism/Resources/FlagpackFlags/LICENSE.flagpack.txt`。
+
+方形国旗来自 [flag-icons](https://github.com/lipis/flag-icons) 7.2.3 的 1×1 版本，采用 MIT 许可证；许可证副本位于 `Prism/Resources/SquareFlags/LICENSE.flag-icons.txt`。
+
+圆角、波浪和方形国旗体积较大，已用 `scripts/rasterize-flags.swift` 按运行时相同的规格预先栅格化为 PNG 随 App 打包，外观与直接渲染 SVG 一致。

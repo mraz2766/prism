@@ -4,6 +4,9 @@
 AppKit's SVG renderer omits some referenced shapes, leaving flags such as CN
 without their emblems. This is a one-time asset normalization tool; it is
 idempotent and does not add a runtime dependency to Prism.
+
+Flag sets shipped as pre-rasterized PNG (see rasterize-flags.swift) must be
+expanded before rasterizing, while they are still SVG.
 """
 
 from pathlib import Path
@@ -11,7 +14,7 @@ from xml.dom import minidom
 
 
 RESOURCES = Path(__file__).resolve().parent.parent / "Prism/Resources"
-FLAG_DIRECTORIES = ("SquareFlags", "FlagKitFlags")
+FLAG_DIRECTORIES = ("FlagKitFlags",)
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 

@@ -119,9 +119,17 @@ final class URLSessionHTTPClient: HTTPClient, @unchecked Sendable {
         configuration.httpAdditionalHeaders = [
             "Accept": "application/json",
             "Cache-Control": "no-store, no-cache",
-            "User-Agent": "Prism/1.0 (macOS)"
+            "User-Agent": userAgent
         ]
         return configuration
+    }
+
+    /// 带真实版本号，便于排查各服务商的限流与兼容问题。
+    static var userAgent: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "0"
+        let build = info?["CFBundleVersion"] as? String ?? "0"
+        return "Prism/\(version) (\(build); macOS)"
     }
 }
 

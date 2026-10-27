@@ -24,6 +24,10 @@ actor RealtimeExitMonitor {
     private var observationGeneration = 0
     private var consecutiveFailures = 0
     private var probeWasUnavailable = false
+    /// 定时完整刷新（GeoIP、隐私分类）的间隔；nil 表示只在出口或网络变化时刷新。
+    private var metadataRefreshInterval: Duration?
+    private var lastMetadataRefresh: ContinuousClock.Instant?
+    private var periodicRefreshHandler: (@Sendable () async -> Void)?
 
     init(
         probe: any ExitAddressProbing,
@@ -104,6 +108,15 @@ actor RealtimeExitMonitor {
         burstUntil = clock.now.advanced(by: burstDuration)
     }
 
+    func updateMetadataRefreshInterval(_ interval: Duration?) {
+        metadataRefreshInterval = interval
+    }
+
+    /// 每次定时完整刷新前调用，用于同步刷新国内出口等附属信息。
+    func setPeriodicRefreshHandler(_ handler: @escaping @Sendable () async -> Void) {
+        periodicRefreshHandler = handler
+    }
+
     func updateSensitivity(_ sensitivity: DetectionSensitivity) {
         stableInterval = sensitivity.stableInterval
         lowPowerInterval = sensitivity.lowPowerInterval
@@ -126,6 +139,7 @@ actor RealtimeExitMonitor {
     }
 
     func refreshNow(showLoading: Bool = false) async {
+        if !isPaused { lastMetadataRefresh = clock.now }
         await observeAndApply(refreshUnchanged: true, showLoading: showLoading)
     }
 
@@ -136,6 +150,7 @@ actor RealtimeExitMonitor {
         probeWasUnavailable = false
         stabilizer.reset()
         boost()
+        lastMetadataRefresh = clock.now
         await lookupService.cancelRefreshForEnvironmentChange()
         await probe.invalidateConnections()
         await observeAndApply(
@@ -256,6 +271,9 @@ actor RealtimeExitMonitor {
             if shouldRefreshMetadata {
                 shouldRefreshMetadata = false
                 await refreshNow()
+            } else if isMetadataRefreshDue {
+                await periodicRefreshHandler?()
+                await refreshNow()
             } else {
                 await pollNow()
             }
@@ -268,6 +286,12 @@ actor RealtimeExitMonitor {
                 break
             }
         }
+    }
+
+    private var isMetadataRefreshDue: Bool {
+        guard !isPaused, let metadataRefreshInterval else { return false }
+        guard let lastMetadataRefresh else { return true }
+        return lastMetadataRefresh.duration(to: clock.now) >= metadataRefreshInterval
     }
 
     private var currentInterval: Duration {

@@ -292,18 +292,27 @@ private final class CountryFlagImageCache: @unchecked Sendable {
         let key = "\(source.rawValue)/\(code)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
-        let url = Bundle.main.url(
-            forResource: resourceName,
-            withExtension: "svg",
-            subdirectory: source.subdirectory
-        ) ?? Bundle.main.url(forResource: resourceName, withExtension: "svg")
-        guard let url, let vector = NSImage(contentsOf: url) else { return nil }
-        // SVG 每次绘制都会重新矢量渲染（波浪国旗单个文件可达数百 KB），
-        // 首次加载时栅格化为位图，之后菜单栏、列表和详情都只做位图缩放。
-        let image = Self.rasterized(vector)
+        let image: NSImage
+        if let url = Self.resourceURL(resourceName, extension: "png", subdirectory: source.subdirectory),
+           let bitmap = NSImage(contentsOf: url) {
+            // 体积大的国旗集在构建前已按 rasterized 相同的规格预先栅格化为 PNG。
+            image = bitmap
+        } else if let url = Self.resourceURL(resourceName, extension: "svg", subdirectory: source.subdirectory),
+                  let vector = NSImage(contentsOf: url) {
+            // SVG 每次绘制都会重新矢量渲染，首次加载时栅格化为位图，
+            // 之后菜单栏、列表和详情都只做位图缩放。
+            image = Self.rasterized(vector)
+        } else {
+            return nil
+        }
         image.isTemplate = false
         cache.setObject(image, forKey: key)
         return image
+    }
+
+    private static func resourceURL(_ name: String, extension ext: String, subdirectory: String) -> URL? {
+        Bundle.main.url(forResource: name, withExtension: ext, subdirectory: subdirectory)
+            ?? Bundle.main.url(forResource: name, withExtension: ext)
     }
 
     private static func rasterized(_ vector: NSImage, maximumPixelDimension: CGFloat = 176) -> NSImage {
@@ -362,7 +371,7 @@ private enum CountryFlagAssetSource: String {
 
     var resourcePrefix: String {
         switch self {
-        case .circle: ""
+        case .circle: "circle-"
         case .cartoon: "cartoon-"
         case .waved: "wave-"
         case .gradient: "flagkit-"

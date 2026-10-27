@@ -30,6 +30,7 @@ final class AppEnvironment {
 
     var openSettingsAction: (@MainActor () -> Void)?
     var dashboardWindowController: DashboardWindowController?
+    @ObservationIgnored private weak var settingsWindow: NSWindow?
 
     @ObservationIgnored private var notificationTask: Task<Void, Never>?
     @ObservationIgnored private var started = false
@@ -127,21 +128,20 @@ final class AppEnvironment {
     /// 打开设置窗口。菜单栏 accessory 应用必须先激活，否则 SwiftUI Settings 窗口不会出现在前台。
     func openSettings() {
         NSApp.activate()
-        if let openSettingsAction {
+        if let settingsWindow, settingsWindow.isVisible {
+            settingsWindow.makeKeyAndOrderFront(nil)
+        } else if let openSettingsAction {
+            // 新建的窗口由 SettingsRootView 挂载后通过 registerSettingsWindow 置前。
             openSettingsAction()
         } else {
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         }
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(120))
-            guard let window = NSApp.windows.first(where: Self.isSettingsWindow) else { return }
-            NSApp.activate()
-            window.makeKeyAndOrderFront(nil)
-        }
     }
 
-    private static func isSettingsWindow(_ window: NSWindow) -> Bool {
-        window.identifier?.rawValue.contains("Settings") == true && window.isVisible
+    func registerSettingsWindow(_ window: NSWindow) {
+        settingsWindow = window
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
     }
 
     func showDashboard(_ destination: DashboardNavigationModel.Destination = .overview) {
