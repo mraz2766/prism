@@ -175,3 +175,56 @@ enum MenuBarLabelRenderer {
         return String(value.prefix(19)) + "…"
     }
 }
+
+/// 自定义模板的结构化视图：国旗总是作为菜单栏图标显示在最前，其余元素按顺序组成文字。
+enum MenuBarTemplateElement: String, CaseIterable, Identifiable, Sendable {
+    case code
+    case country
+    case city
+    case status
+
+    var id: String { rawValue }
+    var token: String { "{\(rawValue)}" }
+
+    var label: String {
+        switch self {
+        case .code: String(localized: "Country code")
+        case .country: String(localized: "Country name")
+        case .city: String(localized: "City")
+        case .status: String(localized: "Status dot")
+        }
+    }
+}
+
+struct MenuBarTemplateComposition: Equatable {
+    var showsFlag: Bool
+    var elements: [MenuBarTemplateElement]
+
+    init(showsFlag: Bool, elements: [MenuBarTemplateElement]) {
+        self.showsFlag = showsFlag
+        self.elements = elements
+    }
+
+    init(template: String) {
+        showsFlag = template.contains("{flag}")
+        var found: [(String.Index, MenuBarTemplateElement)] = []
+        for element in MenuBarTemplateElement.allCases {
+            if let range = template.range(of: element.token) {
+                found.append((range.lowerBound, element))
+            }
+        }
+        elements = found.sorted { $0.0 < $1.0 }.map(\.1)
+    }
+
+    var isEmpty: Bool { !showsFlag && elements.isEmpty }
+
+    var template: String {
+        ((showsFlag ? ["{flag}"] : []) + elements.map(\.token)).joined(separator: " ")
+    }
+
+    /// 模板里是否含有结构化编辑无法表达的内容（自由文字、重复元素等）。
+    static func isRepresentable(_ template: String) -> Bool {
+        let normalized = template.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return normalized == MenuBarTemplateComposition(template: template).template
+    }
+}

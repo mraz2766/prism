@@ -184,4 +184,27 @@ final class MenuBarLabelRendererTests: XCTestCase {
         XCTAssertEqual(value.title, "! CN")
         XCTAssertNil(value.badge)
     }
+
+    func testTemplateCompositionParsesFlagAndOrderedElements() {
+        let composition = MenuBarTemplateComposition(template: "{city} {flag} {code}")
+
+        XCTAssertTrue(composition.showsFlag)
+        XCTAssertEqual(composition.elements, [.city, .code])
+        XCTAssertEqual(composition.template, "{flag} {city} {code}")
+    }
+
+    func testTemplateCompositionRoundTripsWithoutFlag() {
+        let composition = MenuBarTemplateComposition(showsFlag: false, elements: [.status, .country])
+
+        XCTAssertEqual(composition.template, "{status} {country}")
+        XCTAssertEqual(MenuBarTemplateComposition(template: composition.template), composition)
+        XCTAssertTrue(MenuBarTemplateComposition.isRepresentable(composition.template))
+    }
+
+    func testTemplateCompositionDetectsFreeText() {
+        XCTAssertTrue(MenuBarTemplateComposition.isRepresentable("{flag}  {code}"))
+        XCTAssertFalse(MenuBarTemplateComposition.isRepresentable("IP: {code}"))
+        XCTAssertFalse(MenuBarTemplateComposition.isRepresentable("{code} {flag}"))
+        XCTAssertTrue(MenuBarTemplateComposition(template: "plain").isEmpty)
+    }
 }
