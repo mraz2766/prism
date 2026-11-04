@@ -97,30 +97,28 @@ enum NetworkStatus: Equatable, Sendable {
 
     var isRefreshing: Bool {
         switch self {
-        case .loading, .verifying, .locating: true
+        case .loading, .verifying: true
         default: false
         }
     }
 
     var shortLabel: String {
         switch self {
-        case .online: String(localized: "Online")
-        case .locating: String(localized: "Locating")
-        case .locationUnavailable: String(localized: "Location unavailable")
+        case .online, .locating, .locationUnavailable: String(localized: "Online")
         case .loading: String(localized: "Detecting")
         case .verifying: String(localized: "Confirming new exit")
         case .offline: String(localized: "Offline")
-        case .stale: String(localized: "Update unavailable")
+        case .stale: String(localized: "Last confirmed")
         case .failed, .idle: String(localized: "Unknown")
         }
     }
 
     var symbolName: String {
         switch self {
-        case .online: "checkmark.circle.fill"
-        case .loading, .verifying, .locating: "arrow.triangle.2.circlepath"
+        case .online, .locating, .locationUnavailable: "checkmark.circle.fill"
+        case .loading, .verifying: "arrow.triangle.2.circlepath"
         case .offline: "wifi.slash"
-        case .stale, .locationUnavailable: "exclamationmark.circle.fill"
+        case .stale: "clock"
         case .failed, .idle: "questionmark.circle"
         }
     }

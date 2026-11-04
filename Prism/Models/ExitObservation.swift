@@ -9,7 +9,7 @@ enum ExitSource: String, Codable, Equatable, Sendable {
     var label: String {
         switch self {
         case .overseasIPv4, .overseasIPv6: String(localized: "Overseas exit probe")
-        case .domesticFallback: String(localized: "Mainland direct probe")
+        case .domesticFallback: String(localized: "Mainland exit probe")
         case .unknown: String(localized: "Unknown")
         }
     }

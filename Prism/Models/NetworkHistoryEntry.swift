@@ -9,6 +9,9 @@ struct NetworkHistoryEntry: Codable, Equatable, Sendable, Identifiable {
     let asn: Int?
     let routeMode: NetworkRouteMode
     let exitSource: ExitSource
+    let locationSource: LocationSource
+    /// Exact metadata lookup time, if available. Older history only provides recordedAt.
+    let locationCheckedAt: Date?
 
     init(id: UUID = UUID(), recordedAt: Date = .now, info: NetworkInfo) {
         self.id = id
@@ -19,6 +22,8 @@ struct NetworkHistoryEntry: Codable, Equatable, Sendable, Identifiable {
         self.asn = info.network.asn
         self.routeMode = info.routeMode
         self.exitSource = info.exitSource
+        self.locationSource = info.locationSource
+        self.locationCheckedAt = info.locationCheckedAt
     }
 
     func representsSameExit(as info: NetworkInfo) -> Bool {
@@ -34,7 +39,7 @@ struct NetworkHistoryEntry: Codable, Equatable, Sendable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, recordedAt, addresses, countryCode, city, asn, routeMode, exitSource
+        case id, recordedAt, addresses, countryCode, city, asn, routeMode, exitSource, locationSource, locationCheckedAt
     }
 
     init(from decoder: any Decoder) throws {
@@ -47,5 +52,9 @@ struct NetworkHistoryEntry: Codable, Equatable, Sendable, Identifiable {
         asn = try values.decodeIfPresent(Int.self, forKey: .asn)
         routeMode = try values.decodeIfPresent(NetworkRouteMode.self, forKey: .routeMode) ?? .unknown
         exitSource = try values.decodeIfPresent(ExitSource.self, forKey: .exitSource) ?? .unknown
+        locationSource = try values.decodeIfPresent(LocationSource.self, forKey: .locationSource)
+            ?? (countryCode.isEmpty ? .unknown : .history)
+        let storedLocationTime = try values.decodeIfPresent(Date.self, forKey: .locationCheckedAt)
+        locationCheckedAt = locationSource == .offline || locationSource == .unknown ? nil : storedLocationTime
     }
 }

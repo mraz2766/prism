@@ -26,21 +26,19 @@ final class NetworkStatusViewModel {
     }
 
     private func announceIfNeeded(from previous: NetworkStatus, to current: NetworkStatus) {
+        let confirmed: NetworkInfo?
+        switch current {
+        case .online(let info), .locating(let info), .locationUnavailable(let info, _): confirmed = info
+        default: confirmed = nil
+        }
         let announcement: String?
-        switch (previous, current) {
-        case (_, .verifying) where !previous.isRefreshing:
+        if let confirmed,
+           previous.retainedInfo?.addresses.preferredForLookup != confirmed.addresses.preferredForLookup {
+            let country = confirmed.hasLocation ? "\(confirmed.location.localizedCountry()) · " : ""
+            announcement = "\(String(localized: "Network exit changed")): \(country)\(confirmed.addresses.preferredForLookup ?? "")"
+        } else if case .verifying = current, !previous.isRefreshing {
             announcement = String(localized: "Confirming new exit")
-        case (_, .locating(let info))
-            where previous.retainedInfo?.addresses.preferredForLookup != info.addresses.preferredForLookup:
-            announcement = "\(String(localized: "Network exit changed")): \(info.addresses.preferredForLookup ?? "")"
-        case (.locating, .online(let info)):
-            let city = info.location.city.map { ", \($0)" } ?? ""
-            announcement = "\(String(localized: "Location updated")): \(info.location.localizedCountry())\(city)"
-        case (.verifying(let previousInfo, _), .online(let info)) where previousInfo?.id != info.id:
-            // 候选被撤销、回到原出口时不播报“已变化”。
-            let city = info.location.city.map { ", \($0)" } ?? ""
-            announcement = "\(String(localized: "Network exit changed")): \(info.location.localizedCountry())\(city)"
-        default:
+        } else {
             announcement = nil
         }
         guard let announcement else { return }

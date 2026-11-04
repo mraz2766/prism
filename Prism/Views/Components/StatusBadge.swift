@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 状态语义色的唯一来源：菜单栏角标、状态徽章、确认横幅和失败提示共用，
-/// 保证“确认中”（琥珀）与“更新不可用”（橙）在任何位置都能区分。
+/// 出口状态与可选的位置更新分开呈现：位置服务失败不改变在线状态。
 enum StatusPalette {
     static var onlineNSColor: NSColor { NSColor(name: nil) { appearance in
         let match = appearance.bestMatch(from: [
@@ -37,11 +36,10 @@ enum StatusPalette {
 
     static func color(for status: NetworkStatus) -> Color {
         switch status {
-        case .online: online
-        case .loading, .verifying, .locating: confirming
-        case .stale, .locationUnavailable: stale
-        case .offline, .failed: .red
-        case .idle: .secondary
+        case .online, .locating, .locationUnavailable: online
+        case .loading, .verifying: confirming
+        case .offline: .red
+        case .idle, .stale, .failed: .secondary
         }
     }
 }
@@ -59,6 +57,8 @@ struct StatusBadge: View {
             .background(backgroundColor, in: Capsule())
             .contentTransition(.opacity)
             .accessibilityLabel(status.shortLabel)
+            .accessibilityIdentifier("network.status")
+            .accessibilityValue(status.symbolName)
     }
 
     private var foregroundColor: Color {

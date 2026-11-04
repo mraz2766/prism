@@ -123,6 +123,44 @@ final class NetworkLookupServiceTests: XCTestCase {
         XCTAssertEqual(geoCalls, 2)
     }
 
+    func testCityEnrichmentFromPreviousEnvironmentCannotOverwriteSameIP() async {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let geo = SuspendedCityEnrichmentGeoProvider()
+        let cache = NetworkInfoCache(directory: directory)
+        let service = NetworkLookupService(
+            publicIPProvider: CountingPublicIPProvider(delay: .zero),
+            geoProvider: geo,
+            privacyProvider: CountingPrivacyProvider(),
+            cache: cache,
+            history: NetworkHistoryStore(
+                fileURL: directory.appendingPathComponent("history.json"),
+                settlingDelay: .zero
+            )
+        )
+
+        _ = await service.refresh()
+        let enrichment = Task { await service.refreshMissingCity() }
+        await geo.waitForEnrichment()
+        await service.cancelRefreshForEnvironmentChange()
+        let refreshed = await service.refresh()
+        XCTAssertEqual(refreshed.info?.providerIdentifier, "fresh-geo")
+        XCTAssertNil(refreshed.info?.location.city)
+
+        // The old request deliberately ignores cancellation and returns for the same IP.
+        await geo.completeEnrichment()
+        await enrichment.value
+
+        let final = await service.snapshot()
+        XCTAssertEqual(final, refreshed)
+        XCTAssertEqual(cache.loadInfo()?.providerIdentifier, "fresh-geo")
+        XCTAssertNil(cache.loadInfo()?.location.city)
+        let key = IPAddressKey.normalized(NetworkInfo.preview.addresses.preferredForLookup!)!
+        XCTAssertEqual(cache.loadLocations()[key]?.providerIdentifier, "fresh-geo")
+        XCTAssertNil(cache.loadLocations()[key]?.location.city)
+    }
+
     func testHardDeadlineStopsAStalledRefresh() async {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -215,6 +253,46 @@ private actor CityEnrichmentGeoProvider: GeoIPProvider {
             ),
             network: NetworkInfo.preview.network,
             providerIdentifier: identifier
+        )
+    }
+}
+
+private actor SuspendedCityEnrichmentGeoProvider: GeoIPProvider {
+    nonisolated let identifier = "suspended-city-enrichment"
+    private var callCount = 0
+    private var enrichment: CheckedContinuation<GeoIPResult, Never>?
+    private var enrichmentStarted: CheckedContinuation<Void, Never>?
+
+    func lookup(ipAddress: String) async throws -> GeoIPResult {
+        callCount += 1
+        if callCount == 2 {
+            return await withCheckedContinuation { continuation in
+                enrichment = continuation
+                enrichmentStarted?.resume()
+                enrichmentStarted = nil
+            }
+        }
+        return result(city: nil, provider: callCount == 1 ? "initial-geo" : "fresh-geo")
+    }
+
+    func waitForEnrichment() async {
+        guard enrichment == nil else { return }
+        await withCheckedContinuation { enrichmentStarted = $0 }
+    }
+
+    func completeEnrichment() {
+        enrichment?.resume(returning: result(city: "Tokyo", provider: "obsolete-geo"))
+        enrichment = nil
+    }
+
+    private func result(city: String?, provider: String) -> GeoIPResult {
+        GeoIPResult(
+            location: LocationInfo(
+                countryCode: "JP", region: "Tokyo", city: city,
+                timezone: "Asia/Tokyo", latitude: nil, longitude: nil
+            ),
+            network: NetworkInfo.preview.network,
+            providerIdentifier: provider
         )
     }
 }

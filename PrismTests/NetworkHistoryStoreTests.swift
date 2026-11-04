@@ -67,6 +67,32 @@ final class NetworkHistoryStoreTests: XCTestCase {
         XCTAssertEqual(entries.count, 1)
         XCTAssertEqual(entries.first?.routeMode, .unknown)
         XCTAssertEqual(entries.first?.exitSource, .unknown)
+        let entry = try XCTUnwrap(entries.first)
+        XCTAssertEqual(entry.locationSource, .history)
+        XCTAssertNil(entry.locationCheckedAt, "Old history cannot provide an exact lookup time")
+        let cached = CachedLocation(historyEntry: entry)
+        XCTAssertTrue(cached.isCacheable)
+        XCTAssertEqual(cached.recordedAt, entry.recordedAt)
+    }
+
+    func testHistoryPreservesOnlineLookupTimeSeparatelyFromRecordTime() throws {
+        let info = NetworkInfo(
+            addresses: NetworkInfo.preview.addresses,
+            location: NetworkInfo.preview.location,
+            network: NetworkInfo.preview.network,
+            privacy: .notDetected,
+            providerIdentifier: "test",
+            checkedAt: Date(timeIntervalSince1970: 2_000),
+            locationCheckedAt: Date(timeIntervalSince1970: 1_000),
+            locationSource: .online
+        )
+        let entry = NetworkHistoryEntry(recordedAt: Date(timeIntervalSince1970: 3_000), info: info)
+        let reloaded = try JSONDecoder().decode(NetworkHistoryEntry.self, from: JSONEncoder().encode(entry))
+
+        XCTAssertEqual(reloaded.locationSource, .online)
+        XCTAssertEqual(reloaded.locationCheckedAt, info.locationCheckedAt)
+        XCTAssertEqual(reloaded.recordedAt, entry.recordedAt)
+        XCTAssertEqual(CachedLocation(historyEntry: reloaded).recordedAt, info.locationCheckedAt)
     }
 
     func testTransientExitChangeIsDiscardedWhenOriginalExitReturns() async throws {

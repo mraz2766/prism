@@ -45,7 +45,7 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
                 addresses: overseas,
                 primaryAddress: primaryAddress,
                 source: overseas.ipv4 == nil ? .overseasIPv6 : .overseasIPv4,
-                routeMode: .proxy
+                routeMode: .unknown
             )
         }
 
@@ -124,7 +124,7 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
         return ExitObservation(
             addresses: addresses,
             source: .domesticFallback,
-            routeMode: .direct,
+            routeMode: .unknown,
             preResolvedGeo: geo
         )
     }

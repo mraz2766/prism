@@ -14,6 +14,8 @@ struct MenuBarPopoverView: View {
               locale.language.languageCode?.identifier == "zh",
               case .online(let info) = status,
               info.hasLocation,
+              info.locationSource == .online,
+              info.location.city?.isEmpty == false,
               let address = info.addresses.preferredForLookup else { return nil }
         return CityLookupKey(address: address, countryCode: info.location.countryCode)
     }
@@ -110,11 +112,11 @@ struct MenuBarPopoverView: View {
         .padding(.vertical, 70)
     }
 
-    /// 确认中与更新失败的提示放在固定高度的底栏，避免弹窗高度在状态切换时跳动。
+    /// 元数据更新在后台完成，底栏只呈现出口确认状态。
     private var footerStatusKind: Int {
         switch status {
-        case .verifying, .locating: 1
-        case .stale, .locationUnavailable: 2
+        case .verifying: 1
+        case .stale: 2
         default: 0
         }
     }
@@ -134,32 +136,12 @@ struct MenuBarPopoverView: View {
             .foregroundStyle(StatusPalette.confirming)
             .accessibilityLabel(String(localized: "Confirming new exit"))
             .transition(.opacity)
-        case .locating:
-            Label(String(localized: "IP confirmed. Looking up location…"), systemImage: "globe")
+        case .stale(let info, _):
+            Text("\(String(localized: "Last confirmed")) · \(info.checkedAt.formatted(date: .omitted, time: .shortened))")
                 .font(.caption)
-                .foregroundStyle(StatusPalette.confirming)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .transition(.opacity)
-        case .locationUnavailable(_, let reason):
-            Label(reason.locationDescription, systemImage: "exclamationmark.triangle")
-                .font(.caption)
-                .foregroundStyle(StatusPalette.stale)
-                .lineLimit(1)
-                .help(reason.locationDescription)
-                .accessibilityLabel(reason.locationDescription)
-                .transition(.opacity)
-        case .stale(_, let reason):
-            Label {
-                Text(reason.userDescription)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            } icon: {
-                Image(systemName: "exclamationmark.triangle")
-            }
-            .font(.caption)
-            .foregroundStyle(StatusPalette.stale)
-            .help(reason.userDescription)
-            .transition(.opacity)
         default:
             if let info = status.info {
                 Text(info.checkedAt, style: .relative)

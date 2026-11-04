@@ -30,7 +30,7 @@ struct CountryHeroView: View {
                         .font(.system(size: compact ? 28 : 38))
                         .foregroundStyle(.secondary)
                         .frame(width: compact ? 48 : 64, height: compact ? 48 : 64)
-                        .accessibilityLabel(String(localized: "Location unavailable"))
+                        .accessibilityLabel(String(localized: "Country not yet identified"))
                 }
             }
             .id(info.location.countryCode)
@@ -46,6 +46,8 @@ struct CountryHeroView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(locationTitle)
+                        .accessibilityIdentifier("location.country")
+                        .accessibilityValue(info.location.countryCode)
                         .font(compact ? .title3.weight(.bold) : .title2.weight(.bold))
                         .lineLimit(1)
                         .contentTransition(.opacity)
@@ -58,17 +60,23 @@ struct CountryHeroView: View {
                     }
                 }
 
-                if showsRetainedLocation, let checkedAt = info.locationCheckedAt {
-                    Text("\(String(localized: "Location updated")) · \(checkedAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption2)
+                if !compact, info.hasLocation {
+                    Text(info.locationSource.displayLabel)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .accessibilityIdentifier("location.last-success")
+                        .accessibilityIdentifier("location.source")
+                        .accessibilityValue(info.locationSource.rawValue)
+                    if let checkedAt = info.locationCheckedAt {
+                        Text("\(info.locationSource.timestampLabel) · \(checkedAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("location.last-success")
+                    }
                 }
 
-                if showsRoute || (!compact && info.location.timezone != nil) {
+                if (showsRoute && info.routeMode != .unknown) || (!compact && info.location.timezone != nil) {
                     HStack(spacing: 8) {
-                        if showsRoute {
+                        if showsRoute && info.routeMode != .unknown {
                             Label(info.routeMode.label, systemImage: routeSymbol)
                                 .font(.caption.weight(.medium))
                                 .padding(.horizontal, 7)
@@ -92,17 +100,7 @@ struct CountryHeroView: View {
     }
 
     private var locationTitle: String {
-        if info.hasLocation { return info.location.localizedCountry() }
-        if case .locating = status { return String(localized: "Location pending") }
-        return String(localized: "Location unavailable")
-    }
-
-    private var showsRetainedLocation: Bool {
-        guard info.hasLocation else { return false }
-        return switch status {
-        case .locating, .locationUnavailable, .stale: true
-        default: false
-        }
+        info.hasLocation ? info.location.localizedCountry() : String(localized: "Country not yet identified")
     }
 
     private var routeSymbol: String {
@@ -118,4 +116,19 @@ struct CountryHeroView: View {
 #Preview {
     CountryHeroView(info: .preview, status: .online(.preview))
         .padding().frame(width: 520)
+}
+
+extension LocationSource {
+    var displayLabel: String {
+        switch self {
+        case .online: String(localized: "Online lookup")
+        case .history: String(localized: "Saved location")
+        case .offline: String(localized: "Offline country database")
+        case .unknown: String(localized: "Country not yet identified")
+        }
+    }
+
+    var timestampLabel: String {
+        self == .history ? String(localized: "Location recorded") : String(localized: "Location updated")
+    }
 }

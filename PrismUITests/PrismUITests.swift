@@ -10,19 +10,44 @@ final class PrismUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.network-exit-title"].waitForExistence(timeout: 5))
     }
 
-    func testLocationFailureKeepsConfirmedIPVisibleInDashboard() {
+    func testLocationFailureKeepsConfirmedExitNormalInDashboard() {
         let app = launchApp(extraArguments: ["--ui-testing-location-unavailable"])
         app.activate()
         let dashboard = app.windows["Prism"]
         XCTAssertTrue(dashboard.waitForExistence(timeout: 8))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.location-error"].waitForExistence(timeout: 5))
-        XCTAssertTrue(dashboard.staticTexts["203.0.113.8"].firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(dashboard.staticTexts["203.0.113.8"].firstMatch.waitForExistence(timeout: 5))
+        let status = dashboard.descendants(matching: .any)["network.status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 3))
+        XCTAssertEqual(status.value as? String, "checkmark.circle.fill")
+        XCTAssertFalse(app.descendants(matching: .any)["dashboard.location-error"].exists)
+        let country = dashboard.descendants(matching: .any)["location.country"]
+        XCTAssertTrue(country.waitForExistence(timeout: 3))
+        XCTAssertEqual(country.value as? String, "")
+        attach(dashboard, named: "Confirmed exit remains normal without location data")
+    }
 
-        let dashboardImage = XCTAttachment(screenshot: dashboard.screenshot())
-        dashboardImage.name = "Location unavailable — confirmed IP in dashboard"
-        dashboardImage.lifetime = .keepAlways
-        add(dashboardImage)
+    func testOfflineCountryRemainsVisibleWhenOnlineLocationFails() {
+        let app = launchApp(extraArguments: ["--ui-testing-location-unavailable", "--ui-testing-offline-country"])
+        app.activate()
+        let dashboard = app.windows["Prism"]
+        XCTAssertTrue(dashboard.waitForExistence(timeout: 8))
+        XCTAssertTrue(dashboard.staticTexts["203.0.113.8"].firstMatch.waitForExistence(timeout: 5))
+        let country = dashboard.descendants(matching: .any)["location.country"]
+        XCTAssertTrue(country.waitForExistence(timeout: 3))
+        XCTAssertEqual(country.value as? String, "JP")
+        let source = dashboard.descendants(matching: .any)["location.source"]
+        XCTAssertTrue(source.waitForExistence(timeout: 3))
+        XCTAssertEqual(source.value as? String, "offline")
+        XCTAssertEqual(dashboard.descendants(matching: .any)["network.status"].value as? String, "checkmark.circle.fill")
+        XCTAssertFalse(app.descendants(matching: .any)["dashboard.location-error"].exists)
+        attach(dashboard, named: "Offline Japan country remains normal during online failure")
+    }
 
+    private func attach(_ element: XCUIElement, named name: String) {
+        let attachment = XCTAttachment(screenshot: element.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     func testAppearanceNavigationAndAccentSelectionRemainInteractive() {

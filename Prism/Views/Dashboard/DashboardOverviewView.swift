@@ -47,17 +47,6 @@ struct DashboardOverviewView: View {
                         )
                     }
 
-                    if case .locationUnavailable(_, let reason) = status {
-                        Label(reason.locationDescription, systemImage: "exclamationmark.triangle")
-                            .font(.callout)
-                            .foregroundStyle(StatusPalette.stale)
-                            .accessibilityIdentifier("dashboard.location-error")
-                    } else if case .locating = status {
-                        Label(String(localized: "IP confirmed. Looking up location…"), systemImage: "globe")
-                            .font(.callout)
-                            .foregroundStyle(StatusPalette.confirming)
-                    }
-
                     SectionCard {
                         CountryHeroView(
                             info: info,

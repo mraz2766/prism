@@ -39,7 +39,7 @@ enum MenuBarLabelRenderer {
 
         guard info.hasLocation else {
             return MenuBarPresentation(
-                title: mode == .flagOnly ? "" : truncate(status.shortLabel),
+                title: mode == .flagOnly ? "" : String(localized: "Country pending"),
                 indicator: .systemSymbol(name: "globe"),
                 badge: badge(for: status)
             )
@@ -50,10 +50,9 @@ enum MenuBarLabelRenderer {
         let city = compactCityName(info.location.city, fallback: code)
         let statusGlyph = glyph(for: status)
         let isOnline: Bool
-        if case .online = status {
-            isOnline = true
-        } else {
-            isOnline = false
+        switch status {
+        case .online, .locating, .locationUnavailable: isOnline = true
+        default: isOnline = false
         }
 
         var indicator: MenuBarIndicator = .none
@@ -130,18 +129,17 @@ enum MenuBarLabelRenderer {
 
     static func badge(for status: NetworkStatus) -> MenuBarStatusBadge? {
         switch status {
-        case .loading, .verifying, .locating: .confirming
-        case .stale, .locationUnavailable: .stale
-        case .online, .offline, .idle, .failed: nil
+        case .loading, .verifying: .confirming
+        case .online, .locating, .locationUnavailable, .stale, .offline, .idle, .failed: nil
         }
     }
 
     static func glyph(for status: NetworkStatus) -> String {
         switch status {
-        case .online: "●"
-        case .loading, .verifying, .locating: "◌"
+        case .online, .locating, .locationUnavailable: "●"
+        case .loading, .verifying: "◌"
         case .offline: "—"
-        case .stale, .locationUnavailable: "!"
+        case .stale: "◷"
         case .idle, .failed: "?"
         }
     }
@@ -170,12 +168,12 @@ enum MenuBarLabelRenderer {
     private static func fallbackStatusLabel(_ status: NetworkStatus) -> String {
         switch status {
         case .loading: "◌ " + String(localized: "Detecting")
-        case .locating: "◌ " + String(localized: "Locating")
-        case .locationUnavailable: "! " + String(localized: "Location unavailable")
+        case .locating, .locationUnavailable: String(localized: "Online")
         case .verifying: "◌ " + String(localized: "Confirming new exit")
         case .offline: "— " + String(localized: "Offline")
         case .idle: "◌ " + String(localized: "Detecting")
-        case .failed, .stale: "! " + String(localized: "Unknown")
+        case .stale: "◷ " + String(localized: "Last confirmed")
+        case .failed: "? " + String(localized: "Unknown")
         case .online: "? " + String(localized: "Unknown")
         }
     }

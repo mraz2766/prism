@@ -5,6 +5,7 @@ actor NetworkLookupService {
     private let publicIPProvider: any PublicIPProviding
     private let geoProvider: any GeoIPProvider
     private let privacyProvider: any PrivacyClassifying
+    private let countryLookup: any CountryLookingUp
     private let cache: NetworkInfoCache
     private let history: NetworkHistoryStore
     private let now: @Sendable () -> Date
@@ -14,6 +15,10 @@ actor NetworkLookupService {
     private var currentStatus: NetworkStatus
     private var lastConfirmedInfo: NetworkInfo?
     private var privacyClassifications: [String: PrivacyClassification]
+    private var locations: [String: CachedLocation]
+    private var environmentGeneration = 0
+    private var historyLocationsLoaded = false
+    private var historyLoadTask: Task<[NetworkHistoryEntry], Never>?
     private var inflight: Inflight?
     private var retryState: MetadataRetry?
     private var statusBeforeVerification: NetworkStatus?
@@ -26,12 +31,14 @@ actor NetworkLookupService {
         privacyProvider: any PrivacyClassifying,
         cache: NetworkInfoCache,
         history: NetworkHistoryStore,
+        countryLookup: any CountryLookingUp = OfflineCountryLookup(),
         hardTimeout: Duration = .seconds(15),
         now: @escaping @Sendable () -> Date = { .now }
     ) {
         self.publicIPProvider = publicIPProvider
         self.geoProvider = geoProvider
         self.privacyProvider = privacyProvider
+        self.countryLookup = countryLookup
         self.cache = cache
         self.history = history
         self.hardTimeout = hardTimeout
@@ -39,6 +46,7 @@ actor NetworkLookupService {
         let cachedInfo = cache.loadInfo()
         currentStatus = .idle
         lastConfirmedInfo = cachedInfo
+        locations = cache.loadLocations()
         privacyClassifications = cache.loadPrivacyClassifications()
     }
 
@@ -59,19 +67,24 @@ actor NetworkLookupService {
     }
 
     func refreshMissingCity() async {
-        guard case .online(let info) = currentStatus,
+        guard !Task.isCancelled,
+              case .online(let info) = currentStatus,
               info.location.city?.isEmpty != false,
               let address = info.addresses.preferredForLookup,
               !cityLookupAddresses.contains(address) else { return }
 
+        let generation = environmentGeneration
         cityLookupAddresses.insert(address)
         defer { cityLookupAddresses.remove(address) }
 
         guard let geo = try? await geoProvider.lookup(ipAddress: address),
+              generation == environmentGeneration,
+              !Task.isCancelled,
               let city = geo.location.city,
               !city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               case .online(let current) = currentStatus,
               current.addresses.preferredForLookup == address,
+              current.location.city?.isEmpty != false,
               current.location.countryCode == geo.location.countryCode else { return }
 
         let enriched = NetworkInfo(
@@ -83,8 +96,10 @@ actor NetworkLookupService {
             routeMode: current.routeMode,
             exitSource: current.exitSource,
             checkedAt: current.checkedAt,
-            locationCheckedAt: now()
+            locationCheckedAt: now(),
+            locationSource: .online
         )
+        saveSuccessfulLocation(enriched, address: address)
         lastConfirmedInfo = enriched
         cache.saveInfo(enriched)
         emit(.online(enriched))
@@ -114,6 +129,7 @@ actor NetworkLookupService {
     }
 
     func cancelRefreshForEnvironmentChange() {
+        environmentGeneration &+= 1
         inflight?.task.cancel()
         inflight = nil
         if let retryState {
@@ -145,6 +161,9 @@ actor NetworkLookupService {
         showLoading: Bool = false,
         respectRetryBackoff: Bool = false
     ) async -> NetworkStatus {
+        let generation = environmentGeneration
+        await loadHistoricalLocations()
+        guard generation == environmentGeneration, !Task.isCancelled else { return currentStatus }
         if let inflight {
             if observation == nil || inflight.address == observation?.primaryAddress {
                 _ = try? await inflight.task.value
@@ -164,7 +183,7 @@ actor NetworkLookupService {
         }
         let visiblePrevious = currentStatus.info
         let fallbackInfo = currentStatus.retainedInfo ?? lastConfirmedInfo
-        if showLoading { emit(.loading(previous: visiblePrevious)) }
+        if showLoading && observation == nil { emit(.loading(previous: visiblePrevious)) }
 
         let publicIPProvider = self.publicIPProvider
         let geoProvider = self.geoProvider
@@ -206,7 +225,8 @@ actor NetworkLookupService {
                     routeMode: observed.routeMode,
                     exitSource: observed.exitSource,
                     checkedAt: observed.checkedAt,
-                    locationCheckedAt: self.now()
+                    locationCheckedAt: self.now(),
+                    locationSource: .online
                 )
             }
         }
@@ -228,6 +248,7 @@ actor NetworkLookupService {
                 cache.savePrivacyClassifications(privacyClassifications)
             }
             retryState = nil
+            saveSuccessfulLocation(info, address: inflight?.address ?? info.addresses.preferredForLookup)
             lastConfirmedInfo = info
             cache.saveInfo(info)
             _ = await history.recordIfChanged(info)
@@ -242,8 +263,9 @@ actor NetworkLookupService {
                 lastConfirmedInfo = observed
                 cache.saveInfo(observed)
                 emit(.locationUnavailable(observed, reason: failure))
+                if observed.hasLocation { _ = await history.recordIfChanged(observed) }
                 if failure != .cancelled {
-                    logger.error("Location refresh failed: \(String(describing: failure), privacy: .public)")
+                    logger.info("Background location refresh failed: \(String(describing: failure), privacy: .public)")
                 }
             } else {
                 logger.error("Exit refresh failed: \(String(describing: failure), privacy: .public)")
@@ -258,6 +280,7 @@ actor NetworkLookupService {
     }
 
     func markOffline() {
+        environmentGeneration &+= 1
         inflight?.task.cancel()
         inflight = nil
         emit(.offline(previous: currentStatus.retainedInfo ?? lastConfirmedInfo))
@@ -273,7 +296,10 @@ actor NetworkLookupService {
         }
     }
 
-    func restoreProbeAvailability(_ observation: ExitObservation) -> Bool {
+    func restoreProbeAvailability(_ observation: ExitObservation) async -> Bool {
+        let generation = environmentGeneration
+        await loadHistoricalLocations()
+        guard generation == environmentGeneration else { return false }
         guard let fallbackInfo = currentStatus.retainedInfo ?? lastConfirmedInfo,
               fallbackInfo.addresses.preferredForLookup == observation.primaryAddress else { return false }
         let restored = observedInfo(observation.addresses, primaryAddress: observation.primaryAddress, observation: observation)
@@ -296,19 +322,82 @@ actor NetworkLookupService {
         observation: ExitObservation?
     ) -> NetworkInfo {
         let previous = currentStatus.retainedInfo ?? lastConfirmedInfo
-        // Only the primary IP whose metadata was looked up may reuse the previous location.
-        let matching = previous?.addresses.preferredForLookup == primaryAddress ? previous : nil
+        let key = IPAddressKey.normalized(primaryAddress)
+        let matching = key != nil && previous?.addresses.preferredForLookup.flatMap(IPAddressKey.normalized) == key
+            ? previous : nil
+        let cached = key.flatMap { locations[$0] }
+        let offlineCountry = countryLookup.countryCode(for: primaryAddress)
+        // Keep a recent, exact-IP success. Older records remain available if the country database has no answer.
+        let recentCached = cached.flatMap { entry -> CachedLocation? in
+            guard let recordedAt = entry.recordedAt else { return offlineCountry == nil ? entry : nil }
+            return now().timeIntervalSince(recordedAt) <= 30 * 24 * 60 * 60 || offlineCountry == nil ? entry : nil
+        }
+        let location: LocationInfo
+        let network: NetworkIdentity
+        let source: LocationSource
+        let provider: String
+        let locationDate: Date?
+        if let recentCached {
+            location = recentCached.location
+            network = recentCached.network
+            source = .history
+            provider = recentCached.providerIdentifier
+            locationDate = recentCached.recordedAt
+        } else if let offlineCountry {
+            location = LocationInfo(countryCode: offlineCountry, region: nil, city: nil, timezone: nil, latitude: nil, longitude: nil)
+            network = .unavailable
+            source = .offline
+            provider = "DB-IP Country Lite"
+            locationDate = nil
+        } else {
+            location = .unavailable
+            network = .unavailable
+            source = .unknown
+            provider = ""
+            locationDate = nil
+        }
         return NetworkInfo(
             addresses: addresses,
-            location: matching?.location ?? .unavailable,
-            network: matching?.network ?? .unavailable,
+            location: location,
+            network: network,
             privacy: privacyClassifications[primaryAddress] ?? .unavailable,
-            providerIdentifier: matching?.providerIdentifier ?? "",
+            providerIdentifier: provider,
             routeMode: observation?.routeMode ?? matching?.routeMode ?? .unknown,
             exitSource: observation?.source ?? matching?.exitSource ?? .unknown,
             checkedAt: observation?.observedAt ?? now(),
-            locationCheckedAt: matching?.locationCheckedAt
+            locationCheckedAt: locationDate,
+            locationSource: source
         )
+    }
+
+    private func loadHistoricalLocations() async {
+        guard !historyLocationsLoaded else { return }
+        let task = historyLoadTask ?? Task { [history] in await history.snapshot() }
+        historyLoadTask = task
+        let entries = await task.value
+        guard !historyLocationsLoaded else { return }
+        for entry in entries {
+            guard let address = entry.addresses.preferredForLookup,
+                  let key = IPAddressKey.normalized(address) else { continue }
+            let candidate = CachedLocation(historyEntry: entry)
+            guard candidate.isCacheable else { continue }
+            if let existing = locations[key],
+               (existing.recordedAt ?? .distantPast) >= (candidate.recordedAt ?? .distantPast) { continue }
+            locations[key] = candidate
+        }
+        cache.saveLocations(locations)
+        locations = cache.loadLocations()
+        historyLocationsLoaded = true
+        historyLoadTask = nil
+    }
+
+    private func saveSuccessfulLocation(_ info: NetworkInfo, address: String?) {
+        guard let address, let key = IPAddressKey.normalized(address) else { return }
+        let entry = CachedLocation(info: info)
+        guard entry.isCacheable else { return }
+        locations[key] = entry
+        cache.saveLocations(locations)
+        locations = cache.loadLocations()
     }
 
     private func publishObservation(
@@ -321,6 +410,7 @@ actor NetworkLookupService {
         guard inflight?.id == requestID else { throw CancellationError() }
         let info = observedInfo(addresses, primaryAddress: primaryAddress, observation: observation)
         if retryState?.address != primaryAddress { retryState = nil }
+        inflight?.address = primaryAddress
         inflight?.info = info
         lastConfirmedInfo = info
         statusBeforeVerification = nil
@@ -392,7 +482,7 @@ actor NetworkLookupService {
 
     private struct Inflight {
         let id: UUID
-        let address: String?
+        var address: String?
         let task: Task<NetworkInfo, Error>
         var info: NetworkInfo?
     }

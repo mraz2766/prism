@@ -224,6 +224,17 @@ actor RealtimeExitMonitor {
             let currentInfo = await lookupService.comparisonInfo()
             let needsRecoveryRefresh = await lookupService.snapshot().needsRecoveryRefresh
             guard generation == observationGeneration, !isPaused else { return }
+            // A response from a mainland endpoint is a separate observation, not proof that the primary exit changed.
+            if observation.source == .domesticFallback,
+               let currentInfo,
+               currentInfo.exitSource == .overseasIPv4 || currentInfo.exitSource == .overseasIPv6,
+               currentInfo.addresses.preferredForLookup != observation.primaryAddress {
+                stabilizer.reset()
+                burstUntil = nil
+                probeWasUnavailable = true
+                await lookupService.markProbeUnavailable(.serviceUnavailable)
+                return
+            }
             switch stabilizer.evaluate(observation, currentInfo: currentInfo) {
             case .unchanged:
                 if restoresProbeAvailability,

@@ -13,8 +13,9 @@ struct NetworkSettingsView: View {
                     LabeledContent(String(localized: "Last confirmed")) {
                         Text(info.checkedAt, style: .relative).foregroundStyle(.secondary)
                     }
+                    LabeledContent(String(localized: "Location source"), value: info.locationSource.displayLabel)
                     if let checkedAt = info.locationCheckedAt {
-                        LabeledContent(String(localized: "Location updated")) {
+                        LabeledContent(info.locationSource.timestampLabel) {
                             Text(checkedAt, format: .dateTime)
                                 .foregroundStyle(.secondary)
                         }
@@ -23,10 +24,21 @@ struct NetworkSettingsView: View {
             }
 
             Section(String(localized: "GeoIP Providers")) {
-                LabeledContent(String(localized: "Strategy"), value: String(localized: "Multi-Source Priority Fallback"))
+                LabeledContent(String(localized: "Strategy"), value: String(localized: "Local country first, online details in background"))
 
                 DisclosureGroup(String(localized: "Provider Health & Latency")) {
-                    VStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if case .locationUnavailable(_, let reason) = environment.networkViewModel.status {
+                            Text(reason.locationDescription)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .accessibilityIdentifier("settings.location-diagnostic")
+                        } else if case .locating = environment.networkViewModel.status {
+                            Text(String(localized: "Refreshing optional location details in background"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         ForEach(providerHealth) { provider in
                             HStack {
                                 Circle()
@@ -69,10 +81,17 @@ struct NetworkSettingsView: View {
                 }
             }
 
+            Section(String(localized: "Offline country database")) {
+                LabeledContent(String(localized: "Database date"), value: OfflineCountryLookup.datasetDate)
+                Text(String(localized: "Country information is available locally; city and network details update in the background."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 Text(String(localized: "Prism checks IPv4 and IPv6 independently. Location lookup prefers IPv4 and uses IPv6 when IPv4 is unavailable."))
                     .font(.callout).foregroundStyle(.secondary)
-                Text(String(localized: "Prism uses a mainland-accessible IPIP endpoint for the domestic IPv4 observation and as a fallback when overseas address services are unavailable."))
+                Text(String(localized: "Prism observes the domestic endpoint separately. A slow overseas probe does not prove that the route has changed."))
                     .font(.callout).foregroundStyle(.secondary)
             }
         }

@@ -22,12 +22,12 @@ final class MenuBarLabelRendererTests: XCTestCase {
                 XCTAssertEqual(value.indicator, .systemSymbol(name: "globe"))
                 XCTAssertFalse(value.title.contains("CN"))
                 if mode != .flagOnly { XCTAssertFalse(value.title.isEmpty) }
-                XCTAssertNotNil(value.badge)
+                XCTAssertNil(value.badge)
             }
         }
     }
 
-    func testSameExitRetainedLocationShowsWarningWhileLookupIsUnavailable() {
+    func testSameExitRetainedLocationStaysNormalWhileLookupIsUnavailable() {
         let value = MenuBarLabelRenderer.presentation(
             status: .locationUnavailable(.preview, reason: .timeout),
             mode: .flagAndCity,
@@ -36,7 +36,30 @@ final class MenuBarLabelRendererTests: XCTestCase {
         )
         XCTAssertEqual(value.title, "SH")
         XCTAssertEqual(value.indicator, .flag(countryCode: "CN"))
-        XCTAssertEqual(value.badge, .stale)
+        XCTAssertNil(value.badge)
+    }
+
+    func testOfflineCountryAndHistoryRenderNormallyDuringBackgroundRefresh() {
+        for source in [LocationSource.offline, .history] {
+            let info = NetworkInfo(
+                addresses: IPAddressSet(ipv4: "3.113.21.153", ipv6: nil),
+                location: LocationInfo(countryCode: "JP", region: nil, city: nil, timezone: nil, latitude: nil, longitude: nil),
+                network: .unavailable,
+                privacy: .unavailable,
+                providerIdentifier: "fixture",
+                checkedAt: .now,
+                locationSource: source
+            )
+            for status in [NetworkStatus.locating(info), .locationUnavailable(info, reason: .timeout)] {
+                let value = MenuBarLabelRenderer.presentation(
+                    status: status, mode: .flagAndCity, flagStyle: .sticker, customTemplate: ""
+                )
+                XCTAssertEqual(value.title, "JP")
+                XCTAssertEqual(value.indicator, .flag(countryCode: "JP"))
+                XCTAssertNil(value.badge)
+                XCTAssertEqual(MenuBarLabelRenderer.glyph(for: status), "●")
+            }
+        }
     }
 
     func testAllDisplayModesStayCompactAndVisible() {
@@ -218,7 +241,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
             customTemplate: ""
         )
 
-        XCTAssertEqual(value.title, "! CN")
+        XCTAssertEqual(value.title, "◷ CN")
         XCTAssertNil(value.badge)
     }
 

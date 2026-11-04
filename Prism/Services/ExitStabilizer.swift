@@ -19,8 +19,7 @@ struct ExitStabilizer: Sendable {
             return advancePending(observation)
         }
 
-        if currentInfo.addresses.ipv4 == observation.primaryAddress ||
-            currentInfo.addresses.ipv6 == observation.primaryAddress {
+        if currentInfo.addresses.preferredForLookup == observation.primaryAddress {
             if currentInfo.routeMode == .unknown, observation.routeMode != .unknown {
                 resetPending()
                 return .confirmed(observation)
@@ -45,7 +44,8 @@ struct ExitStabilizer: Sendable {
 
     private mutating func advancePending(_ observation: ExitObservation) -> Decision {
         if pending?.routeMode == observation.routeMode,
-           pending?.source == observation.source {
+           pending?.source == observation.source,
+           pending?.primaryAddress == observation.primaryAddress {
             pending = observation
             pendingCount += 1
         } else {

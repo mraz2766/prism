@@ -9,8 +9,9 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
     let routeMode: NetworkRouteMode
     let exitSource: ExitSource
     let checkedAt: Date
-    /// 归属地的最后成功查询时间，与出口确认时间独立。
+    /// 在线归属地查询时间或历史记录时间；离线国家库没有查询时间。
     let locationCheckedAt: Date?
+    let locationSource: LocationSource
 
     var hasLocation: Bool { !location.countryCode.isEmpty }
 
@@ -23,7 +24,8 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
         routeMode: NetworkRouteMode = .unknown,
         exitSource: ExitSource = .unknown,
         checkedAt: Date,
-        locationCheckedAt: Date? = nil
+        locationCheckedAt: Date? = nil,
+        locationSource: LocationSource? = nil
     ) {
         self.addresses = addresses
         self.location = location
@@ -33,7 +35,10 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
         self.routeMode = routeMode
         self.exitSource = exitSource
         self.checkedAt = checkedAt
-        self.locationCheckedAt = location.countryCode.isEmpty ? nil : (locationCheckedAt ?? checkedAt)
+        self.locationSource = location.countryCode.isEmpty ? .unknown : (locationSource ?? .online)
+        // Existing callers retain their legacy default; explicit sources never invent a lookup time.
+        self.locationCheckedAt = location.countryCode.isEmpty || self.locationSource == .offline
+            ? nil : (locationSource == nil ? locationCheckedAt ?? checkedAt : locationCheckedAt)
     }
 
     var id: String {
@@ -52,12 +57,13 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
             routeMode: routeMode,
             exitSource: exitSource,
             checkedAt: date,
-            locationCheckedAt: locationCheckedAt
+            locationCheckedAt: locationCheckedAt,
+            locationSource: locationSource
         )
     }
 
     private enum CodingKeys: String, CodingKey {
-        case addresses, location, network, privacy, providerIdentifier, routeMode, exitSource, checkedAt, locationCheckedAt
+        case addresses, location, network, privacy, providerIdentifier, routeMode, exitSource, checkedAt, locationCheckedAt, locationSource
     }
 
     init(from decoder: any Decoder) throws {
@@ -70,8 +76,11 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
         routeMode = try values.decodeIfPresent(NetworkRouteMode.self, forKey: .routeMode) ?? .unknown
         exitSource = try values.decodeIfPresent(ExitSource.self, forKey: .exitSource) ?? .unknown
         checkedAt = try values.decode(Date.self, forKey: .checkedAt)
-        locationCheckedAt = location.countryCode.isEmpty ? nil
-            : (try values.decodeIfPresent(Date.self, forKey: .locationCheckedAt) ?? checkedAt)
+        let storedSource = try values.decodeIfPresent(LocationSource.self, forKey: .locationSource)
+        locationSource = location.countryCode.isEmpty ? .unknown : (storedSource ?? .online)
+        let storedLocationTime = try values.decodeIfPresent(Date.self, forKey: .locationCheckedAt)
+        locationCheckedAt = location.countryCode.isEmpty || locationSource == .offline ? nil
+            : (storedSource == nil ? storedLocationTime ?? checkedAt : storedLocationTime)
     }
 
     static let preview = NetworkInfo(

@@ -31,8 +31,16 @@ struct PrivacySettingsView: View {
                 providerRow("ipapi.is", icon: "shield.lefthalf.filled", description: String(localized: "Performs a best-effort proxy or VPN classification only for a newly seen public address."))
             }
 
+            Section(String(localized: "Offline country database")) {
+                Text(OfflineCountryLookup.attribution)
+                    .font(.callout)
+                LabeledContent(String(localized: "Database date"), value: OfflineCountryLookup.datasetDate)
+                Link("DB-IP Country Lite", destination: OfflineCountryLookup.sourceURL)
+                Link("Creative Commons Attribution 4.0", destination: OfflineCountryLookup.licenseURL)
+            }
+
             Section {
-                Text(String(localized: "GeoIP location is requested fresh and is not reused from a city cache."))
+                Text(String(localized: "Successful locations are saved by IP on this Mac. Offline country data is used when no saved location is available; online services only refresh optional details."))
                     .font(.caption).foregroundStyle(.secondary)
                 Text(String(localized: "IP geolocation is approximate. A suspected proxy or VPN result is not proof and may be wrong."))
                     .font(.caption).foregroundStyle(.secondary)

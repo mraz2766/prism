@@ -95,7 +95,7 @@ final class ExitAddressProbeTests: XCTestCase {
         let observation = try await probe.observeExit()
 
         XCTAssertEqual(observation.primaryAddress, "180.173.166.20")
-        XCTAssertEqual(observation.routeMode, .direct)
+        XCTAssertEqual(observation.routeMode, .unknown, "An endpoint response does not prove a direct route")
         XCTAssertEqual(observation.preResolvedGeo?.location.city, "Shanghai")
     }
 }

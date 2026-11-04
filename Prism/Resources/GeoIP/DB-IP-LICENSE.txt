@@ -1,0 +1,27 @@
+IP Geolocation by DB-IP
+https://db-ip.com/
+
+This product includes a country-only index derived from DB-IP Country Lite,
+November 2026, downloaded from:
+https://download.db-ip.com/free/dbip-country-lite-2026-11.csv.gz
+
+Source information:
+https://db-ip.com/db/download/ip-to-country-lite
+
+DB-IP Country Lite is licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+Full legal terms:
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+Prism modifications: converted the original CSV into a compact country boundary
+index; adjacent equal-country ranges are coalesced; unknown/unassigned country
+codes are retained as unknown. No city, coordinates or ISP data is included.
+The index is an adaptation of DB-IP Country Lite, not a DB-IP endorsement of Prism.
+
+The data is provided without warranties. IP-based location is approximate and
+may be incomplete or outdated. A country result is not a device location.
+
+Source and generated-file SHA-256 checksums, release month and exact provenance
+are recorded in country-dbip.source.json. The database may be updated manually
+with scripts/build-country-database.py. Prism never downloads data at runtime.

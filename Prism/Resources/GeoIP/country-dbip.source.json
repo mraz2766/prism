@@ -1,0 +1,16 @@
+{
+  "format": "PRCN0001",
+  "dataset_month": "2026-11",
+  "ipv4_boundaries": 362998,
+  "ipv6_boundaries": 369798,
+  "countries": 249,
+  "bytes": 8102114,
+  "source_sha256": "e5c8459d638a272ece7f4d7cfa49dce18d91b4f403f6940ba9249bf0db3781fd",
+  "index_sha256": "a622fe9f62cde20f996475dfdeaeaee68525c45848a1fb73ffbf5512b6f65fcb",
+  "source_url": "https://download.db-ip.com/free/dbip-country-lite-2026-11.csv.gz",
+  "source_page": "https://db-ip.com/db/download/ip-to-country-lite",
+  "attribution": "IP Geolocation by DB-IP (https://db-ip.com)",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "modifications": "Country-only boundary index; adjacent equal countries merged; non-ISO country codes treated as unknown."
+}

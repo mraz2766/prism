@@ -2,6 +2,15 @@ import XCTest
 @testable import Prism
 
 final class NetworkStatusTests: XCTestCase {
+    func testMetadataFailureDoesNotBecomeANetworkWarningOrBlockRefresh() {
+        for status in [NetworkStatus.locating(.preview), .locationUnavailable(.preview, reason: .timeout)] {
+            XCTAssertEqual(status.symbolName, "checkmark.circle.fill")
+            XCTAssertEqual(status.shortLabel, NetworkStatus.online(.preview).shortLabel)
+            XCTAssertFalse(status.isRefreshing)
+            XCTAssertFalse(status.isOffline)
+        }
+    }
+
     func testOfflineRetainsComparisonDataWithoutExposingItAsCurrentInfo() {
         let status = NetworkStatus.offline(previous: .preview)
 

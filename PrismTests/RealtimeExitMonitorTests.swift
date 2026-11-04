@@ -55,10 +55,11 @@ final class RealtimeExitMonitorTests: XCTestCase {
         await monitor.pollNow()
         let restored = await harness.lookup.snapshot()
 
-        guard case .verifying(_, let candidate) = pending else {
-            return XCTFail("Expected a pending verification state")
+        guard case .stale(let retained, _) = pending else {
+            return XCTFail("A mainland response must mark the overseas exit as last confirmed")
         }
-        XCTAssertEqual(candidate, "198.51.100.30")
+        XCTAssertEqual(retained.addresses, original.addresses)
+        XCTAssertEqual(pending.symbolName, "clock")
         XCTAssertEqual(restored.info?.addresses, original.addresses)
         XCTAssertEqual(restored.info?.routeMode, .proxy)
         let history = await harness.history.snapshot()
@@ -67,7 +68,7 @@ final class RealtimeExitMonitorTests: XCTestCase {
         XCTAssertEqual(geoCalls, 0)
     }
 
-    func testTwoDomesticObservationsConfirmOnceAndReuseSnapshotGeo() async throws {
+    func testRepeatedDomesticObservationsDoNotReplacePreviouslyObservedOverseasExit() async throws {
         let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
         let domestic = observation(
             ip: "198.51.100.30",
@@ -82,14 +83,16 @@ final class RealtimeExitMonitorTests: XCTestCase {
         await monitor.pollNow()
         await monitor.pollNow()
 
-        let info = (await harness.lookup.snapshot()).info
-        XCTAssertEqual(info?.location.countryCode, "CN")
-        XCTAssertEqual(info?.location.city, "Shanghai")
-        XCTAssertEqual(info?.routeMode, .direct)
+        let status = await harness.lookup.snapshot()
+        guard case .stale(let info, _) = status else {
+            return XCTFail("Repeated mainland responses do not prove that the overseas exit changed")
+        }
+        XCTAssertEqual(info.addresses.ipv4, "203.0.113.10")
+        XCTAssertEqual(info.exitSource, .overseasIPv4)
         let geoCalls = await harness.geo.callCount
         let historyCount = await harness.history.snapshot().count
         XCTAssertEqual(geoCalls, 0)
-        XCTAssertEqual(historyCount, 1)
+        XCTAssertEqual(historyCount, 0)
     }
 
     func testConfirmedDirectRouteAcceptsSubsequentDirectIPImmediately() async throws {
@@ -253,10 +256,13 @@ final class RealtimeExitMonitorTests: XCTestCase {
         await oldPoll.value
         await monitor.pollNow()
 
-        let info = (await harness.lookup.snapshot()).info
+        let status = await harness.lookup.snapshot()
         let metrics = await probe.metrics
-        XCTAssertEqual(info?.addresses.ipv4, "198.51.100.30")
-        XCTAssertEqual(info?.location.countryCode, "CN")
+        guard case .stale(let info, _) = status else {
+            return XCTFail("Mainland-only observations after a network change retain the last confirmed overseas exit")
+        }
+        XCTAssertEqual(info.addresses.ipv4, "203.0.113.10")
+        XCTAssertEqual(info.exitSource, .overseasIPv4)
         XCTAssertEqual(metrics.callCount, 3)
         XCTAssertEqual(metrics.invalidationCount, 1)
     }

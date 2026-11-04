@@ -36,6 +36,10 @@ final class AppEnvironment {
     @ObservationIgnored private var started = false
 
     init(isUITesting: Bool = ProcessInfo.processInfo.arguments.contains("--ui-testing")) {
+        let testLocationFailure = isUITesting && (
+            ProcessInfo.processInfo.arguments.contains("--ui-testing-location-unavailable") ||
+            ProcessInfo.processInfo.arguments.contains("--ui-testing-offline-country")
+        )
         let uiTestDirectory = isUITesting
             ? FileManager.default.temporaryDirectory
                 .appendingPathComponent("prism-ui-tests-\(UUID().uuidString)", isDirectory: true)
@@ -45,7 +49,7 @@ final class AppEnvironment {
             historyStore = NetworkHistoryStore(
                 fileURL: uiTestDirectory!.appendingPathComponent("history.json"),
                 settlingDelay: .zero,
-                initialEntries: [NetworkHistoryEntry(info: .preview)]
+                initialEntries: testLocationFailure ? [] : [NetworkHistoryEntry(info: .preview)]
             )
         } else {
             historyStore = NetworkHistoryStore()
@@ -57,7 +61,7 @@ final class AppEnvironment {
             : PublicIPService()
         let geo: any GeoIPProvider = isUITesting
             ? PreviewGeoIPProvider(
-                failsLookup: ProcessInfo.processInfo.arguments.contains("--ui-testing-location-unavailable")
+                failsLookup: testLocationFailure
             )
             : FallbackGeoIPProvider(providers: [
                 IPWhoIsGeoProvider(),
@@ -73,7 +77,10 @@ final class AppEnvironment {
             geoProvider: geo,
             privacyProvider: privacy,
             cache: cache,
-            history: historyStore
+            history: historyStore,
+            countryLookup: isUITesting
+                ? PreviewCountryLookup(country: ProcessInfo.processInfo.arguments.contains("--ui-testing-offline-country") ? "JP" : nil)
+                : OfflineCountryLookup()
         )
         networkViewModel = NetworkStatusViewModel(service: lookupService)
         let domesticProbe: any DomesticIPv4Probing = isUITesting
@@ -229,4 +236,9 @@ private struct PreviewExitAddressProbe: ExitAddressProbing {
             routeMode: .proxy
         )
     }
+}
+
+private struct PreviewCountryLookup: CountryLookingUp {
+    let country: String?
+    func countryCode(for ipAddress: String) -> String? { country }
 }
