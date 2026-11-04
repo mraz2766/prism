@@ -104,7 +104,8 @@ enum NetworkStatus: Equatable, Sendable {
 
     var shortLabel: String {
         switch self {
-        case .online, .locating, .locationUnavailable: String(localized: "Online")
+        case .online(let info), .locating(let info), .locationUnavailable(let info, _):
+            info.exitSource == .domesticFallback ? String(localized: "Domestic available") : String(localized: "Online")
         case .loading: String(localized: "Detecting")
         case .verifying: String(localized: "Confirming new exit")
         case .offline: String(localized: "Offline")

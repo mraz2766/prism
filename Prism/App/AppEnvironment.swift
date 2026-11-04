@@ -95,7 +95,7 @@ final class AppEnvironment {
             notificationService: notificationService
         )
         let exitProbe: any ExitAddressProbing = isUITesting
-            ? PreviewExitAddressProbe()
+            ? PreviewExitAddressProbe(isDomesticFallback: ProcessInfo.processInfo.arguments.contains("--ui-testing-domestic-fallback"))
             : IPifyExitAddressProbe()
         let realtimeExitMonitor = RealtimeExitMonitor(
             probe: exitProbe,
@@ -229,11 +229,18 @@ private struct PreviewDomesticIPv4Probe: DomesticIPv4Probing {
 }
 
 private struct PreviewExitAddressProbe: ExitAddressProbing {
+    var isDomesticFallback = false
+
     func observeExit() async throws -> ExitObservation {
         ExitObservation(
-            addresses: NetworkInfo.preview.addresses,
-            source: .overseasIPv4,
-            routeMode: .proxy
+            addresses: isDomesticFallback ? IPAddressSet(ipv4: "198.51.100.86", ipv6: nil) : NetworkInfo.preview.addresses,
+            source: isDomesticFallback ? .domesticFallback : .overseasIPv4,
+            routeMode: isDomesticFallback ? .unknown : .proxy,
+            preResolvedGeo: isDomesticFallback ? GeoIPResult(
+                location: NetworkInfo.preview.location,
+                network: NetworkInfo.preview.network,
+                providerIdentifier: "preview-domestic"
+            ) : nil
         )
     }
 }

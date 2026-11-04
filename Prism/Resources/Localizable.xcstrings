@@ -1,6 +1,8 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Domestic available" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国内可用"}}}},
+    "Domestic fallback" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国内出口"}}}},
     "Country not yet identified" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国家待识别"}}}},
     "Country pending" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国家待识别"}}}},
     "Offline country database" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"离线国家库"}}}},
@@ -13,7 +15,7 @@
     "Database date" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"数据库日期"}}}},
     "Country information is available locally; city and network details update in the background." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国家信息在本机获取，城市和网络详情在后台更新。"}}}},
     "Successful locations are saved by IP on this Mac. Offline country data is used when no saved location is available; online services only refresh optional details." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"成功查询的位置按 IP 保存在本机。没有已有记录时使用离线国家库，在线服务只负责补充和更新详情。"}}}},
-    "Prism observes the domestic endpoint separately. A slow overseas probe does not prove that the route has changed." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"Prism 独立观察国内出口。海外探针响应慢，并不代表网络路线已改变。"}}}},
+    "Prism shows the domestic exit after two confirmed overseas failures with domestic access, and returns to the overseas exit when it recovers." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"海外探测连续两次失败且国内可达时，显示国内出口；海外恢复后自动切回。"}}}},
     "Location lookup is unavailable; retrying automatically" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"位置查询暂不可用，将自动重试"}}}},
     "Location lookup was cancelled" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"位置查询已取消"}}}},
     "Location service returned HTTP %lld; retrying automatically" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"位置服务返回 HTTP %lld，将自动重试"}}}},

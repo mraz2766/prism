@@ -28,12 +28,14 @@ struct NetworkHistoryEntry: Codable, Equatable, Sendable, Identifiable {
 
     func representsSameExit(as info: NetworkInfo) -> Bool {
         addresses == info.addresses &&
+        routeMode == info.routeMode && exitSource == info.exitSource &&
         countryCode == info.location.countryCode &&
         asn == info.network.asn
     }
 
     func representsSameExit(as entry: NetworkHistoryEntry) -> Bool {
         addresses == entry.addresses &&
+        routeMode == entry.routeMode && exitSource == entry.exitSource &&
         countryCode == entry.countryCode &&
         asn == entry.asn
     }

@@ -91,7 +91,7 @@ struct NetworkSettingsView: View {
             Section {
                 Text(String(localized: "Prism checks IPv4 and IPv6 independently. Location lookup prefers IPv4 and uses IPv6 when IPv4 is unavailable."))
                     .font(.callout).foregroundStyle(.secondary)
-                Text(String(localized: "Prism observes the domestic endpoint separately. A slow overseas probe does not prove that the route has changed."))
+                Text(String(localized: "Prism shows the domestic exit after two confirmed overseas failures with domestic access, and returns to the overseas exit when it recovers."))
                     .font(.callout).foregroundStyle(.secondary)
             }
         }

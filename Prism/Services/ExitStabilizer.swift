@@ -19,6 +19,13 @@ struct ExitStabilizer: Sendable {
             return advancePending(observation)
         }
 
+        // Reachability can change even if both endpoints see the same IP (for example, global proxying).
+        // A path change must never take the same-address or same-route fast path.
+        if currentInfo.exitSource != .unknown, observation.source != .unknown,
+           (currentInfo.exitSource == .domesticFallback) != (observation.source == .domesticFallback) {
+            return advancePending(observation)
+        }
+
         if currentInfo.addresses.preferredForLookup == observation.primaryAddress {
             if currentInfo.routeMode == .unknown, observation.routeMode != .unknown {
                 resetPending()

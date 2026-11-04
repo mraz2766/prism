@@ -2,6 +2,21 @@ import XCTest
 @testable import Prism
 
 final class ExitStabilizerTests: XCTestCase {
+    func testSameIPAddressStillConfirmsDomesticFallbackAndOverseasRecovery() {
+        let addresses = IPAddressSet(ipv4: "198.51.100.30", ipv6: nil)
+        for (from, to) in [(ExitSource.overseasIPv4, ExitSource.domesticFallback), (.domesticFallback, .overseasIPv4)] {
+            var stabilizer = ExitStabilizer()
+            let current = NetworkInfo(
+                addresses: addresses, location: .unavailable, network: .unavailable,
+                privacy: .unavailable, providerIdentifier: "", routeMode: .unknown,
+                exitSource: from, checkedAt: .now
+            )
+            let candidate = ExitObservation(addresses: addresses, source: to, routeMode: .unknown)
+            XCTAssertEqual(stabilizer.evaluate(candidate, currentInfo: current), .pending(candidate))
+            XCTAssertEqual(stabilizer.evaluate(candidate, currentInfo: current), .confirmed(candidate))
+        }
+    }
+
     func testDifferentCandidateIPsDoNotCountAsTwoConfirmations() {
         var stabilizer = ExitStabilizer()
         let first = observation(ip: "198.51.100.30", route: .unknown)

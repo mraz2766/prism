@@ -55,11 +55,10 @@ final class RealtimeExitMonitorTests: XCTestCase {
         await monitor.pollNow()
         let restored = await harness.lookup.snapshot()
 
-        guard case .stale(let retained, _) = pending else {
-            return XCTFail("A mainland response must mark the overseas exit as last confirmed")
+        guard case .verifying(let retained, _) = pending else {
+            return XCTFail("A single domestic fallback must remain pending until confirmed")
         }
-        XCTAssertEqual(retained.addresses, original.addresses)
-        XCTAssertEqual(pending.symbolName, "clock")
+        XCTAssertEqual(retained?.addresses, original.addresses)
         XCTAssertEqual(restored.info?.addresses, original.addresses)
         XCTAssertEqual(restored.info?.routeMode, .proxy)
         let history = await harness.history.snapshot()
@@ -68,7 +67,7 @@ final class RealtimeExitMonitorTests: XCTestCase {
         XCTAssertEqual(geoCalls, 0)
     }
 
-    func testRepeatedDomesticObservationsDoNotReplacePreviouslyObservedOverseasExit() async throws {
+    func testTwoDomesticObservationsReplaceUnavailableOverseasExit() async throws {
         let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
         let domestic = observation(
             ip: "198.51.100.30",
@@ -84,15 +83,17 @@ final class RealtimeExitMonitorTests: XCTestCase {
         await monitor.pollNow()
 
         let status = await harness.lookup.snapshot()
-        guard case .stale(let info, _) = status else {
-            return XCTFail("Repeated mainland responses do not prove that the overseas exit changed")
+        guard case .online(let info) = status else {
+            return XCTFail("Two domestic observations should display the reachable domestic exit")
         }
-        XCTAssertEqual(info.addresses.ipv4, "203.0.113.10")
-        XCTAssertEqual(info.exitSource, .overseasIPv4)
+        XCTAssertEqual(info.addresses.ipv4, "198.51.100.30")
+        XCTAssertEqual(info.location.countryCode, "CN")
+        XCTAssertEqual(info.location.city, "Shanghai")
+        XCTAssertEqual(info.exitSource, .domesticFallback)
         let geoCalls = await harness.geo.callCount
         let historyCount = await harness.history.snapshot().count
         XCTAssertEqual(geoCalls, 0)
-        XCTAssertEqual(historyCount, 0)
+        XCTAssertEqual(historyCount, 1)
     }
 
     func testConfirmedDirectRouteAcceptsSubsequentDirectIPImmediately() async throws {
@@ -114,6 +115,27 @@ final class RealtimeExitMonitorTests: XCTestCase {
         XCTAssertEqual(info?.location.city, "Hangzhou")
         let historyCount = await harness.history.snapshot().count
         XCTAssertEqual(historyCount, 1)
+    }
+
+    func testFailedProbeBreaksConsecutiveDomesticConfirmations() async {
+        let harness = makeHarness(cached: routedInfo(ip: "203.0.113.10", route: .proxy))
+        let domestic = observation(ip: "198.51.100.30", route: .direct,
+                                   geo: geoResult(country: "CN", region: "Shanghai", city: "Shanghai"))
+        let monitor = RealtimeExitMonitor(
+            probe: SteppedObservationProbe(steps: [
+                .observation(domestic), .failure(.timeout), .observation(domestic), .observation(domestic)
+            ]), lookupService: harness.lookup
+        )
+        await monitor.pollNow()
+        await monitor.pollNow()
+        await monitor.pollNow()
+        guard case .verifying = await harness.lookup.snapshot() else {
+            return XCTFail("A failed round must break the candidate's confirmation streak")
+        }
+        await monitor.pollNow()
+        let confirmed = await harness.lookup.snapshot()
+        XCTAssertEqual(confirmed.info?.exitSource, .domesticFallback)
+        XCTAssertEqual(confirmed.info?.location.countryCode, "CN")
     }
 
     func testPausedMonitorDoesNotProbeUntilResumed() async throws {
@@ -258,11 +280,11 @@ final class RealtimeExitMonitorTests: XCTestCase {
 
         let status = await harness.lookup.snapshot()
         let metrics = await probe.metrics
-        guard case .stale(let info, _) = status else {
-            return XCTFail("Mainland-only observations after a network change retain the last confirmed overseas exit")
+        guard case .online(let info) = status else {
+            return XCTFail("Confirmed domestic fallback should replace the superseded overseas observation")
         }
-        XCTAssertEqual(info.addresses.ipv4, "203.0.113.10")
-        XCTAssertEqual(info.exitSource, .overseasIPv4)
+        XCTAssertEqual(info.addresses.ipv4, "198.51.100.30")
+        XCTAssertEqual(info.exitSource, .domesticFallback)
         XCTAssertEqual(metrics.callCount, 3)
         XCTAssertEqual(metrics.invalidationCount, 1)
     }

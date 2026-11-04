@@ -74,15 +74,20 @@ struct CountryHeroView: View {
                     }
                 }
 
-                if (showsRoute && info.routeMode != .unknown) || (!compact && info.location.timezone != nil) {
+                if info.exitSource == .domesticFallback || (showsRoute && info.routeMode != .unknown) || (!compact && info.location.timezone != nil) {
                     HStack(spacing: 8) {
-                        if showsRoute && info.routeMode != .unknown {
-                            Label(info.routeMode.label, systemImage: routeSymbol)
+                        if info.exitSource == .domesticFallback || (showsRoute && info.routeMode != .unknown) {
+                            Label(
+                                info.exitSource == .domesticFallback ? String(localized: "Domestic fallback") : info.routeMode.label,
+                                systemImage: info.exitSource == .domesticFallback ? "network" : routeSymbol
+                            )
                                 .font(.caption.weight(.medium))
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 3)
                                 .background(Color(nsColor: .quaternaryLabelColor).opacity(0.4), in: Capsule())
                                 .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("exit.source")
+                                .accessibilityValue(info.exitSource.rawValue)
                         }
 
                         if let timezone = info.location.timezone, !compact {

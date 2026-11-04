@@ -43,6 +43,21 @@ final class PrismUITests: XCTestCase {
         attach(dashboard, named: "Offline Japan country remains normal during online failure")
     }
 
+    func testDomesticFallbackShowsChinaAndReachableDomesticExit() {
+        let app = launchApp(extraArguments: ["--ui-testing-domestic-fallback", "--ui-testing-location-unavailable"])
+        app.activate()
+        let dashboard = app.windows["Prism"]
+        XCTAssertTrue(dashboard.waitForExistence(timeout: 8))
+        XCTAssertTrue(dashboard.staticTexts["198.51.100.86"].firstMatch.waitForExistence(timeout: 5))
+        let country = dashboard.descendants(matching: .any)["location.country"]
+        XCTAssertTrue(country.waitForExistence(timeout: 3))
+        XCTAssertEqual(country.value as? String, "CN")
+        XCTAssertEqual(dashboard.descendants(matching: .any)["exit.source"].value as? String, "domesticFallback")
+        XCTAssertEqual(dashboard.descendants(matching: .any)["network.status"].value as? String, "checkmark.circle.fill")
+        XCTAssertFalse(dashboard.staticTexts["203.0.113.8"].exists)
+        attach(dashboard, named: "China domestic exit replaces unavailable overseas exit")
+    }
+
     private func attach(_ element: XCUIElement, named name: String) {
         let attachment = XCTAttachment(screenshot: element.screenshot())
         attachment.name = name

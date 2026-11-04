@@ -224,17 +224,8 @@ actor RealtimeExitMonitor {
             let currentInfo = await lookupService.comparisonInfo()
             let needsRecoveryRefresh = await lookupService.snapshot().needsRecoveryRefresh
             guard generation == observationGeneration, !isPaused else { return }
-            // A response from a mainland endpoint is a separate observation, not proof that the primary exit changed.
-            if observation.source == .domesticFallback,
-               let currentInfo,
-               currentInfo.exitSource == .overseasIPv4 || currentInfo.exitSource == .overseasIPv6,
-               currentInfo.addresses.preferredForLookup != observation.primaryAddress {
-                stabilizer.reset()
-                burstUntil = nil
-                probeWasUnavailable = true
-                await lookupService.markProbeUnavailable(.serviceUnavailable)
-                return
-            }
+            // The main display follows the currently reachable path, including domestic fallback.
+            // The stabilizer confirms path changes twice before publishing a different exit.
             switch stabilizer.evaluate(observation, currentInfo: currentInfo) {
             case .unchanged:
                 if restoresProbeAvailability,
@@ -266,6 +257,9 @@ actor RealtimeExitMonitor {
             guard generation == observationGeneration else { return }
             let failure = NetworkFailure.map(error)
             guard failure != .cancelled else { return }
+            stabilizer.reset()
+            await lookupService.cancelVerification()
+            guard generation == observationGeneration else { return }
             logger.debug("Realtime address probe failed: \(String(describing: error), privacy: .public)")
             consecutiveFailures += 1
             if consecutiveFailures >= unavailableFailureThreshold {

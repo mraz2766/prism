@@ -109,7 +109,7 @@ actor NetworkLookupService {
         if case .verifying = currentStatus {} else {
             statusBeforeVerification = currentStatus
         }
-        emit(.verifying(previous: currentStatus.retainedInfo, candidateAddress: observation.primaryAddress))
+        emit(.verifying(previous: currentStatus.retainedInfo ?? lastConfirmedInfo, candidateAddress: observation.primaryAddress))
     }
 
     func cancelVerification() {
