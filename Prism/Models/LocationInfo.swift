@@ -8,8 +8,13 @@ struct LocationInfo: Codable, Equatable, Sendable {
     let latitude: Double?
     let longitude: Double?
 
+    static let unavailable = LocationInfo(
+        countryCode: "", region: nil, city: nil, timezone: nil, latitude: nil, longitude: nil
+    )
+
     func localizedCountry(locale: Locale = .autoupdatingCurrent) -> String {
-        locale.localizedString(forRegionCode: countryCode.uppercased()) ?? countryCode.uppercased()
+        guard !countryCode.isEmpty else { return String(localized: "Location unavailable") }
+        return locale.localizedString(forRegionCode: countryCode.uppercased()) ?? countryCode.uppercased()
     }
 
     var cityAndCountryCode: String {
@@ -23,6 +28,8 @@ struct NetworkIdentity: Codable, Equatable, Sendable {
     let asn: Int?
     let organization: String?
     let networkType: String?
+
+    static let unavailable = NetworkIdentity(isp: nil, asn: nil, organization: nil, networkType: nil)
 
     var asnLabel: String? { asn.map { "AS\($0)" } }
 }

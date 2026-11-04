@@ -175,6 +175,7 @@ final class GeoIPProviderTests: XCTestCase {
 
         for request in [await whoClient.lastRequest, await guideClient.lastRequest] {
             let request = try XCTUnwrap(request)
+            XCTAssertEqual(request.timeoutInterval, 1.5)
             XCTAssertEqual(request.cachePolicy, .reloadIgnoringLocalAndRemoteCacheData)
             XCTAssertEqual(request.value(forHTTPHeaderField: "Cache-Control"), "no-store, no-cache")
         }
@@ -209,7 +210,107 @@ final class GeoIPProviderTests: XCTestCase {
             _ = try await provider.lookup(ipAddress: "13.193.241.118")
             XCTFail("A domestic direct-route location must not replace a VPN exit")
         } catch let failure as NetworkFailure {
-            XCTAssertEqual(failure, .invalidResponse)
+            XCTAssertEqual(failure, .notApplicable)
+        }
+    }
+
+    func testIPIPPreservesTransportTimeoutAndCancellation() async throws {
+        for code: URLError.Code in [.timedOut, .cancelled] {
+            let provider = IPIPGeoProvider(client: FailingGeoHTTPClient(code: code))
+            do {
+                _ = try await provider.lookup(ipAddress: "180.173.166.20")
+                XCTFail("Expected transport failure")
+            } catch {
+                XCTAssertEqual(NetworkFailure.map(error), code == .timedOut ? .timeout : .cancelled)
+            }
+        }
+    }
+
+    func testProviderHealthIgnoresInapplicableAndCancelledAttempts() async {
+        let health = ProviderHealthRegistry(failureThreshold: 1)
+        for failure: NetworkFailure in [.notApplicable, .cancelled, .coolingDown(until: .distantFuture)] {
+            await health.recordFailure("provider", failure: failure, latency: .seconds(1))
+        }
+        let snapshot = await health.snapshots(order: ["provider"])
+        XCTAssertEqual(snapshot.first?.consecutiveFailures, 0)
+        XCTAssertNil(snapshot.first?.circuitOpenUntil)
+    }
+
+    func testFallbackPreservesRealFailureOverInapplicableDomesticResult() async throws {
+        let health = ProviderHealthRegistry(failureThreshold: 1)
+        let provider = FallbackGeoIPProvider(providers: [
+            StubGeoProvider(identifier: "domestic", result: .failure(.notApplicable)),
+            StubGeoProvider(identifier: "remote", result: .failure(.timeout))
+        ], health: health)
+        do {
+            _ = try await provider.lookup(ipAddress: "203.0.113.1")
+            XCTFail("Expected timeout")
+        } catch {
+            XCTAssertEqual(NetworkFailure.map(error), .timeout)
+        }
+        let domesticHealth = await health.snapshots(order: ["domestic"])
+        XCTAssertEqual(domesticHealth.first?.consecutiveFailures, 0)
+    }
+
+    func testFallbackReportsEarliestCoolingDeadlineWithInapplicableDomesticResult() async throws {
+        let health = ProviderHealthRegistry(failureThreshold: 1, cooldown: 30)
+        let started = Date()
+        await health.recordFailure("first", failure: .timeout, latency: .seconds(1), at: started)
+        await health.recordFailure("second", failure: .timeout, latency: .seconds(1), at: started.addingTimeInterval(5))
+        let provider = FallbackGeoIPProvider(providers: [
+            StubGeoProvider(identifier: "first", result: .failure(.other)),
+            StubGeoProvider(identifier: "second", result: .failure(.other)),
+            StubGeoProvider(identifier: "domestic", result: .failure(.notApplicable))
+        ], health: health)
+        do {
+            _ = try await provider.lookup(ipAddress: "203.0.113.1")
+            XCTFail("Expected cooling deadline")
+        } catch {
+            XCTAssertEqual(NetworkFailure.map(error), .coolingDown(until: started.addingTimeInterval(30)))
+        }
+    }
+
+    func testCancellingFallbackDoesNotPenalizeProviderThatWrapsCancellation() async throws {
+        let health = ProviderHealthRegistry(failureThreshold: 1)
+        let started = AsyncStream<Void>.makeStream()
+        let provider = FallbackGeoIPProvider(providers: [
+            CancellationMaskingGeoProvider(started: started.continuation)
+        ], health: health)
+        let task = Task { try await provider.lookup(ipAddress: "203.0.113.1") }
+        for await _ in started.stream { break }
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("Expected cancellation")
+        } catch {
+            XCTAssertEqual(NetworkFailure.map(error), .cancelled)
+        }
+        let snapshot = await health.snapshots(order: ["slow"])
+        XCTAssertEqual(snapshot.first?.consecutiveFailures, 0)
+        XCTAssertNil(snapshot.first?.circuitOpenUntil)
+    }
+
+    func testAllCancelledProvidersPreserveCancellation() async throws {
+        let provider = FallbackGeoIPProvider(providers: [
+            StubGeoProvider(identifier: "cancelled", result: .failure(.cancelled))
+        ])
+        do {
+            _ = try await provider.lookup(ipAddress: "203.0.113.1")
+            XCTFail("Expected cancellation")
+        } catch {
+            XCTAssertEqual(NetworkFailure.map(error), .cancelled)
+        }
+    }
+
+    func testFallbackAllInapplicableIsNotAServiceOutage() async throws {
+        let provider = FallbackGeoIPProvider(providers: [
+            StubGeoProvider(identifier: "domestic", result: .failure(.notApplicable))
+        ])
+        do {
+            _ = try await provider.lookup(ipAddress: "203.0.113.1")
+            XCTFail("Expected not applicable")
+        } catch {
+            XCTAssertEqual(NetworkFailure.map(error), .notApplicable)
         }
     }
 
@@ -240,5 +341,22 @@ private actor RecordingGeoHTTPClient: HTTPClient {
     func data(for request: URLRequest) async throws -> HTTPResponse {
         lastRequest = request
         return response
+    }
+}
+
+private struct FailingGeoHTTPClient: HTTPClient {
+    let code: URLError.Code
+    func data(for request: URLRequest) async throws -> HTTPResponse { throw URLError(code) }
+}
+
+private struct CancellationMaskingGeoProvider: GeoIPProvider {
+    let identifier = "slow"
+    let started: AsyncStream<Void>.Continuation
+
+    func lookup(ipAddress: String) async throws -> GeoIPResult {
+        started.yield(())
+        started.finish()
+        try? await Task.sleep(for: .seconds(30))
+        throw NetworkFailure.invalidResponse
     }
 }

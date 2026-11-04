@@ -229,14 +229,18 @@ actor RealtimeExitMonitor {
                 if restoresProbeAvailability,
                    await lookupService.restoreProbeAvailability(observation) { return }
                 if refreshUnchanged || needsRecoveryRefresh {
-                    _ = await lookupService.refresh(observation: observation, showLoading: showLoading)
+                    _ = await lookupService.refresh(
+                        observation: observation, showLoading: showLoading, respectRetryBackoff: !showLoading
+                    )
                 }
             case .cancelled:
                 await lookupService.cancelVerification()
                 if restoresProbeAvailability,
                    await lookupService.restoreProbeAvailability(observation) { return }
                 if refreshUnchanged || needsRecoveryRefresh {
-                    _ = await lookupService.refresh(observation: observation, showLoading: showLoading)
+                    _ = await lookupService.refresh(
+                        observation: observation, showLoading: showLoading, respectRetryBackoff: !showLoading
+                    )
                 }
             case .pending(let candidate):
                 boost()
@@ -244,7 +248,7 @@ actor RealtimeExitMonitor {
             case .confirmed(let confirmed):
                 boost()
                 logger.info("Confirmed a changed public exit address")
-                _ = await lookupService.refresh(observation: confirmed)
+                _ = await lookupService.refresh(observation: confirmed, respectRetryBackoff: !showLoading)
             }
             return
         } catch {

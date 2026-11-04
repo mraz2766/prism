@@ -2,6 +2,31 @@ import XCTest
 @testable import Prism
 
 final class NetworkInfoCacheTests: XCTestCase {
+    func testConfirmingSameExitPreservesLocationTimestampAcrossPersistence() throws {
+        let original = NetworkInfo.preview
+        let updated = original.updatingCheckedAt(original.checkedAt.addingTimeInterval(60))
+        let reloaded = try JSONDecoder().decode(NetworkInfo.self, from: JSONEncoder().encode(updated))
+
+        XCTAssertEqual(reloaded.checkedAt, updated.checkedAt)
+        XCTAssertEqual(reloaded.locationCheckedAt, original.locationCheckedAt)
+        XCTAssertNotEqual(reloaded.checkedAt, reloaded.locationCheckedAt)
+    }
+
+    func testConfirmedIPWithoutLocationRoundTripsWithoutInventingATimestamp() throws {
+        let info = NetworkInfo(
+            addresses: IPAddressSet(ipv4: "198.51.100.99", ipv6: nil),
+            location: .unavailable,
+            network: .unavailable,
+            privacy: .unavailable,
+            providerIdentifier: "",
+            checkedAt: .now
+        )
+        let reloaded = try JSONDecoder().decode(NetworkInfo.self, from: JSONEncoder().encode(info))
+        XCTAssertFalse(reloaded.hasLocation)
+        XCTAssertNil(reloaded.locationCheckedAt)
+        XCTAssertEqual(reloaded.addresses, info.addresses)
+    }
+
     func testLegacyGeoMetadataMigratesOnlyPrivacyAndRemovesCityData() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -53,6 +78,7 @@ final class NetworkInfoCacheTests: XCTestCase {
         XCTAssertEqual(loaded.routeMode, .unknown)
         XCTAssertEqual(loaded.exitSource, .unknown)
         XCTAssertEqual(loaded.addresses, NetworkInfo.preview.addresses)
+        XCTAssertEqual(loaded.locationCheckedAt, loaded.checkedAt)
     }
 }
 

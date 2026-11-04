@@ -136,7 +136,7 @@ final class URLSessionHTTPClient: HTTPClient, @unchecked Sendable {
 extension HTTPResponse {
     func requireSuccess() throws -> Data {
         guard (200..<300).contains(statusCode) else {
-            throw NetworkFailure.serviceUnavailable
+            throw NetworkFailure.httpError(statusCode)
         }
         return data
     }

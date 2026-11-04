@@ -17,12 +17,22 @@ struct CountryHeroView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: compact ? 12 : 18) {
-            CountryFlagView(
-                countryCode: info.location.countryCode,
-                style: flagStyle,
-                diameter: compact ? 32 : 44,
-                containerSize: compact ? CGSize(width: 48, height: 48) : CGSize(width: 64, height: 64)
-            )
+            Group {
+                if info.hasLocation {
+                    CountryFlagView(
+                        countryCode: info.location.countryCode,
+                        style: flagStyle,
+                        diameter: compact ? 32 : 44,
+                        containerSize: compact ? CGSize(width: 48, height: 48) : CGSize(width: 64, height: 64)
+                    )
+                } else {
+                    Image(systemName: "globe")
+                        .font(.system(size: compact ? 28 : 38))
+                        .foregroundStyle(.secondary)
+                        .frame(width: compact ? 48 : 64, height: compact ? 48 : 64)
+                        .accessibilityLabel(String(localized: "Location unavailable"))
+                }
+            }
             .id(info.location.countryCode)
             .transition(
                 reduceMotion
@@ -35,7 +45,7 @@ struct CountryHeroView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(info.location.localizedCountry())
+                    Text(locationTitle)
                         .font(compact ? .title3.weight(.bold) : .title2.weight(.bold))
                         .lineLimit(1)
                         .contentTransition(.opacity)
@@ -46,6 +56,14 @@ struct CountryHeroView: View {
                             .lineLimit(1)
                             .contentTransition(.opacity)
                     }
+                }
+
+                if showsRetainedLocation, let checkedAt = info.locationCheckedAt {
+                    Text("\(String(localized: "Location updated")) · \(checkedAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .accessibilityIdentifier("location.last-success")
                 }
 
                 if showsRoute || (!compact && info.location.timezone != nil) {
@@ -71,6 +89,20 @@ struct CountryHeroView: View {
             if showsStatus { StatusBadge(status: status) }
         }
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.32), value: transitionKey)
+    }
+
+    private var locationTitle: String {
+        if info.hasLocation { return info.location.localizedCountry() }
+        if case .locating = status { return String(localized: "Location pending") }
+        return String(localized: "Location unavailable")
+    }
+
+    private var showsRetainedLocation: Bool {
+        guard info.hasLocation else { return false }
+        return switch status {
+        case .locating, .locationUnavailable, .stale: true
+        default: false
+        }
     }
 
     private var routeSymbol: String {

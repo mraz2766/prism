@@ -7,6 +7,9 @@ enum NetworkFailure: Error, Codable, Equatable, Sendable {
     case invalidResponse
     case cancelled
     case other
+    case httpError(Int)
+    case coolingDown(until: Date)
+    case notApplicable
 
     var userDescription: String {
         switch self {
@@ -16,6 +19,21 @@ enum NetworkFailure: Error, Codable, Equatable, Sendable {
         case .invalidResponse: String(localized: "The service returned an unexpected response")
         case .cancelled: String(localized: "The request was cancelled")
         case .other: String(localized: "Unable to update network information")
+        case .httpError(let code): String(localized: "The service returned HTTP \(code)")
+        case .coolingDown: String(localized: "Location services are cooling down; retrying automatically")
+        case .notApplicable: String(localized: "No location service supports this exit")
+        }
+    }
+
+    var locationDescription: String {
+        switch self {
+        case .timeout: String(localized: "Location lookup timed out; retrying automatically")
+        case .invalidResponse: String(localized: "Location response was invalid; retrying automatically")
+        case .httpError(let code): String(localized: "Location service returned HTTP \(code); retrying automatically")
+        case .coolingDown: String(localized: "Location services are cooling down; retrying automatically")
+        case .notApplicable: String(localized: "No location service supports this exit")
+        case .cancelled: String(localized: "Location lookup was cancelled")
+        case .offline, .serviceUnavailable, .other: String(localized: "Location lookup is unavailable; retrying automatically")
         }
     }
 
@@ -43,6 +61,8 @@ enum NetworkStatus: Equatable, Sendable {
     case loading(previous: NetworkInfo?)
     case verifying(previous: NetworkInfo?, candidateAddress: String)
     case online(NetworkInfo)
+    case locating(NetworkInfo)
+    case locationUnavailable(NetworkInfo, reason: NetworkFailure)
     case offline(previous: NetworkInfo?)
     case stale(NetworkInfo, reason: NetworkFailure)
     case failed(NetworkFailure)
@@ -50,7 +70,7 @@ enum NetworkStatus: Equatable, Sendable {
     var info: NetworkInfo? {
         switch self {
         case .loading(let previous), .verifying(let previous, _): previous
-        case .online(let info), .stale(let info, _): info
+        case .online(let info), .locating(let info), .locationUnavailable(let info, _), .stale(let info, _): info
         case .idle, .offline, .failed: nil
         }
     }
@@ -58,7 +78,7 @@ enum NetworkStatus: Equatable, Sendable {
     var retainedInfo: NetworkInfo? {
         switch self {
         case .loading(let previous), .verifying(let previous, _), .offline(let previous): previous
-        case .online(let info), .stale(let info, _): info
+        case .online(let info), .locating(let info), .locationUnavailable(let info, _), .stale(let info, _): info
         case .idle, .failed: nil
         }
     }
@@ -70,14 +90,14 @@ enum NetworkStatus: Equatable, Sendable {
 
     var needsRecoveryRefresh: Bool {
         switch self {
-        case .offline, .stale, .failed: true
-        case .idle, .loading, .verifying, .online: false
+        case .offline, .stale, .failed, .locationUnavailable: true
+        case .idle, .loading, .verifying, .locating, .online: false
         }
     }
 
     var isRefreshing: Bool {
         switch self {
-        case .loading, .verifying: true
+        case .loading, .verifying, .locating: true
         default: false
         }
     }
@@ -85,6 +105,8 @@ enum NetworkStatus: Equatable, Sendable {
     var shortLabel: String {
         switch self {
         case .online: String(localized: "Online")
+        case .locating: String(localized: "Locating")
+        case .locationUnavailable: String(localized: "Location unavailable")
         case .loading: String(localized: "Detecting")
         case .verifying: String(localized: "Confirming new exit")
         case .offline: String(localized: "Offline")
@@ -96,9 +118,9 @@ enum NetworkStatus: Equatable, Sendable {
     var symbolName: String {
         switch self {
         case .online: "checkmark.circle.fill"
-        case .loading, .verifying: "arrow.triangle.2.circlepath"
+        case .loading, .verifying, .locating: "arrow.triangle.2.circlepath"
         case .offline: "wifi.slash"
-        case .stale: "exclamationmark.circle.fill"
+        case .stale, .locationUnavailable: "exclamationmark.circle.fill"
         case .failed, .idle: "questionmark.circle"
         }
     }

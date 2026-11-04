@@ -12,7 +12,8 @@ struct MenuBarPopoverView: View {
     private var cityLookupKey: CityLookupKey? {
         guard isVisible,
               locale.language.languageCode?.identifier == "zh",
-              let info = status.info,
+              case .online(let info) = status,
+              info.hasLocation,
               let address = info.addresses.preferredForLookup else { return nil }
         return CityLookupKey(address: address, countryCode: info.location.countryCode)
     }
@@ -112,8 +113,8 @@ struct MenuBarPopoverView: View {
     /// 确认中与更新失败的提示放在固定高度的底栏，避免弹窗高度在状态切换时跳动。
     private var footerStatusKind: Int {
         switch status {
-        case .verifying: 1
-        case .stale: 2
+        case .verifying, .locating: 1
+        case .stale, .locationUnavailable: 2
         default: 0
         }
     }
@@ -133,6 +134,20 @@ struct MenuBarPopoverView: View {
             .foregroundStyle(StatusPalette.confirming)
             .accessibilityLabel(String(localized: "Confirming new exit"))
             .transition(.opacity)
+        case .locating:
+            Label(String(localized: "IP confirmed. Looking up location…"), systemImage: "globe")
+                .font(.caption)
+                .foregroundStyle(StatusPalette.confirming)
+                .lineLimit(1)
+                .transition(.opacity)
+        case .locationUnavailable(_, let reason):
+            Label(reason.locationDescription, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(StatusPalette.stale)
+                .lineLimit(1)
+                .help(reason.locationDescription)
+                .accessibilityLabel(reason.locationDescription)
+                .transition(.opacity)
         case .stale(_, let reason):
             Label {
                 Text(reason.userDescription)

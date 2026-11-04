@@ -7,6 +7,7 @@ actor NetworkLookupService {
     private let privacyProvider: any PrivacyClassifying
     private let cache: NetworkInfoCache
     private let history: NetworkHistoryStore
+    private let now: @Sendable () -> Date
     private let hardTimeout: Duration
     private let logger = Logger(subsystem: "com.mraz.prism", category: "network")
 
@@ -14,6 +15,8 @@ actor NetworkLookupService {
     private var lastConfirmedInfo: NetworkInfo?
     private var privacyClassifications: [String: PrivacyClassification]
     private var inflight: Inflight?
+    private var retryState: MetadataRetry?
+    private var statusBeforeVerification: NetworkStatus?
     private var cityLookupAddresses: Set<String> = []
     private var continuations: [UUID: AsyncStream<NetworkStatus>.Continuation] = [:]
 
@@ -23,7 +26,8 @@ actor NetworkLookupService {
         privacyProvider: any PrivacyClassifying,
         cache: NetworkInfoCache,
         history: NetworkHistoryStore,
-        hardTimeout: Duration = .seconds(15)
+        hardTimeout: Duration = .seconds(15),
+        now: @escaping @Sendable () -> Date = { .now }
     ) {
         self.publicIPProvider = publicIPProvider
         self.geoProvider = geoProvider
@@ -31,6 +35,7 @@ actor NetworkLookupService {
         self.cache = cache
         self.history = history
         self.hardTimeout = hardTimeout
+        self.now = now
         let cachedInfo = cache.loadInfo()
         currentStatus = .idle
         lastConfirmedInfo = cachedInfo
@@ -77,7 +82,8 @@ actor NetworkLookupService {
             providerIdentifier: geo.providerIdentifier,
             routeMode: current.routeMode,
             exitSource: current.exitSource,
-            checkedAt: current.checkedAt
+            checkedAt: current.checkedAt,
+            locationCheckedAt: now()
         )
         lastConfirmedInfo = enriched
         cache.saveInfo(enriched)
@@ -85,29 +91,59 @@ actor NetworkLookupService {
     }
 
     func markVerifying(_ observation: ExitObservation) {
+        if case .verifying = currentStatus {} else {
+            statusBeforeVerification = currentStatus
+        }
         emit(.verifying(previous: currentStatus.retainedInfo, candidateAddress: observation.primaryAddress))
     }
 
     func cancelVerification() {
-        guard case .verifying(let previous, _) = currentStatus else { return }
-        if let previous {
-            emit(.online(previous))
-        } else if let lastConfirmedInfo {
-            emit(.online(lastConfirmedInfo))
+        guard case .verifying = currentStatus else { return }
+        if let previous = statusBeforeVerification, previous != .idle {
+            if case .locating(let info) = previous, inflight == nil {
+                emit(.locationUnavailable(info, reason: .cancelled))
+            } else {
+                emit(previous)
+            }
+        } else if let info = lastConfirmedInfo {
+            emit(restoredStatus(for: info))
         } else {
             emit(.idle)
         }
+        statusBeforeVerification = nil
     }
 
     func cancelRefreshForEnvironmentChange() {
         inflight?.task.cancel()
         inflight = nil
+        if let retryState {
+            // Reset the delay after an environment change without losing the metadata failure.
+            self.retryState = MetadataRetry(
+                address: retryState.address, attempts: 0, nextAttemptAt: now(), failure: retryState.failure
+            )
+        }
+        // Cancellation must leave a recoverable state, not an orphaned “locating” indicator.
+        switch currentStatus {
+        case .locating(let info):
+            if let address = info.addresses.preferredForLookup {
+                retryState = MetadataRetry(address: address, attempts: 0, nextAttemptAt: now(), failure: .cancelled)
+            }
+            emit(.locationUnavailable(info, reason: .cancelled))
+        case .loading(let previous):
+            if let previous { emit(.stale(previous, reason: .cancelled)) }
+            else { emit(.failed(.cancelled)) }
+        default: break
+        }
+        if case .locating(let info) = statusBeforeVerification {
+            statusBeforeVerification = .locationUnavailable(info, reason: .cancelled)
+        }
     }
 
     @discardableResult
     func refresh(
         observation: ExitObservation? = nil,
-        showLoading: Bool = false
+        showLoading: Bool = false,
+        respectRetryBackoff: Bool = false
     ) async -> NetworkStatus {
         if let inflight {
             if observation == nil || inflight.address == observation?.primaryAddress {
@@ -115,6 +151,16 @@ actor NetworkLookupService {
                 return currentStatus
             }
             inflight.task.cancel()
+            self.inflight = nil
+        }
+        // The exit probe continues at its normal cadence while metadata waits for its retry window.
+        if respectRetryBackoff, let observation, observation.preResolvedGeo == nil,
+           let retryState, retryState.address == observation.primaryAddress,
+           now() < retryState.nextAttemptAt {
+            let info = observedInfo(observation.addresses, primaryAddress: observation.primaryAddress, observation: observation)
+            lastConfirmedInfo = info
+            emit(.locationUnavailable(info, reason: retryState.failure))
+            return currentStatus
         }
         let visiblePrevious = currentStatus.info
         let fallbackInfo = currentStatus.retainedInfo ?? lastConfirmedInfo
@@ -136,6 +182,9 @@ actor NetworkLookupService {
                 guard let lookupIP = observation?.primaryAddress ?? addresses.preferredForLookup else {
                     throw NetworkFailure.serviceUnavailable
                 }
+                let observed = try await self.publishObservation(
+                    addresses, primaryAddress: lookupIP, observation: observation, requestID: requestID
+                )
                 async let privacy = Self.resolvePrivacy(
                     cached: existingPrivacyClassifications[lookupIP],
                     provider: privacyProvider,
@@ -148,16 +197,16 @@ actor NetworkLookupService {
                     resolvedGeo = try await geoProvider.lookup(ipAddress: lookupIP)
                 }
                 let resolvedPrivacy = await privacy
-                let preservesPreviousRoute = fallbackInfo?.addresses.ipv4 == lookupIP || fallbackInfo?.addresses.ipv6 == lookupIP
                 return NetworkInfo(
                     addresses: addresses,
                     location: resolvedGeo.location,
                     network: resolvedGeo.network,
                     privacy: resolvedPrivacy,
                     providerIdentifier: resolvedGeo.providerIdentifier,
-                    routeMode: observation?.routeMode ?? (preservesPreviousRoute ? fallbackInfo?.routeMode : nil) ?? .unknown,
-                    exitSource: observation?.source ?? (preservesPreviousRoute ? fallbackInfo?.exitSource : nil) ?? .unknown,
-                    checkedAt: .now
+                    routeMode: observed.routeMode,
+                    exitSource: observed.exitSource,
+                    checkedAt: observed.checkedAt,
+                    locationCheckedAt: self.now()
                 )
             }
         }
@@ -178,18 +227,31 @@ actor NetworkLookupService {
                 privacyClassifications[lookupIP] = info.privacy
                 cache.savePrivacyClassifications(privacyClassifications)
             }
+            retryState = nil
             lastConfirmedInfo = info
             cache.saveInfo(info)
             _ = await history.recordIfChanged(info)
+            guard inflight?.id == requestID else { return currentStatus }
             emit(.online(info))
         } catch {
+            // A cancelled or late result from a superseded network must never overwrite the new exit.
+            guard inflight?.id == requestID else { return currentStatus }
             let failure = NetworkFailure.map(error)
-            if failure == .cancelled, inflight?.id != requestID { return currentStatus }
-            logger.error("Refresh failed: \(String(describing: failure), privacy: .public)")
-            if let fallbackInfo {
-                emit(.stale(fallbackInfo, reason: failure))
+            if let observed = inflight?.info {
+                scheduleRetry(address: observed.addresses.preferredForLookup, failure: failure)
+                lastConfirmedInfo = observed
+                cache.saveInfo(observed)
+                emit(.locationUnavailable(observed, reason: failure))
+                if failure != .cancelled {
+                    logger.error("Location refresh failed: \(String(describing: failure), privacy: .public)")
+                }
             } else {
-                emit(.failed(failure))
+                logger.error("Exit refresh failed: \(String(describing: failure), privacy: .public)")
+                if let fallbackInfo {
+                    emit(.stale(fallbackInfo, reason: failure))
+                } else {
+                    emit(.failed(failure))
+                }
             }
         }
         return currentStatus
@@ -213,22 +275,68 @@ actor NetworkLookupService {
 
     func restoreProbeAvailability(_ observation: ExitObservation) -> Bool {
         guard let fallbackInfo = currentStatus.retainedInfo ?? lastConfirmedInfo,
-              fallbackInfo.addresses.ipv4 == observation.primaryAddress ||
-                fallbackInfo.addresses.ipv6 == observation.primaryAddress else { return false }
-        let restored = NetworkInfo(
-            addresses: observation.addresses,
-            location: fallbackInfo.location,
-            network: fallbackInfo.network,
-            privacy: fallbackInfo.privacy,
-            providerIdentifier: fallbackInfo.providerIdentifier,
-            routeMode: observation.routeMode,
-            exitSource: observation.source,
-            checkedAt: .now
-        )
+              fallbackInfo.addresses.preferredForLookup == observation.primaryAddress else { return false }
+        let restored = observedInfo(observation.addresses, primaryAddress: observation.primaryAddress, observation: observation)
         lastConfirmedInfo = restored
         cache.saveInfo(restored)
-        emit(.online(restored))
+        emit(restoredStatus(for: restored))
         return true
+    }
+
+    private func restoredStatus(for info: NetworkInfo) -> NetworkStatus {
+        if let retryState, retryState.address == info.addresses.preferredForLookup {
+            return .locationUnavailable(info, reason: retryState.failure)
+        }
+        return info.hasLocation ? .online(info) : .locationUnavailable(info, reason: .serviceUnavailable)
+    }
+
+    private func observedInfo(
+        _ addresses: IPAddressSet,
+        primaryAddress: String,
+        observation: ExitObservation?
+    ) -> NetworkInfo {
+        let previous = currentStatus.retainedInfo ?? lastConfirmedInfo
+        // Only the primary IP whose metadata was looked up may reuse the previous location.
+        let matching = previous?.addresses.preferredForLookup == primaryAddress ? previous : nil
+        return NetworkInfo(
+            addresses: addresses,
+            location: matching?.location ?? .unavailable,
+            network: matching?.network ?? .unavailable,
+            privacy: privacyClassifications[primaryAddress] ?? .unavailable,
+            providerIdentifier: matching?.providerIdentifier ?? "",
+            routeMode: observation?.routeMode ?? matching?.routeMode ?? .unknown,
+            exitSource: observation?.source ?? matching?.exitSource ?? .unknown,
+            checkedAt: observation?.observedAt ?? now(),
+            locationCheckedAt: matching?.locationCheckedAt
+        )
+    }
+
+    private func publishObservation(
+        _ addresses: IPAddressSet,
+        primaryAddress: String,
+        observation: ExitObservation?,
+        requestID: UUID
+    ) throws -> NetworkInfo {
+        try Task.checkCancellation()
+        guard inflight?.id == requestID else { throw CancellationError() }
+        let info = observedInfo(addresses, primaryAddress: primaryAddress, observation: observation)
+        if retryState?.address != primaryAddress { retryState = nil }
+        inflight?.info = info
+        lastConfirmedInfo = info
+        statusBeforeVerification = nil
+        emit(.locating(info))
+        return info
+    }
+
+    private func scheduleRetry(address: String?, failure: NetworkFailure) {
+        guard let address, failure != .cancelled else { return }
+        let attempts = (retryState?.address == address ? retryState?.attempts ?? 0 : 0) + 1
+        let delays: [TimeInterval] = [5, 15, 30]
+        var nextAttemptAt = now().addingTimeInterval(delays[min(attempts - 1, delays.count - 1)])
+        if case .coolingDown(let until) = failure {
+            nextAttemptAt = max(nextAttemptAt, until)
+        }
+        retryState = MetadataRetry(address: address, attempts: attempts, nextAttemptAt: nextAttemptAt, failure: failure)
     }
 
     private static func bestEffortPrivacy(
@@ -275,9 +383,17 @@ actor NetworkLookupService {
         continuations.values.forEach { $0.yield(status) }
     }
 
+    private struct MetadataRetry {
+        let address: String
+        let attempts: Int
+        let nextAttemptAt: Date
+        let failure: NetworkFailure
+    }
+
     private struct Inflight {
         let id: UUID
         let address: String?
         let task: Task<NetworkInfo, Error>
+        var info: NetworkInfo?
     }
 }

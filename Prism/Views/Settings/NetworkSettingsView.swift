@@ -13,6 +13,12 @@ struct NetworkSettingsView: View {
                     LabeledContent(String(localized: "Last confirmed")) {
                         Text(info.checkedAt, style: .relative).foregroundStyle(.secondary)
                     }
+                    if let checkedAt = info.locationCheckedAt {
+                        LabeledContent(String(localized: "Location updated")) {
+                            Text(checkedAt, format: .dateTime)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
 
@@ -59,7 +65,7 @@ struct NetworkSettingsView: View {
                 }
 
                 if let info = environment.networkViewModel.status.info {
-                    LabeledContent(String(localized: "Active Provider"), value: info.providerIdentifier)
+                    LabeledContent(String(localized: "Active Provider"), value: info.providerIdentifier.isEmpty ? String(localized: "Unavailable") : info.providerIdentifier)
                 }
             }
 
@@ -72,9 +78,9 @@ struct NetworkSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .task(id: environment.networkViewModel.status.info?.checkedAt) {
+        .task(id: environment.networkViewModel.status) {
             providerHealth = await environment.providerHealth.snapshots(
-                order: ["ipwho.is", "ip.guide", "ipip.net"]
+                order: ["ipwho.is", "ip.guide", "ip.sb", "ipip.net"]
             )
         }
     }

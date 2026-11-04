@@ -7,7 +7,8 @@ struct IPWhoIsGeoProvider: GeoIPProvider {
     private let language: String?
 
     init(
-        client: any HTTPClient = URLSessionHTTPClient(requestTimeout: 1.5, sessionLifetime: .singleRequest),
+        // 查询目标 IP 已写入 URL；复用连接可避免反复握手，代理节点变化也不会改变查询目标。
+        client: any HTTPClient = URLSessionHTTPClient(requestTimeout: 1.5, sessionLifetime: .rotating(maxAge: 300)),
         baseURL: URL? = nil,
         language: String? = nil
     ) {

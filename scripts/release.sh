@@ -116,11 +116,14 @@ version_changed=yes
 
 echo "Prism $current_version ($current_build) → $next_version ($next_build)"
 echo "运行单元测试…"
+# 测试使用隔离目录和正常签名；本地临时签名的测试宿主关闭 Hardened Runtime 以加载 XCTest。
+# 此设置仅用于测试，下面的 Release 构建继续使用工程的 Hardened Runtime 设置。
 xcodebuild \
   -project Prism.xcodeproj \
   -scheme Prism \
   -destination 'platform=macOS,arch=arm64' \
-  CODE_SIGNING_ALLOWED=NO \
+  -derivedDataPath "$derived_data" \
+  ENABLE_HARDENED_RUNTIME=NO \
   test
 
 echo "构建签名 Release App…"

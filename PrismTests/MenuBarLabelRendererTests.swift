@@ -2,6 +2,43 @@ import XCTest
 @testable import Prism
 
 final class MenuBarLabelRendererTests: XCTestCase {
+    func testConfirmedExitWithoutLocationNeverRendersAFlagOrEmptyCountryCode() {
+        let info = NetworkInfo(
+            addresses: IPAddressSet(ipv4: "198.51.100.99", ipv6: nil),
+            location: .unavailable,
+            network: .unavailable,
+            privacy: .unavailable,
+            providerIdentifier: "",
+            checkedAt: .now
+        )
+        for status in [NetworkStatus.locating(info), .locationUnavailable(info, reason: .timeout)] {
+            for mode in MenuBarDisplayMode.allCases {
+                let value = MenuBarLabelRenderer.presentation(
+                    status: status,
+                    mode: mode,
+                    flagStyle: .sticker,
+                    customTemplate: "{flag} {code} {city}"
+                )
+                XCTAssertEqual(value.indicator, .systemSymbol(name: "globe"))
+                XCTAssertFalse(value.title.contains("CN"))
+                if mode != .flagOnly { XCTAssertFalse(value.title.isEmpty) }
+                XCTAssertNotNil(value.badge)
+            }
+        }
+    }
+
+    func testSameExitRetainedLocationShowsWarningWhileLookupIsUnavailable() {
+        let value = MenuBarLabelRenderer.presentation(
+            status: .locationUnavailable(.preview, reason: .timeout),
+            mode: .flagAndCity,
+            flagStyle: .sticker,
+            customTemplate: ""
+        )
+        XCTAssertEqual(value.title, "SH")
+        XCTAssertEqual(value.indicator, .flag(countryCode: "CN"))
+        XCTAssertEqual(value.badge, .stale)
+    }
+
     func testAllDisplayModesStayCompactAndVisible() {
         for mode in MenuBarDisplayMode.allCases {
             let value = MenuBarLabelRenderer.presentation(

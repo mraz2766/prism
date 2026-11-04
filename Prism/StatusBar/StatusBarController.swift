@@ -176,7 +176,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         case .emoji(let countryCode):
             key = "emoji/\(countryCode)/\(presentation.badge?.rawValue ?? "-")"
         case .systemSymbol(let name):
-            key = "symbol/\(name)"
+            key = "symbol/\(name)/\(presentation.badge?.rawValue ?? "-")"
         }
         if let cached = imageCache[key] { return cached }
 

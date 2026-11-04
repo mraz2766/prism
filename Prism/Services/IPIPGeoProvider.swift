@@ -47,11 +47,13 @@ struct IPIPGeoProvider: GeoIPProvider {
         let response: IPIPCurrentNetworkResponse
         do {
             let data = try await client.data(for: request).requireSuccess()
-            response = try JSONDecoder().decode(IPIPCurrentNetworkResponse.self, from: data)
-        } catch let failure as NetworkFailure {
-            throw failure
+            do {
+                response = try JSONDecoder().decode(IPIPCurrentNetworkResponse.self, from: data)
+            } catch {
+                throw NetworkFailure.invalidResponse
+            }
         } catch {
-            throw NetworkFailure.invalidResponse
+            throw NetworkFailure.map(error)
         }
 
         return try Self.result(from: response, matching: ipAddress)
@@ -63,15 +65,16 @@ struct IPIPGeoProvider: GeoIPProvider {
     ) throws -> GeoIPResult {
         let observedIP = response.data.ip.trimmingCharacters(in: .whitespacesAndNewlines)
         guard response.ret == "ok",
-              observedIP == ipAddress,
               IPv4Address(observedIP) != nil || IPv6Address(observedIP) != nil else {
             throw NetworkFailure.invalidResponse
         }
+        guard observedIP == ipAddress else { throw NetworkFailure.notApplicable }
 
         let location = response.data.location
-        guard location[safe: 0]?.trimmingCharacters(in: .whitespacesAndNewlines) == "中国" else {
+        guard let country = location[safe: 0]?.nilIfWhitespace else {
             throw NetworkFailure.invalidResponse
         }
+        guard country == "中国" else { throw NetworkFailure.notApplicable }
         let region = Self.englishAdministrativeName(
             location[safe: 1],
             suffixes: ["特别行政区", "维吾尔自治区", "壮族自治区", "回族自治区", "自治区", "省", "市"]

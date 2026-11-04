@@ -38,8 +38,8 @@ enum StatusPalette {
     static func color(for status: NetworkStatus) -> Color {
         switch status {
         case .online: online
-        case .loading, .verifying: confirming
-        case .stale: stale
+        case .loading, .verifying, .locating: confirming
+        case .stale, .locationUnavailable: stale
         case .offline, .failed: .red
         case .idle: .secondary
         }

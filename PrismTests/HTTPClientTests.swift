@@ -3,6 +3,14 @@ import XCTest
 @testable import Prism
 
 final class HTTPClientTests: XCTestCase {
+    func testUnsuccessfulResponsePreservesHTTPStatus() {
+        for status in [403, 429, 503] {
+            XCTAssertThrowsError(try response("{}", status: status).requireSuccess()) { error in
+                XCTAssertEqual(NetworkFailure.map(error), .httpError(status))
+            }
+        }
+    }
+
     func testSingleRequestLifetimeCreatesFreshSessionForEveryRequest() async throws {
         let factory = SessionFactoryCounter()
         let client = URLSessionHTTPClient(

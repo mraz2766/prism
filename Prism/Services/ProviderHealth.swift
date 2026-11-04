@@ -33,6 +33,11 @@ actor ProviderHealthRegistry {
         return openUntil <= now
     }
 
+    func retryDate(for identifier: String, now: Date = .now) -> Date? {
+        guard let date = states[identifier]?.circuitOpenUntil, date > now else { return nil }
+        return date
+    }
+
     func recordSuccess(_ identifier: String, latency: Duration, at date: Date = .now) {
         var state = states[identifier] ?? State()
         state.consecutiveFailures = 0
@@ -48,7 +53,10 @@ actor ProviderHealthRegistry {
         latency: Duration,
         at date: Date = .now
     ) {
-        guard failure != .cancelled else { return }
+        switch failure {
+        case .cancelled, .notApplicable, .coolingDown: return
+        default: break
+        }
         var state = states[identifier] ?? State()
         state.consecutiveFailures += 1
         state.lastLatencyMilliseconds = Self.milliseconds(latency)

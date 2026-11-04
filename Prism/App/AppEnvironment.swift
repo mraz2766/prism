@@ -56,10 +56,13 @@ final class AppEnvironment {
             ? PreviewPublicIPProvider()
             : PublicIPService()
         let geo: any GeoIPProvider = isUITesting
-            ? PreviewGeoIPProvider()
+            ? PreviewGeoIPProvider(
+                failsLookup: ProcessInfo.processInfo.arguments.contains("--ui-testing-location-unavailable")
+            )
             : FallbackGeoIPProvider(providers: [
                 IPWhoIsGeoProvider(),
                 IPGuideGeoProvider(),
+                IPSBGeoProvider(),
                 IPIPGeoProvider()
             ], health: providerHealth)
         let privacy: any PrivacyClassifying = isUITesting
@@ -192,8 +195,11 @@ private struct PreviewPublicIPProvider: PublicIPProviding {
 
 private struct PreviewGeoIPProvider: GeoIPProvider {
     let identifier = "preview"
+    var failsLookup = false
+
     func lookup(ipAddress: String) async throws -> GeoIPResult {
-        GeoIPResult(
+        if failsLookup { throw NetworkFailure.timeout }
+        return GeoIPResult(
             location: NetworkInfo.preview.location,
             network: NetworkInfo.preview.network,
             providerIdentifier: identifier

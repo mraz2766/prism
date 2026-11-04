@@ -9,6 +9,10 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
     let routeMode: NetworkRouteMode
     let exitSource: ExitSource
     let checkedAt: Date
+    /// 归属地的最后成功查询时间，与出口确认时间独立。
+    let locationCheckedAt: Date?
+
+    var hasLocation: Bool { !location.countryCode.isEmpty }
 
     init(
         addresses: IPAddressSet,
@@ -18,7 +22,8 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
         providerIdentifier: String,
         routeMode: NetworkRouteMode = .unknown,
         exitSource: ExitSource = .unknown,
-        checkedAt: Date
+        checkedAt: Date,
+        locationCheckedAt: Date? = nil
     ) {
         self.addresses = addresses
         self.location = location
@@ -28,6 +33,7 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
         self.routeMode = routeMode
         self.exitSource = exitSource
         self.checkedAt = checkedAt
+        self.locationCheckedAt = location.countryCode.isEmpty ? nil : (locationCheckedAt ?? checkedAt)
     }
 
     var id: String {
@@ -45,12 +51,13 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
             providerIdentifier: providerIdentifier,
             routeMode: routeMode,
             exitSource: exitSource,
-            checkedAt: date
+            checkedAt: date,
+            locationCheckedAt: locationCheckedAt
         )
     }
 
     private enum CodingKeys: String, CodingKey {
-        case addresses, location, network, privacy, providerIdentifier, routeMode, exitSource, checkedAt
+        case addresses, location, network, privacy, providerIdentifier, routeMode, exitSource, checkedAt, locationCheckedAt
     }
 
     init(from decoder: any Decoder) throws {
@@ -63,6 +70,8 @@ struct NetworkInfo: Codable, Equatable, Sendable, Identifiable {
         routeMode = try values.decodeIfPresent(NetworkRouteMode.self, forKey: .routeMode) ?? .unknown
         exitSource = try values.decodeIfPresent(ExitSource.self, forKey: .exitSource) ?? .unknown
         checkedAt = try values.decode(Date.self, forKey: .checkedAt)
+        locationCheckedAt = location.countryCode.isEmpty ? nil
+            : (try values.decodeIfPresent(Date.self, forKey: .locationCheckedAt) ?? checkedAt)
     }
 
     static let preview = NetworkInfo(

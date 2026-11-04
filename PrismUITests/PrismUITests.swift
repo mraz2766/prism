@@ -10,6 +10,21 @@ final class PrismUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.network-exit-title"].waitForExistence(timeout: 5))
     }
 
+    func testLocationFailureKeepsConfirmedIPVisibleInDashboard() {
+        let app = launchApp(extraArguments: ["--ui-testing-location-unavailable"])
+        app.activate()
+        let dashboard = app.windows["Prism"]
+        XCTAssertTrue(dashboard.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.location-error"].waitForExistence(timeout: 5))
+        XCTAssertTrue(dashboard.staticTexts["203.0.113.8"].firstMatch.waitForExistence(timeout: 3))
+
+        let dashboardImage = XCTAttachment(screenshot: dashboard.screenshot())
+        dashboardImage.name = "Location unavailable — confirmed IP in dashboard"
+        dashboardImage.lifetime = .keepAlways
+        add(dashboardImage)
+
+    }
+
     func testAppearanceNavigationAndAccentSelectionRemainInteractive() {
         let app = launchApp()
         XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
@@ -70,13 +85,13 @@ final class PrismUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["history.entry.detail"].waitForExistence(timeout: 3))
     }
 
-    private func launchApp() -> XCUIApplication {
+    private func launchApp(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-testing",
             "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US"
-        ]
+        ] + extraArguments
         app.launch()
         return app
     }

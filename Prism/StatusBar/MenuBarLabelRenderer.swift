@@ -37,6 +37,14 @@ enum MenuBarLabelRenderer {
             return MenuBarPresentation(title: fallbackStatusLabel(status), indicator: .none)
         }
 
+        guard info.hasLocation else {
+            return MenuBarPresentation(
+                title: mode == .flagOnly ? "" : truncate(status.shortLabel),
+                indicator: .systemSymbol(name: "globe"),
+                badge: badge(for: status)
+            )
+        }
+
         let code = info.location.countryCode.uppercased()
         let country = info.location.localizedCountry(locale: locale)
         let city = compactCityName(info.location.city, fallback: code)
@@ -122,8 +130,8 @@ enum MenuBarLabelRenderer {
 
     static func badge(for status: NetworkStatus) -> MenuBarStatusBadge? {
         switch status {
-        case .loading, .verifying: .confirming
-        case .stale: .stale
+        case .loading, .verifying, .locating: .confirming
+        case .stale, .locationUnavailable: .stale
         case .online, .offline, .idle, .failed: nil
         }
     }
@@ -131,9 +139,9 @@ enum MenuBarLabelRenderer {
     static func glyph(for status: NetworkStatus) -> String {
         switch status {
         case .online: "●"
-        case .loading, .verifying: "◌"
+        case .loading, .verifying, .locating: "◌"
         case .offline: "—"
-        case .stale: "!"
+        case .stale, .locationUnavailable: "!"
         case .idle, .failed: "?"
         }
     }
@@ -162,6 +170,8 @@ enum MenuBarLabelRenderer {
     private static func fallbackStatusLabel(_ status: NetworkStatus) -> String {
         switch status {
         case .loading: "◌ " + String(localized: "Detecting")
+        case .locating: "◌ " + String(localized: "Locating")
+        case .locationUnavailable: "! " + String(localized: "Location unavailable")
         case .verifying: "◌ " + String(localized: "Confirming new exit")
         case .offline: "— " + String(localized: "Offline")
         case .idle: "◌ " + String(localized: "Detecting")

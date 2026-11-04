@@ -91,13 +91,15 @@ Prism 使用自适应出口观察：
 
 ## 网络服务与隐私
 
+归属地查询跟随 macOS 系统代理配置，按明确的出口 IP 查询，并复用连接以减少握手开销；单次查询超时为 1.5 秒。
+
 Prism 会按需访问以下服务：
 
 | 服务 | 用途 |
 | --- | --- |
 | `ipify` | 检测公网 IPv4 和 IPv6 |
 | `myip.ipip.net/json` | 独立观察国内出口 IPv4，并在海外探针不可用时作为中国大陆回退 |
-| `ipwho.is`、`ip.guide`、`ipip.net` | 查询近似位置和网络信息 |
+| `ipwho.is`、`ip.guide`、`api.ip.sb/geoip/{ip}`、`ipip.net` | 查询近似位置和网络信息 |
 | `ipapi.is` | 对新出口进行尽力而为的隐私分类 |
 
 出口历史、最后一次成功结果和隐私分类仅保存在当前 Mac；国内出口 IPv4 仅保存在运行内存。IP 地理位置是公网出口或运营商网关的近似位置，不代表 Mac 的 GPS 位置；代理或 VPN 分类也不应视为确定结论。
@@ -121,7 +123,6 @@ xcodebuild \
   -project Prism.xcodeproj \
   -scheme Prism \
   -destination 'platform=macOS,arch=arm64' \
-  CODE_SIGNING_ALLOWED=NO \
   clean build
 ```
 
@@ -132,11 +133,13 @@ xcodebuild \
   -project Prism.xcodeproj \
   -scheme Prism \
   -destination 'platform=macOS,arch=arm64' \
-  CODE_SIGNING_ALLOWED=NO \
+  ENABLE_HARDENED_RUNTIME=NO \
   test
 ```
 
-UI 测试位于独立的 `PrismUITests` Scheme，需要本机签名和 macOS 自动化权限。
+单元测试命令仅为本地测试宿主关闭 Hardened Runtime，使临时签名的 XCTest 包可以加载；Release 构建保持启用。
+
+UI 测试位于独立的 `PrismUITests` Scheme，需要本机签名和 macOS 自动化权限。构建与测试保留正常签名，避免生成无法启动的测试 Runner。发布脚本使用临时构建目录，隔离日常开发产物。
 
 ## 发布与安装
 
@@ -184,7 +187,7 @@ Prism 是菜单栏应用。请在屏幕顶部菜单栏查找国家或地区标�
 
 ### 为什么显示缓存结果或暂时无法更新？
 
-当前网络可能离线、请求超时或第三方服务暂时不可用。Prism 会保留最后一次成功结果并标记其状态。
+当前网络可能离线、请求超时或第三方服务暂时不可用。出口 IP 确认后会先显示，归属地查询失败不影响新 IP 展示；只有同一 IP 才会保留旧位置，并标明位置更新时间。归属地失败后按 5、15、30 秒退避重试，服务冷却期间等待恢复，出口探测仍正常进行。
 
 ### 为什么代理或 VPN 判断不准确？
 
