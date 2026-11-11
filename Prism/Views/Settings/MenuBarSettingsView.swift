@@ -260,6 +260,14 @@ struct MenuBarSettingsView: View {
 
     @ViewBuilder
     private func previewIndicator(_ indicator: MenuBarIndicator) -> some View {
+        if indicator != .none {
+            previewIndicatorContent(indicator)
+                .padding(.leading, MenuBarIconLayout.leadingPadding)
+        }
+    }
+
+    @ViewBuilder
+    private func previewIndicatorContent(_ indicator: MenuBarIndicator) -> some View {
         switch indicator {
         case .none:
             EmptyView()

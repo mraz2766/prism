@@ -239,8 +239,6 @@ struct CountryFlagView: View {
                         .offset(x: 1.5, y: 0.5)
                 }
                 .frame(width: containerSize.width, height: containerSize.height, alignment: .topLeading)
-                // 旗杆让左侧视觉重量偏大，整体右移 1pt 平衡托盘中的视觉间距。
-                .offset(x: 1)
             } else {
                 ZStack(alignment: .bottomLeading) {
                     Capsule()

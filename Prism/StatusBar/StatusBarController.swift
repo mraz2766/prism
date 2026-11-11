@@ -236,7 +236,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             base = image
         }
         guard let base else { return nil }
-        let image = presentation.badge.map { badged(base, with: $0) } ?? base
+        let badgedImage = presentation.badge.map { badged(base, with: $0) } ?? base
+        let image = MenuBarIconLayout.alignedImage(badgedImage)
 
         if imageCache.count >= 48 { imageCache.removeAll(keepingCapacity: true) }
         imageCache[key] = image

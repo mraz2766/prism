@@ -11,10 +11,12 @@ final class FlagStyleRenderingTests: XCTestCase {
     func testEveryStyleDrawsMenuBarImage() throws {
         for style in CountryFlagStyle.allCases {
             for code in countryCodes {
-                let image = try XCTUnwrap(
+                let source = try XCTUnwrap(
                     MenuBarFlagImageFactory.flagImage(for: code, style: style),
                     "\(style) \(code)"
                 )
+                let image = MenuBarIconLayout.alignedImage(source)
+                XCTAssertEqual(image.isTemplate, source.isTemplate)
                 XCTAssertEqual(image.size.height, 18, "\(style) \(code) height")
                 XCTAssertGreaterThan(Self.opaqueCoverage(of: image), 0.05, "\(style) \(code) is blank")
             }
@@ -32,13 +34,14 @@ final class FlagStyleRenderingTests: XCTestCase {
         for appearanceName in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = try XCTUnwrap(NSAppearance(named: appearanceName))
             for code in ["JP", "CN", "US"] {
-                let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
+                let source = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
                     for: code, style: .cartoon, appearance: appearance
                 ))
-                let bitmap = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation)))
+                let image = MenuBarIconLayout.alignedImage(source)
+                let bitmap = try XCTUnwrap(Self.bitmap(of: image))
                 // 2x 图像中，旗面下方必须留下连续、清晰的旗杆，而非仅有顶部一小点。
                 for y in 31...33 {
-                    let pole = try XCTUnwrap(bitmap.colorAt(x: 8, y: y)?.usingColorSpace(.deviceRGB))
+                    let pole = try XCTUnwrap(bitmap.colorAt(x: 10, y: y)?.usingColorSpace(.deviceRGB))
                     XCTAssertGreaterThan(pole.alphaComponent, 0.8, "\(code) pole at \(y)")
                     if appearanceName == .darkAqua {
                         XCTAssertGreaterThan(pole.redComponent, 0.8, "Pole must contrast with a dark menu bar")
@@ -46,6 +49,32 @@ final class FlagStyleRenderingTests: XCTestCase {
                         XCTAssertLessThan(pole.redComponent, 0.2, "Pole must contrast with a light menu bar")
                     }
                     XCTAssertLessThan(bitmap.colorAt(x: 20, y: y)?.alphaComponent ?? 1, 0.1)
+                }
+            }
+        }
+    }
+
+    func testMenuBarAlignmentPreservesEdgesAndTemplateBehavior() throws {
+        for isTemplate in [false, true] {
+            let source = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+                NSColor.black.setFill()
+                rect.fill()
+                return true
+            }
+            source.isTemplate = isTemplate
+            let image = MenuBarIconLayout.alignedImage(source)
+            XCTAssertEqual(image.size, NSSize(width: 20, height: 18))
+            XCTAssertEqual(image.isTemplate, isTemplate)
+            let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+            // 满幅原图必须完整保留，左侧新增留白，右边缘不得被截掉。
+            for y in 0..<bitmap.pixelsHigh {
+                for x in 0..<bitmap.pixelsWide {
+                    let alpha = bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0
+                    if x < 4 {
+                        XCTAssertLessThan(alpha, 0.01)
+                    } else {
+                        XCTAssertGreaterThan(alpha, 0.99)
+                    }
                 }
             }
         }
@@ -79,8 +108,8 @@ final class FlagStyleRenderingTests: XCTestCase {
         }
     }
 
-    /// 以 2x 位图计算非透明像素比例。
-    private static func opaqueCoverage(of image: NSImage) -> CGFloat {
+    /// 固定以 2x 绘制，避免惰性 NSImage 的 TIFF 默认分辨率影响像素断言。
+    private static func bitmap(of image: NSImage) -> NSBitmapImageRep? {
         let pixelsWide = max(1, Int(image.size.width * 2))
         let pixelsHigh = max(1, Int(image.size.height * 2))
         guard let bitmap = NSBitmapImageRep(
@@ -94,17 +123,22 @@ final class FlagStyleRenderingTests: XCTestCase {
             colorSpaceName: .deviceRGB,
             bytesPerRow: 0,
             bitsPerPixel: 0
-        ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return 0 }
+        ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         image.draw(in: NSRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
         NSGraphicsContext.restoreGraphicsState()
+        return bitmap
+    }
+
+    private static func opaqueCoverage(of image: NSImage) -> CGFloat {
+        guard let bitmap = bitmap(of: image) else { return 0 }
         var opaque = 0
-        for y in 0..<pixelsHigh {
-            for x in 0..<pixelsWide where (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 {
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide where (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 {
                 opaque += 1
             }
         }
-        return CGFloat(opaque) / CGFloat(pixelsWide * pixelsHigh)
+        return CGFloat(opaque) / CGFloat(bitmap.pixelsWide * bitmap.pixelsHigh)
     }
 }

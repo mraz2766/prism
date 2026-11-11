@@ -1,6 +1,27 @@
 import AppKit
 import SwiftUI
 
+/// 左侧增加 2pt 透明留白，让图标相对画布中心右移 1pt，并完整保留图案与角标。
+@MainActor
+enum MenuBarIconLayout {
+    static let leadingPadding: CGFloat = 2
+
+    static func alignedImage(_ source: NSImage) -> NSImage {
+        let size = NSSize(width: source.size.width + leadingPadding, height: source.size.height)
+        let image = NSImage(size: size, flipped: false) { _ in
+            source.draw(
+                in: NSRect(x: leadingPadding, y: 0, width: source.size.width, height: source.size.height),
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1
+            )
+            return true
+        }
+        image.isTemplate = source.isTemplate
+        return image
+    }
+}
+
 /// 菜单栏使用的 18pt 高国旗图像；每种样式都有专门的紧凑绘制方式。
 @MainActor
 enum MenuBarFlagImageFactory {
