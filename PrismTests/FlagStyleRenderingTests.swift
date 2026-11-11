@@ -23,11 +23,41 @@ final class FlagStyleRenderingTests: XCTestCase {
         }
     }
 
-    func testCountryCodeMenuBarImageIsTemplate() throws {
-        let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "JP", style: .code))
-        XCTAssertTrue(image.isTemplate)
-        let flag = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "JP", style: .square))
-        XCTAssertFalse(flag.isTemplate)
+    func testCodeBadgeColorBandsAndMonochromeStampSurviveBothAppearances() throws {
+        for name in [NSAppearance.Name.aqua, .darkAqua] {
+            let appearance = try XCTUnwrap(NSAppearance(named: name))
+            for code in ["JP", "US", "CN", "BR"] {
+                for style in [CountryFlagStyle.code, .codeStamp] {
+                    let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
+                        for: code, style: style, appearance: appearance
+                    ))
+                    XCTAssertEqual(image.size, NSSize(width: 28, height: 18))
+                    XCTAssertFalse(image.isTemplate, "Preserve explicit colors when a status badge is added")
+                    let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+                    var coloredBandPixels = 0
+                    var contrastingLetterPixels = 0
+                    for y in 0..<bitmap.pixelsHigh {
+                        for x in 0..<bitmap.pixelsWide {
+                            let pixel = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
+                            guard pixel.alphaComponent > 0.8 else { continue }
+                            let channels = [pixel.redComponent, pixel.greenComponent, pixel.blueComponent]
+                            let saturation = (channels.max() ?? 0) - (channels.min() ?? 0)
+                            if saturation > 0.3, y >= 28 { coloredBandPixels += 1 }
+                            if (12..<44).contains(x), (8..<26).contains(y), saturation < 0.1,
+                               name == .darkAqua ? pixel.redComponent > 0.8 : pixel.redComponent < 0.2 {
+                                contrastingLetterPixels += 1
+                            }
+                        }
+                    }
+                    if style == .code {
+                        XCTAssertGreaterThan(coloredBandPixels, 10, "\(code) lost its national colors")
+                    } else {
+                        XCTAssertEqual(coloredBandPixels, 0, "Stamp should remain monochrome")
+                    }
+                    XCTAssertGreaterThan(contrastingLetterPixels, 30, "\(style) \(code) lost readable letters")
+                }
+            }
+        }
     }
 
     func testCartoonPoleRemainsVisibleBelowFlagOnLightAndDarkMenuBars() throws {

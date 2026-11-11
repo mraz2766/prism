@@ -82,9 +82,11 @@ final class SettingsStoreTests: XCTestCase {
         let settings = SettingsStore(defaults: defaults)
         XCTAssertEqual(settings.countryFlagStyle, .gradient)
 
-        settings.countryFlagStyle = .waved
-        let reloaded = SettingsStore(defaults: defaults)
-        XCTAssertEqual(reloaded.countryFlagStyle, .waved)
+        for style in CountryFlagStyle.allCases {
+            settings.countryFlagStyle = style
+            let reloaded = SettingsStore(defaults: defaults)
+            XCTAssertEqual(reloaded.countryFlagStyle, style)
+        }
     }
 
     func testLegacyMenuBarModesMigrateToLocationFocusedModes() throws {

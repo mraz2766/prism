@@ -106,6 +106,8 @@
     "Copied" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"已复制"}}}},
     "Copy IP address" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"复制 IP 地址"}}}},
     "Country code" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国家代码"}}}},
+    "Flag color code" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国旗色标"}}}},
+    "Code stamp" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"小印章"}}}},
     "Country code only" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"仅国家代码"}}}},
     "Country flag style" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国旗风格"}}}},
     "Country name" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"国家名称"}}}},

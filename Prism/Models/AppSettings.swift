@@ -105,6 +105,7 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     case gradient
     case square
     case code
+    case codeStamp
     case emoji
 
     var id: String { rawValue }
@@ -115,7 +116,8 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
         case .waved: String(localized: "Waved flag")
         case .gradient: String(localized: "Rounded flag")
         case .square: String(localized: "Square flag")
-        case .code: String(localized: "Country code")
+        case .code: String(localized: "Flag color code")
+        case .codeStamp: String(localized: "Code stamp")
         case .emoji: String(localized: "System Emoji")
         }
     }

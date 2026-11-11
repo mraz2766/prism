@@ -60,36 +60,15 @@ enum MenuBarFlagImageFactory {
                 targetRect: NSRect(x: 2, y: 2, width: 14, height: 14),
                 cornerRadius: 3
             )
-        case .code:
-            return codeImage(for: countryCode)
+        case .code, .codeStamp:
+            let dark = (appearance ?? NSApp.effectiveAppearance)
+                .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return CountryCodeBadgeImageFactory.image(
+                for: countryCode, style: style == .code ? .colorBand : .stamp, dark: dark
+            )
         case .emoji:
             return emojiImage(for: countryCode)
         }
-    }
-
-    /// 国家代码徽章使用模板图，自动跟随菜单栏深浅色。
-    static func codeImage(for countryCode: String) -> NSImage? {
-        guard let code = CountryFlag.normalizedCode(countryCode) else { return nil }
-        let attributed = NSAttributedString(
-            string: code,
-            attributes: [.font: NSFont.monospacedSystemFont(ofSize: 9.5, weight: .bold)]
-        )
-        let textSize = attributed.size()
-        let size = NSSize(width: pixelAligned(textSize.width + 7), height: 18)
-        let image = NSImage(size: size, flipped: false) { rect in
-            let badge = NSRect(x: 0.5, y: 3.5, width: rect.width - 1, height: 11)
-            let path = NSBezierPath(roundedRect: badge, xRadius: 3, yRadius: 3)
-            path.lineWidth = 1
-            NSColor.black.setStroke()
-            path.stroke()
-            attributed.draw(at: NSPoint(
-                x: pixelAligned((rect.width - textSize.width) / 2),
-                y: pixelAligned(badge.midY - textSize.height / 2)
-            ))
-            return true
-        }
-        image.isTemplate = true
-        return image
     }
 
     private static func fittedImage(_ source: NSImage) -> NSImage {

@@ -74,8 +74,12 @@ struct CountryFlagView: View {
                 gradientFlag
             case .square:
                 squareFlag
-            case .code:
-                codeBadge
+            case .code, .codeStamp:
+                CountryCodeBadgeView(
+                    countryCode: countryCode,
+                    style: style == .code ? .colorBand : .stamp,
+                    width: diameter
+                )
             }
         }
         .frame(width: containerSize.width, height: containerSize.height)
@@ -147,23 +151,6 @@ struct CountryFlagView: View {
         } else {
             circleFlag
         }
-    }
-
-    private var codeBadge: some View {
-        let height = pixelAligned(diameter * 0.62)
-        return Text(CountryFlag.normalizedCode(countryCode) ?? "◎")
-            .font(.system(size: height * 0.58, weight: .bold, design: .rounded))
-            .monospaced()
-            .foregroundStyle(Color.accentColor)
-            .frame(width: diameter, height: height)
-            .background(
-                RoundedRectangle(cornerRadius: height * 0.28, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.12))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: height * 0.28, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.75)
-            )
     }
 
     @ViewBuilder
