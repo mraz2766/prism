@@ -67,7 +67,7 @@ struct CountryFlagView: View {
             countryCode: countryCode,
             style: .cartoon,
             diameter: 24,
-            containerSize: CGSize(width: 26, height: 18),
+            containerSize: CGSize(width: 27, height: 18),
             usesMenuBarCartoonLayout: true
         )
     }
@@ -221,35 +221,52 @@ struct CountryFlagView: View {
     @ViewBuilder
     private var cartoonFlag: some View {
         if let image = CountryFlag.cartoonImage(for: countryCode) {
-            ZStack(alignment: .bottomLeading) {
-                Capsule()
-                    .fill(Color(nsColor: .secondaryLabelColor).opacity(0.65))
-                    .frame(
-                        width: pixelAligned(max(1.5, diameter * 0.055)),
-                        height: pixelAligned(diameter * (usesMenuBarCartoonLayout ? 0.68 : 0.72))
-                    )
-                    .offset(
-                        x: pixelAligned(diameter * 0.08),
-                        y: usesMenuBarCartoonLayout ? 0 : pixelAligned(diameter * 0.06)
-                    )
+            if usesMenuBarCartoonLayout {
+                // 为旗杆单独留出底部空间，避免被旗面遮住；高对比颜色跟随菜单栏外观。
+                ZStack(alignment: .topLeading) {
+                    Capsule()
+                        .fill(.primary)
+                        .frame(width: 1.5, height: 17)
+                        .offset(x: 2.5, y: 0.5)
 
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.medium)
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: diameter, height: pixelAligned(diameter * 0.64))
-                    .clipped()
-                    .rotationEffect(
-                        .degrees(isCompact && !usesMenuBarCartoonLayout ? 0 : -3),
-                        anchor: .bottomLeading
-                    )
-                    .shadow(
-                        color: .black.opacity(isCompact ? 0 : 0.12),
-                        radius: isCompact ? 0 : 1,
-                        y: isCompact ? 0 : 1
-                    )
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: diameter, height: pixelAligned(diameter * 0.64))
+                        .clipped()
+                        .rotationEffect(.degrees(-3), anchor: .bottomLeading)
+                        .offset(x: 1.5, y: 0.5)
+                }
+                .frame(width: containerSize.width, height: containerSize.height, alignment: .topLeading)
+            } else {
+                ZStack(alignment: .bottomLeading) {
+                    Capsule()
+                        .fill(Color(nsColor: .secondaryLabelColor).opacity(0.65))
+                        .frame(
+                            width: pixelAligned(max(1.5, diameter * 0.055)),
+                            height: pixelAligned(diameter * 0.72)
+                        )
+                        .offset(
+                            x: pixelAligned(diameter * 0.08),
+                            y: pixelAligned(diameter * 0.06)
+                        )
+
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.medium)
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: diameter, height: pixelAligned(diameter * 0.64))
+                        .clipped()
+                        .rotationEffect(.degrees(isCompact ? 0 : -3), anchor: .bottomLeading)
+                        .shadow(
+                            color: .black.opacity(isCompact ? 0 : 0.12),
+                            radius: isCompact ? 0 : 1,
+                            y: isCompact ? 0 : 1
+                        )
+                }
+                .frame(width: diameter, height: diameter)
             }
-            .frame(width: diameter, height: diameter)
         } else {
             circleFlag
         }

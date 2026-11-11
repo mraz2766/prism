@@ -66,6 +66,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var lastRendered: RenderedState?
     private var pendingRenderTask: Task<Void, Never>?
     private var imageCache: [String: NSImage] = [:]
+    private var appearanceObservation: NSKeyValueObservation?
     /// 绝大多数候选在 500ms 内确认或撤销；短暂候选不在菜单栏闪烁。
     private let confirmingRevealDelay: Duration = .milliseconds(350)
 
@@ -110,6 +111,14 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         button.action = #selector(handleClick(_:))
         button.setAccessibilityExpanded(false)
         installRightClickMonitor()
+        appearanceObservation = button.observe(\.effectiveAppearance) { [weak self] _, _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.imageCache.removeAll()
+                self.lastRendered = nil
+                self.render()
+            }
+        }
         render()
     }
 
@@ -213,7 +222,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         case .none:
             base = nil
         case .flag(let countryCode):
-            base = MenuBarFlagImageFactory.flagImage(for: countryCode, style: style)
+            base = MenuBarFlagImageFactory.flagImage(
+                for: countryCode,
+                style: style,
+                appearance: statusItem.button?.effectiveAppearance
+            )
         case .emoji(let countryCode):
             base = MenuBarFlagImageFactory.emojiImage(for: countryCode)
         case .systemSymbol(let name):

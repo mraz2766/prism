@@ -4,11 +4,15 @@ import SwiftUI
 /// 菜单栏使用的 18pt 高国旗图像；每种样式都有专门的紧凑绘制方式。
 @MainActor
 enum MenuBarFlagImageFactory {
-    static func flagImage(for countryCode: String, style: CountryFlagStyle) -> NSImage? {
+    static func flagImage(
+        for countryCode: String,
+        style: CountryFlagStyle,
+        appearance: NSAppearance? = nil
+    ) -> NSImage? {
         switch style {
         case .cartoon:
             // 与设置预览共用放大的卡通布局，保留旗杆和手绘倾斜。
-            let colorScheme: ColorScheme = NSApp.effectiveAppearance
+            let colorScheme: ColorScheme = (appearance ?? NSApp.effectiveAppearance)
                 .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
             let renderer = ImageRenderer(
                 content: CountryFlagView.menuBarCartoon(for: countryCode)
