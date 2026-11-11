@@ -38,7 +38,7 @@ final class FlagStyleRenderingTests: XCTestCase {
                 let bitmap = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation)))
                 // 2x 图像中，旗面下方必须留下连续、清晰的旗杆，而非仅有顶部一小点。
                 for y in 31...33 {
-                    let pole = try XCTUnwrap(bitmap.colorAt(x: 6, y: y)?.usingColorSpace(.deviceRGB))
+                    let pole = try XCTUnwrap(bitmap.colorAt(x: 8, y: y)?.usingColorSpace(.deviceRGB))
                     XCTAssertGreaterThan(pole.alphaComponent, 0.8, "\(code) pole at \(y)")
                     if appearanceName == .darkAqua {
                         XCTAssertGreaterThan(pole.redComponent, 0.8, "Pole must contrast with a dark menu bar")
