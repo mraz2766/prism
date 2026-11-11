@@ -53,29 +53,6 @@ enum MenuBarFlagImageFactory {
                 targetRect: NSRect(x: 0, y: 2.5, width: 18, height: 13),
                 cornerRadius: 2.5
             )
-        case .rounded:
-            guard let source = CountryFlag.roundedImage(for: countryCode, targetWidth: 16) else { return nil }
-            return roundedImage(
-                source,
-                targetRect: NSRect(x: 1, y: 3, width: 16, height: 12),
-                cornerRadius: 2
-            )
-        case .sticker:
-            guard let source = CountryFlag.image(for: countryCode) else { return nil }
-            let size = NSSize(width: 18, height: 18)
-            let image = NSImage(size: size, flipped: false) { rect in
-                NSColor.separatorColor.withAlphaComponent(0.58).setFill()
-                NSBezierPath(ovalIn: rect).fill()
-                source.draw(
-                    in: rect.insetBy(dx: 1, dy: 1),
-                    from: .zero,
-                    operation: .sourceOver,
-                    fraction: 1
-                )
-                return true
-            }
-            image.isTemplate = false
-            return image
         case .square:
             guard let source = CountryFlag.squareImage(for: countryCode) else { return nil }
             return roundedImage(

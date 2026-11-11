@@ -3,7 +3,7 @@ import SwiftUI
 struct CountryHeroView: View {
     let info: NetworkInfo
     let status: NetworkStatus
-    var flagStyle: CountryFlagStyle = .sticker
+    var flagStyle: CountryFlagStyle = .gradient
     var cityOverride: String? = nil
     var compact = false
     var showsStatus = true

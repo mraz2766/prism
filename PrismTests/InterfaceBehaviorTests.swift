@@ -18,7 +18,7 @@ final class InterfaceBehaviorTests: XCTestCase {
     func testGuardAlertBadgesTheFlagOnlyWhileTheExitIsConfirmed() {
         let info = tokyo()
         let online = MenuBarLabelRenderer.presentation(
-            status: .online(info), mode: .flagAndCode, flagStyle: .sticker,
+            status: .online(info), mode: .flagAndCode, flagStyle: .gradient,
             customTemplate: "", outsideExpectedRegion: true
         )
         XCTAssertEqual(online.badge, .guardAlert)
@@ -26,7 +26,7 @@ final class InterfaceBehaviorTests: XCTestCase {
 
         let verifying = MenuBarLabelRenderer.presentation(
             status: .verifying(previous: info, candidateAddress: "198.51.100.1"),
-            mode: .flagAndCode, flagStyle: .sticker,
+            mode: .flagAndCode, flagStyle: .gradient,
             customTemplate: "", outsideExpectedRegion: true
         )
         XCTAssertEqual(verifying.badge, .confirming)
@@ -34,7 +34,7 @@ final class InterfaceBehaviorTests: XCTestCase {
 
     func testGuardAlertFallsBackToATextPrefixWithoutAFlag() {
         let value = MenuBarLabelRenderer.presentation(
-            status: .online(tokyo()), mode: .countryCode, flagStyle: .sticker,
+            status: .online(tokyo()), mode: .countryCode, flagStyle: .gradient,
             customTemplate: "", outsideExpectedRegion: true
         )
         XCTAssertNil(value.badge)
@@ -43,13 +43,13 @@ final class InterfaceBehaviorTests: XCTestCase {
 
     func testLocalizedCityReplacesTheAbbreviationInTheMenuBar() {
         let localized = MenuBarLabelRenderer.presentation(
-            status: .online(tokyo()), mode: .flagAndCity, flagStyle: .sticker,
+            status: .online(tokyo()), mode: .flagAndCity, flagStyle: .gradient,
             customTemplate: "", cityOverride: "东京"
         )
         XCTAssertEqual(localized.title, "东京")
 
         let untouched = MenuBarLabelRenderer.presentation(
-            status: .online(tokyo()), mode: .flagAndCity, flagStyle: .sticker,
+            status: .online(tokyo()), mode: .flagAndCity, flagStyle: .gradient,
             customTemplate: "", cityOverride: "Tokyo"
         )
         XCTAssertEqual(untouched.title, "Tokyo")

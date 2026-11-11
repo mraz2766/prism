@@ -99,11 +99,10 @@ enum MenuBarDisplayMode: String, CaseIterable, Codable, Identifiable, Sendable {
 }
 
 enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
-    case sticker
     case cartoon
     case waved
+    // 保留原始存储值，显示名称已统一为“圆角国旗”。
     case gradient
-    case rounded
     case square
     case code
     case emoji
@@ -112,11 +111,9 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .sticker: String(localized: "Sticker flag")
         case .cartoon: String(localized: "Cartoon flag")
         case .waved: String(localized: "Waved flag")
-        case .gradient: String(localized: "Gradient flag")
-        case .rounded: String(localized: "Rounded flag")
+        case .gradient: String(localized: "Rounded flag")
         case .square: String(localized: "Square flag")
         case .code: String(localized: "Country code")
         case .emoji: String(localized: "System Emoji")

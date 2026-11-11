@@ -63,7 +63,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(initial, settings.refreshConfiguration)
         settings.accentColorChoice = .auroraPurple
         settings.menuBarDisplayMode = .flagOnly
-        settings.countryFlagStyle = .rounded
+        settings.countryFlagStyle = .square
         settings.appearanceMode = .dark
         settings.refreshInterval = .minutes5
 
@@ -80,7 +80,7 @@ final class SettingsStoreTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let settings = SettingsStore(defaults: defaults)
-        XCTAssertEqual(settings.countryFlagStyle, .sticker)
+        XCTAssertEqual(settings.countryFlagStyle, .gradient)
 
         settings.countryFlagStyle = .waved
         let reloaded = SettingsStore(defaults: defaults)
@@ -107,11 +107,14 @@ final class SettingsStoreTests: XCTestCase {
         }
     }
 
-    func testDraftFlagStylesMigrateToCircleDesigns() throws {
+    func testRemovedFlagStylesMigrateToRetainedRoundedDesign() throws {
         let expectedStyles: [String: CountryFlagStyle] = [
-            "flat": .sticker,
-            "badge": .sticker,
-            "circle": .sticker
+            "flat": .gradient,
+            "badge": .gradient,
+            "circle": .gradient,
+            "sticker": .gradient,
+            "rounded": .gradient,
+            "gradient": .gradient
         ]
 
         for (legacyStyle, expectedStyle) in expectedStyles {

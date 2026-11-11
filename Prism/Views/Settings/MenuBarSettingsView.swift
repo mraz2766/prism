@@ -38,7 +38,7 @@ struct MenuBarSettingsView: View {
             }
             Section {
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4),
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
                     spacing: 8
                 ) {
                     ForEach(CountryFlagStyle.allCases) { style in

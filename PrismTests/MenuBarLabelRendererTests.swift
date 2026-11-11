@@ -16,7 +16,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
                 let value = MenuBarLabelRenderer.presentation(
                     status: status,
                     mode: mode,
-                    flagStyle: .sticker,
+                    flagStyle: .gradient,
                     customTemplate: "{flag} {code} {city}"
                 )
                 XCTAssertEqual(value.indicator, .systemSymbol(name: "globe"))
@@ -31,7 +31,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .locationUnavailable(.preview, reason: .timeout),
             mode: .flagAndCity,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
         XCTAssertEqual(value.title, "SH")
@@ -52,7 +52,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
             )
             for status in [NetworkStatus.locating(info), .locationUnavailable(info, reason: .timeout)] {
                 let value = MenuBarLabelRenderer.presentation(
-                    status: status, mode: .flagAndCity, flagStyle: .sticker, customTemplate: ""
+                    status: status, mode: .flagAndCity, flagStyle: .gradient, customTemplate: ""
                 )
                 XCTAssertEqual(value.title, "JP")
                 XCTAssertEqual(value.indicator, .flag(countryCode: "JP"))
@@ -67,7 +67,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
             let value = MenuBarLabelRenderer.presentation(
                 status: .online(.preview),
                 mode: mode,
-                flagStyle: .sticker,
+                flagStyle: .gradient,
                 customTemplate: "{status} {flag} {country} {city}"
             )
             XCTAssertLessThanOrEqual(value.title.count, 20)
@@ -79,7 +79,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .flagAndCode,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
 
@@ -101,7 +101,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .flagAndCity,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
 
@@ -113,7 +113,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .flagOnly,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
 
@@ -125,7 +125,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .custom,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: "plain text without tokens",
             locale: Locale(identifier: "en_US")
         )
@@ -137,7 +137,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .offline(previous: nil),
             mode: .flagAndCode,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
 
@@ -148,7 +148,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .offline(previous: .preview),
             mode: .flagOnly,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
 
@@ -163,7 +163,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
             let value = MenuBarLabelRenderer.presentation(
                 status: status,
                 mode: mode,
-                flagStyle: .sticker,
+                flagStyle: .gradient,
                 customTemplate: "{flag} {country}"
             )
             let statusIsVisible = value.title.contains("◌")
@@ -177,7 +177,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .custom,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: "{city}"
         )
 
@@ -188,7 +188,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .online(.preview),
             mode: .custom,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: "{flag} {code}"
         )
 
@@ -226,7 +226,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: status,
             mode: .flagAndCode,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
 
@@ -237,7 +237,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
         let value = MenuBarLabelRenderer.presentation(
             status: .stale(.preview, reason: .timeout),
             mode: .countryCode,
-            flagStyle: .sticker,
+            flagStyle: .gradient,
             customTemplate: ""
         )
 

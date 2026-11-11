@@ -174,8 +174,8 @@ final class SettingsStore {
     private static func migratedFlagStyle(_ rawValue: String?) -> CountryFlagStyle {
         if let rawValue, let current = CountryFlagStyle(rawValue: rawValue) { return current }
         return switch rawValue {
-        case "flat", "badge", "circle": .sticker
-        default: .sticker
+        case "flat", "badge", "circle", "sticker", "rounded": .gradient
+        default: .gradient
         }
     }
 

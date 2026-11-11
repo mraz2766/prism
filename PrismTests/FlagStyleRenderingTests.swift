@@ -98,8 +98,6 @@ final class FlagStyleRenderingTests: XCTestCase {
         let images = [
             CountryFlag.wavedImage(for: "SV"),
             CountryFlag.squareImage(for: "SV"),
-            CountryFlag.roundedImage(for: "SV", targetWidth: 16),
-            CountryFlag.roundedImage(for: "SV", targetWidth: 32)
         ]
         for image in images {
             let image = try XCTUnwrap(image)

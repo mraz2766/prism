@@ -26,16 +26,12 @@ final class CountryFlagTests: XCTestCase {
         XCTAssertNotNil(CountryFlag.wavedImage(for: "CN"))
     }
 
-    func testBundledRoundedFlagCanBeLoaded() {
-        XCTAssertNotNil(CountryFlag.roundedImage(for: "CN"))
-    }
-
     func testBundledSquareFlagCanBeLoaded() {
         XCTAssertNotNil(CountryFlag.squareImage(for: "CN"))
     }
 
     func testSquareAndGradientFlagsContainNoUnresolvedShapeReferencesAndRender() throws {
-        // 方形国旗已预先栅格化为 PNG，<use> 引用须在栅格化前展开；渐变国旗仍为 SVG。
+        // 方形国旗已预先栅格化为 PNG，<use> 引用须在栅格化前展开；圆角国旗仍为 SVG。
         let gradientURLs = try XCTUnwrap(Bundle.main.urls(forResourcesWithExtension: "svg", subdirectory: nil))
             .filter { $0.deletingPathExtension().lastPathComponent.hasPrefix("flagkit-") }
         let squareURLs = try XCTUnwrap(Bundle.main.urls(forResourcesWithExtension: "png", subdirectory: nil))
@@ -99,9 +95,6 @@ final class CountryFlagTests: XCTestCase {
             ("circle", CountryFlag.image(for: "JP"), 0.9, 0.9),
             ("waved", CountryFlag.wavedImage(for: "JP"), 0.8, 0.5),
             ("gradient", CountryFlag.gradientImage(for: "JP"), 0.8, 0.6),
-            ("rounded-s", CountryFlag.roundedImage(for: "JP", targetWidth: 16), 0.9, 0.9),
-            ("rounded-m", CountryFlag.roundedImage(for: "JP", targetWidth: 20), 0.9, 0.9),
-            ("rounded-l", CountryFlag.roundedImage(for: "JP", targetWidth: 32), 0.9, 0.9),
             ("square", CountryFlag.squareImage(for: "JP"), 0.9, 0.9),
             ("cartoon", CountryFlag.cartoonImage(for: "JP"), 0.8, 0.5)
         ]
