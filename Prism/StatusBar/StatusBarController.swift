@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import QuartzCore
 
 extension Notification.Name {
     static let prismClosePopover = Notification.Name("com.mraz.prism.closePopover")
@@ -57,6 +58,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var localMonitor: Any?
     private var rightClickMonitor: Any?
     private var closeObserver: NSObjectProtocol?
+    private var toggleObserver: NSObjectProtocol?
+    /// 打开弹窗前处于前台的应用；弹窗关闭后把焦点还给它。
+    private var previousApplication: NSRunningApplication?
     private var observing = false
     private var presentationState = PopoverPresentationState.closed
     private var lastRendered: RenderedState?
@@ -86,6 +90,16 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in self?.requestClosePopover() }
+        }
+        toggleObserver = NotificationCenter.default.addObserver(
+            forName: .prismTogglePopover,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.performPresentationAction(self.presentationState.requestToggle())
+            }
         }
     }
 
@@ -130,16 +144,18 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             status: status,
             mode: environment.settings.menuBarDisplayMode,
             flagStyle: flagStyle,
-            customTemplate: environment.settings.customMenuTemplate
+            customTemplate: environment.settings.customMenuTemplate,
+            cityOverride: status.info.flatMap { environment.cityLocalizer.displayCity(for: $0) },
+            outsideExpectedRegion: environment.isOutsideExpectedRegion
         )
 
         let toolTip: String
         let accessibilityLabel: String
         if let info = status.info {
-            let city = info.location.city.map { " · \($0)" } ?? ""
-            let address = info.addresses.preferredForLookup.map { " · \($0)" } ?? ""
-            toolTip = "\(status.shortLabel) · \(info.location.localizedCountry())\(city)\(address)"
-            accessibilityLabel = "\(status.shortLabel), \(info.location.localizedCountry())"
+            let guardNote = environment.isOutsideExpectedRegion
+                ? " · \(String(localized: "Outside expected region"))" : ""
+            toolTip = "\(status.shortLabel) · \(Self.summary(of: info, cityLocalizer: environment.cityLocalizer))\(guardNote)"
+            accessibilityLabel = "\(status.shortLabel), \(info.location.localizedCountry())\(guardNote)"
         } else {
             toolTip = status.shortLabel
             accessibilityLabel = status.shortLabel
@@ -157,8 +173,20 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         if state.appearanceMode != lastRendered?.appearanceMode {
             imageCache.removeAll()
         }
+        let indicatorChanged = lastRendered.map {
+            $0.presentation.indicator != presentation.indicator || $0.flagStyle != flagStyle
+        } ?? false
         lastRendered = state
 
+        // 国旗切换时做一次短暂的交叉淡化，而不是硬切。
+        if indicatorChanged, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            button.wantsLayer = true
+            let fade = CATransition()
+            fade.type = .fade
+            fade.duration = 0.16
+            fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            button.layer?.add(fade, forKey: "prism.indicator")
+        }
         button.title = presentation.title
         button.image = indicatorImage(for: presentation, style: flagStyle)
         button.imagePosition = presentation.title.isEmpty ? .imageOnly : .imageLeading
@@ -207,6 +235,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         let color: NSColor = switch badge {
         case .confirming: StatusPalette.confirmingNSColor
         case .stale: StatusPalette.staleNSColor
+        case .guardAlert: StatusPalette.offlineNSColor
         }
         let image = NSImage(size: size, flipped: false) { rect in
             base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
@@ -236,6 +265,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             _ = environment.settings.countryFlagStyle
             _ = environment.settings.customMenuTemplate
             _ = environment.settings.appearanceMode
+            _ = environment.settings.regionGuardEnabled
+            _ = environment.settings.regionGuardCountries
+            _ = environment.cityLocalizer.names
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -257,6 +289,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             Task { await environment.lookupService.refreshMissingCity() }
         }
         installDismissMonitors()
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        previousApplication = frontmost?.processIdentifier == ProcessInfo.processInfo.processIdentifier
+            ? nil : frontmost
         popoverHost.popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         popoverHost.popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         button.highlight(true)
@@ -386,13 +421,45 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             self.statusItem.button?.highlight(false)
             self.statusItem.button?.setAccessibilityExpanded(false)
             self.removeDismissMonitors()
+            self.restorePreviousApplicationIfNeeded()
         }
+    }
+
+    /// 弹窗是因为按 Esc 或再次点击图标而关闭、且没有打开 Prism 的其它窗口时，把焦点还给之前的应用。
+    /// 用户点击其它应用关闭弹窗时系统已经切换了前台，这里不做任何事。
+    private func restorePreviousApplicationIfNeeded() {
+        defer { previousApplication = nil }
+        guard let previousApplication, NSApp.isActive else { return }
+        let hasVisibleWindow = NSApp.windows.contains { window in
+            window.isVisible && window.canBecomeMain && !(window is NSPanel)
+        }
+        guard !hasVisibleWindow else { return }
+        previousApplication.activate()
+    }
+
+    static func summary(of info: NetworkInfo, cityLocalizer: CityLocalizer) -> String {
+        var parts: [String] = []
+        if info.hasLocation {
+            parts.append(info.location.localizedCountry())
+            if let city = cityLocalizer.displayCity(for: info), !city.isEmpty { parts.append(city) }
+        }
+        if let address = info.addresses.preferredForLookup { parts.append(address) }
+        return parts.joined(separator: " · ")
     }
 
     private func showContextMenu() {
         let menu = NSMenu()
+        let status = environment.networkViewModel.status
+        let header = NSMenuItem(title: contextMenuHeader(for: status), action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
+        if status.info?.addresses.preferredForLookup != nil {
+            menu.addItem(item(title: String(localized: "Copy IP address"), action: #selector(copyAddress), key: "c"))
+        }
+        menu.addItem(.separator())
         menu.addItem(item(title: String(localized: "Refresh"), action: #selector(refresh), key: "r"))
         menu.addItem(item(title: String(localized: "Open Details"), action: #selector(openDetails), key: "o"))
+        menu.addItem(item(title: String(localized: "Exit History"), action: #selector(openHistory), key: "y"))
         menu.addItem(.separator())
         menu.addItem(item(title: String(localized: "Settings…"), action: #selector(openSettings), key: ","))
         menu.addItem(.separator())
@@ -400,6 +467,12 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
+    }
+
+    private func contextMenuHeader(for status: NetworkStatus) -> String {
+        guard let info = status.info else { return status.shortLabel }
+        let summary = Self.summary(of: info, cityLocalizer: environment.cityLocalizer)
+        return summary.isEmpty ? status.shortLabel : "\(status.shortLabel) · \(summary)"
     }
 
     private func item(title: String, action: Selector, key: String) -> NSMenuItem {
@@ -410,6 +483,12 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     @objc private func refresh() { environment.refreshCoordinator.triggerManual() }
     @objc private func openDetails() { environment.showDashboard() }
+    @objc private func openHistory() { environment.showDashboard(.history) }
+    @objc private func copyAddress() {
+        guard let address = environment.networkViewModel.status.info?.addresses.preferredForLookup else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(address, forType: .string)
+    }
     @objc private func openSettings() { environment.openSettings() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

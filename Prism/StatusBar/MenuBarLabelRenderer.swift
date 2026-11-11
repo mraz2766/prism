@@ -11,6 +11,8 @@ enum MenuBarIndicator: Equatable {
 enum MenuBarStatusBadge: String, Equatable, Sendable {
     case confirming
     case stale
+    /// 出口落在期望地区之外。
+    case guardAlert
 }
 
 struct MenuBarPresentation: Equatable {
@@ -25,7 +27,9 @@ enum MenuBarLabelRenderer {
         mode: MenuBarDisplayMode,
         flagStyle: CountryFlagStyle,
         customTemplate: String,
-        locale: Locale = .autoupdatingCurrent
+        locale: Locale = .autoupdatingCurrent,
+        cityOverride: String? = nil,
+        outsideExpectedRegion: Bool = false
     ) -> MenuBarPresentation {
         guard let info = status.info else {
             if mode == .flagOnly {
@@ -47,7 +51,7 @@ enum MenuBarLabelRenderer {
 
         let code = info.location.countryCode.uppercased()
         let country = info.location.localizedCountry(locale: locale)
-        let city = compactCityName(info.location.city, fallback: code)
+        let city = menuBarCityName(info.location.city, override: cityOverride, fallback: code)
         let statusGlyph = glyph(for: status)
         let isOnline: Bool
         switch status {
@@ -88,7 +92,9 @@ enum MenuBarLabelRenderer {
                     mode: .flagAndCode,
                     flagStyle: flagStyle,
                     customTemplate: customTemplate,
-                    locale: locale
+                    locale: locale,
+                    cityOverride: cityOverride,
+                    outsideExpectedRegion: outsideExpectedRegion
                 )
             }
             let flagValue: String
@@ -117,14 +123,40 @@ enum MenuBarLabelRenderer {
             .joined(separator: " ")
         let needsStatus = !isOnline && !alreadyShowsStatus
         let shouldPrefixStatus = needsStatus && indicator == .none
-        let finalTitle = shouldPrefixStatus
-            ? [statusGlyph, trimmed].filter { !$0.isEmpty }.joined(separator: " ")
-            : trimmed
+        let showsGuardAlert = outsideExpectedRegion && isOnline
+        let finalTitle: String
+        if shouldPrefixStatus {
+            finalTitle = [statusGlyph, trimmed].filter { !$0.isEmpty }.joined(separator: " ")
+        } else if showsGuardAlert && indicator == .none {
+            // 没有国旗可挂角标时，用文字前缀提示越界。
+            finalTitle = ["⚠︎", trimmed].filter { !$0.isEmpty }.joined(separator: " ")
+        } else {
+            finalTitle = trimmed
+        }
+        let resolvedBadge: MenuBarStatusBadge?
+        if indicator == .none {
+            resolvedBadge = nil
+        } else if showsGuardAlert {
+            resolvedBadge = .guardAlert
+        } else {
+            resolvedBadge = needsStatus ? badge(for: status) : nil
+        }
         return MenuBarPresentation(
             title: truncate(finalTitle),
             indicator: indicator,
-            badge: needsStatus && indicator != .none ? badge(for: status) : nil
+            badge: resolvedBadge
         )
+    }
+
+    /// 已本地化的城市名（如“东京”）直接显示；英文城市名仍走紧凑缩写。
+    static func menuBarCityName(_ city: String?, override: String?, fallback: String) -> String {
+        if let override = override?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !override.isEmpty,
+           override != city,
+           override.unicodeScalars.contains(where: { $0.value > 0x2E7F }) {
+            return override.count > 5 ? String(override.prefix(5)) : override
+        }
+        return compactCityName(city, fallback: fallback)
     }
 
     static func badge(for status: NetworkStatus) -> MenuBarStatusBadge? {
@@ -225,6 +257,15 @@ struct MenuBarTemplateComposition: Equatable {
     }
 
     var isEmpty: Bool { !showsFlag && elements.isEmpty }
+
+    /// 把 `element` 移到 `target` 之前；向后拖动时落在目标之后，符合拖拽的直觉。
+    mutating func move(_ element: MenuBarTemplateElement, before target: MenuBarTemplateElement) {
+        guard element != target,
+              let from = elements.firstIndex(of: element),
+              let to = elements.firstIndex(of: target) else { return }
+        elements.remove(at: from)
+        elements.insert(element, at: to)
+    }
 
     var template: String {
         ((showsFlag ? ["{flag}"] : []) + elements.map(\.token)).joined(separator: " ")

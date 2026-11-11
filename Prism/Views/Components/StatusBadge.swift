@@ -30,6 +30,14 @@ enum StatusPalette {
             : NSColor(red: 0.78, green: 0.22, blue: 0.08, alpha: 1)
     } }
 
+    /// 断网与越界提醒共用的警示红，深浅色下都保持足够对比度。
+    static var offlineNSColor: NSColor { NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(red: 1.00, green: 0.42, blue: 0.40, alpha: 1)
+            : NSColor(red: 0.76, green: 0.11, blue: 0.11, alpha: 1)
+    } }
+
+    static var offline: Color { Color(nsColor: offlineNSColor) }
     static var online: Color { Color(nsColor: onlineNSColor) }
     static var confirming: Color { Color(nsColor: confirmingNSColor) }
     static var stale: Color { Color(nsColor: staleNSColor) }
@@ -38,8 +46,9 @@ enum StatusPalette {
         switch status {
         case .online, .locating, .locationUnavailable: online
         case .loading, .verifying: confirming
-        case .offline: .red
-        case .idle, .stale, .failed: .secondary
+        case .offline: offline
+        case .stale: stale
+        case .idle, .failed: .secondary
         }
     }
 }
@@ -47,6 +56,7 @@ enum StatusPalette {
 struct StatusBadge: View {
     let status: NetworkStatus
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Label(status.shortLabel, systemImage: status.symbolName)
@@ -56,6 +66,8 @@ struct StatusBadge: View {
             .padding(.vertical, 5)
             .background(backgroundColor, in: Capsule())
             .contentTransition(.opacity)
+            // 确认完成时由琥珀色平滑过渡到绿色。
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: status.symbolName)
             .accessibilityLabel(status.shortLabel)
             .accessibilityIdentifier("network.status")
             .accessibilityValue(status.symbolName)

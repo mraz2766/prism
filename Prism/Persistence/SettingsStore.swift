@@ -68,6 +68,30 @@ final class SettingsStore {
         }
     }
 
+    var regionGuardEnabled: Bool {
+        didSet {
+            guard oldValue != regionGuardEnabled else { return }
+            defaults.set(regionGuardEnabled, forKey: Keys.regionGuardEnabled)
+        }
+    }
+    /// 用户输入的期望地区，逗号或空格分隔的 ISO 国家代码，例如 "JP, US"。
+    var regionGuardCountries: String {
+        didSet {
+            guard oldValue != regionGuardCountries else { return }
+            defaults.set(regionGuardCountries, forKey: Keys.regionGuardCountries)
+        }
+    }
+    var globalHotKey: GlobalHotKeyChoice {
+        didSet {
+            guard oldValue != globalHotKey else { return }
+            defaults.set(globalHotKey.rawValue, forKey: Keys.globalHotKey)
+        }
+    }
+
+    var regionGuard: RegionGuard {
+        RegionGuard(isEnabled: regionGuardEnabled, expectedCountries: regionGuardCountries)
+    }
+
     var automaticRefreshEnabled: Bool {
         get { refreshInterval != .networkChangesOnly }
         set {
@@ -115,6 +139,10 @@ final class SettingsStore {
             .flatMap(AppearanceMode.init(rawValue:)) ?? .system
         accentColorChoice = defaults.string(forKey: Keys.accentColor)
             .flatMap(AccentColorChoice.init(rawValue:)) ?? .prismBlue
+        regionGuardEnabled = defaults.bool(forKey: Keys.regionGuardEnabled)
+        regionGuardCountries = defaults.string(forKey: Keys.regionGuardCountries) ?? ""
+        globalHotKey = defaults.string(forKey: Keys.globalHotKey)
+            .flatMap(GlobalHotKeyChoice.init(rawValue:)) ?? .off
     }
 
     func changes() -> AsyncStream<RefreshConfiguration> {
@@ -162,5 +190,8 @@ final class SettingsStore {
         static let customTemplate = "menuBar.customTemplate"
         static let appearance = "appearance.mode"
         static let accentColor = "appearance.accentColor"
+        static let regionGuardEnabled = "regionGuard.enabled"
+        static let regionGuardCountries = "regionGuard.countries"
+        static let globalHotKey = "hotKey.togglePopover"
     }
 }

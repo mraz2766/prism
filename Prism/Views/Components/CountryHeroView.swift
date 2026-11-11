@@ -8,6 +8,8 @@ struct CountryHeroView: View {
     var compact = false
     var showsStatus = true
     var showsRoute = true
+    /// 出口落在期望地区之外时显示警示标签。
+    var outsideExpectedRegion = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 出口或城市变化时触发过渡；仅时间戳变化不会产生动画。
@@ -34,6 +36,12 @@ struct CountryHeroView: View {
                 }
             }
             .id(info.location.countryCode)
+            // 新出口确认的瞬间国旗轻弹一次。
+            .phaseAnimator([1.0, 1.14, 1.0], trigger: reduceMotion ? "" : info.id) { view, scale in
+                view.scaleEffect(scale)
+            } animation: { _ in
+                .spring(duration: 0.24, bounce: 0.35)
+            }
             .transition(
                 reduceMotion
                     ? AnyTransition.opacity
@@ -74,6 +82,17 @@ struct CountryHeroView: View {
                     }
                 }
 
+                if outsideExpectedRegion {
+                    Label(String(localized: "Outside expected region"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(StatusPalette.offline.opacity(0.13), in: Capsule())
+                        .foregroundStyle(StatusPalette.offline)
+                        .accessibilityIdentifier("exit.region-guard")
+                        .transition(.opacity)
+                }
+
                 if info.exitSource == .domesticFallback || (showsRoute && info.routeMode != .unknown) || (!compact && info.location.timezone != nil) {
                     HStack(spacing: 8) {
                         if info.exitSource == .domesticFallback || (showsRoute && info.routeMode != .unknown) {
@@ -102,6 +121,7 @@ struct CountryHeroView: View {
             if showsStatus { StatusBadge(status: status) }
         }
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.32), value: transitionKey)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: outsideExpectedRegion)
     }
 
     private var locationTitle: String {

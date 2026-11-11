@@ -44,6 +44,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// 纯菜单栏应用没有 Dock 图标；用户再次从启动台或访达打开时给出可见的窗口。
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        environment.showDashboard()
+        return false
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         environment.stop()
     }

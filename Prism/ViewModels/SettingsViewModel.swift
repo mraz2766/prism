@@ -40,4 +40,10 @@ final class SettingsViewModel {
             settings.changeNotificationsEnabled = false
         }
     }
+
+    /// 守护提醒依赖系统通知；用户拒绝授权时仍可启用，界面与菜单栏标记照常生效。
+    func setRegionGuardEnabled(_ enabled: Bool) async {
+        settings.regionGuardEnabled = enabled
+        if enabled { _ = await notificationService.requestAuthorization() }
+    }
 }

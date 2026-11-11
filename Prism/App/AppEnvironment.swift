@@ -8,6 +8,7 @@ final class DashboardNavigationModel {
     enum Destination: String, CaseIterable, Identifiable {
         case overview
         case history
+        case diagnostics
         var id: String { rawValue }
     }
 
@@ -26,7 +27,16 @@ final class AppEnvironment {
     let refreshCoordinator: RefreshCoordinator
     let notificationService: NotificationService
     let providerHealth: ProviderHealthRegistry
+    let cityLocalizer: CityLocalizer
+    let latencyModel = ProbeLatencyModel()
     let dashboardNavigation = DashboardNavigationModel()
+    /// 所选全局快捷键已被系统或其他应用占用。
+    private(set) var hotKeyUnavailable = false
+
+    /// 当前已确认的出口是否落在期望地区之外。
+    var isOutsideExpectedRegion: Bool {
+        settings.regionGuard.isViolated(by: networkViewModel.status)
+    }
 
     var openSettingsAction: (@MainActor () -> Void)?
     var dashboardWindowController: DashboardWindowController?
@@ -34,6 +44,8 @@ final class AppEnvironment {
 
     @ObservationIgnored private var notificationTask: Task<Void, Never>?
     @ObservationIgnored private var started = false
+    @ObservationIgnored private let globalHotKey = GlobalHotKey()
+    @ObservationIgnored private var lastGuardAlertCountry: String?
 
     init(isUITesting: Bool = ProcessInfo.processInfo.arguments.contains("--ui-testing")) {
         let testLocationFailure = isUITesting && (
@@ -44,7 +56,11 @@ final class AppEnvironment {
             ? FileManager.default.temporaryDirectory
                 .appendingPathComponent("prism-ui-tests-\(UUID().uuidString)", isDirectory: true)
             : nil
-        settings = SettingsStore(defaults: isUITesting ? Self.makeUITestDefaults() : .standard)
+        let defaults: UserDefaults = isUITesting ? Self.makeUITestDefaults() : .standard
+        settings = SettingsStore(defaults: defaults)
+        cityLocalizer = isUITesting
+            ? CityLocalizer(defaults: defaults, lookup: nil)
+            : CityLocalizer(defaults: defaults)
         if isUITesting {
             historyStore = NetworkHistoryStore(
                 fileURL: uiTestDirectory!.appendingPathComponent("history.json"),
@@ -96,7 +112,9 @@ final class AppEnvironment {
         )
         let exitProbe: any ExitAddressProbing = isUITesting
             ? PreviewExitAddressProbe(isDomesticFallback: ProcessInfo.processInfo.arguments.contains("--ui-testing-domestic-fallback"))
-            : IPifyExitAddressProbe()
+            : IPifyExitAddressProbe(latencyRecorder: { [latencyModel] duration in
+                Task { @MainActor in latencyModel.record(duration) }
+            })
         let realtimeExitMonitor = RealtimeExitMonitor(
             probe: exitProbe,
             lookupService: lookupService,
@@ -124,6 +142,9 @@ final class AppEnvironment {
         guard !started else { return }
         started = true
         observeAppearance()
+        observeHotKey()
+        notificationService.install()
+        notificationService.onOpenHistory = { [weak self] in self?.showDashboard(.history) }
         networkViewModel.start()
         observeForNotifications()
         refreshCoordinator.start()
@@ -131,6 +152,7 @@ final class AppEnvironment {
 
     func stop() {
         notificationTask?.cancel()
+        globalHotKey.unregister()
         refreshCoordinator.stop()
         started = false
     }
@@ -163,14 +185,58 @@ final class AppEnvironment {
         notificationTask = Task { [weak self, lookupService] in
             var previous: NetworkInfo?
             for await status in lookupService.stream() {
-                guard let self, case .online(let current) = status else { continue }
-                let exitChanged = previous.map { $0.id != current.id } ?? false
-                defer { previous = current }
-                if exitChanged { domesticIPv4ViewModel.refreshIfStale() }
-                guard let old = previous,
-                      old.id != current.id,
-                      settings.changeNotificationsEnabled else { continue }
-                await notificationService.notifyExitChange(from: old, to: current)
+                guard let self else { return }
+                cityLocalizer.resolveIfNeeded(for: status)
+                if status.isOffline { latencyModel.reset() }
+                guard case .online(let current) = status else { continue }
+                let old = previous
+                previous = current
+                if let old, old.id != current.id {
+                    domesticIPv4ViewModel.refreshIfStale()
+                    if settings.changeNotificationsEnabled {
+                        await notificationService.notify(
+                            Self.changeEvent(from: old, to: current),
+                            cityName: { [cityLocalizer] in cityLocalizer.displayCity(for: $0) }
+                        )
+                    }
+                }
+                await alertRegionGuardIfNeeded(for: current)
+            }
+        }
+    }
+
+    static func changeEvent(from old: NetworkInfo, to current: NetworkInfo) -> ExitNotificationEvent {
+        let wasDomestic = old.exitSource == .domesticFallback
+        let isDomestic = current.exitSource == .domesticFallback
+        if !wasDomestic && isDomestic { return .fellBackToDomestic(current) }
+        if wasDomestic && !isDomestic { return .overseasRecovered(current) }
+        return .exitChanged(from: old, to: current)
+    }
+
+    /// 同一个越界国家只提醒一次；回到期望地区后重新布防。
+    private func alertRegionGuardIfNeeded(for current: NetworkInfo) async {
+        let guardRule = settings.regionGuard
+        let code = current.location.countryCode.uppercased()
+        guard guardRule.isViolated(by: code) else {
+            if guardRule.isActive, !code.isEmpty { lastGuardAlertCountry = nil }
+            return
+        }
+        guard lastGuardAlertCountry != code else { return }
+        lastGuardAlertCountry = code
+        await notificationService.notify(
+            .leftExpectedRegion(current, expected: guardRule.expectedCodes),
+            cityName: { [cityLocalizer] in cityLocalizer.displayCity(for: $0) }
+        )
+    }
+
+    private func observeHotKey() {
+        hotKeyUnavailable = !globalHotKey.apply(settings.globalHotKey)
+        withObservationTracking {
+            _ = settings.globalHotKey
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, self.started else { return }
+                self.observeHotKey()
             }
         }
     }

@@ -11,9 +11,11 @@ actor NetworkHistoryStore {
     private var continuations: [UUID: AsyncStream<[NetworkHistoryEntry]>.Continuation] = [:]
     private let logger = Logger(subsystem: "com.mraz.prism", category: "history")
 
+    static let defaultMaximumEntries = 500
+
     init(
         fileURL: URL? = nil,
-        maximumEntries: Int = 100,
+        maximumEntries: Int = NetworkHistoryStore.defaultMaximumEntries,
         settlingDelay: Duration = .seconds(3),
         initialEntries: [NetworkHistoryEntry]? = nil
     ) {
@@ -84,6 +86,13 @@ actor NetworkHistoryStore {
     func clear() {
         cancelPendingEntry()
         entries.removeAll()
+        persist()
+        emit()
+    }
+
+    func remove(id: UUID) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        entries.remove(at: index)
         persist()
         emit()
     }

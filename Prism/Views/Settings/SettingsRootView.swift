@@ -18,33 +18,20 @@ struct SettingsRootView: View {
                 case .general: GeneralSettingsView()
                 case .menuBar: MenuBarSettingsView()
                 case .appearance: AppearanceSettingsView()
-                case .network: NetworkSettingsView()
-                case .privacy: PrivacySettingsView()
+                case .about: AboutSettingsView()
                 }
             }
+            // 高度由每页内容决定，文字变长或展开折叠区时不会被裁切。
+            .fixedSize(horizontal: false, vertical: true)
             .id(selection)
             .transition(.opacity)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .clipped()
+            .frame(maxWidth: .infinity, alignment: .top)
         }
-        .frame(width: 620, height: preferredHeight)
+        .frame(width: 620)
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(settings.accentColorChoice.color)
         .navigationTitle(selection.title)
         .background(SettingsWindowAccessor { environment.registerSettingsWindow($0) })
-    }
-
-    private var preferredHeight: CGFloat {
-        switch selection {
-        case .general:
-            settings.automaticRefreshEnabled ? 540 : 500
-        case .menuBar:
-            settings.menuBarDisplayMode == .custom ? 680 : 500
-        case .appearance:
-            340
-        case .network, .privacy:
-            560
-        }
     }
 }
 
@@ -52,8 +39,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     case general
     case menuBar
     case appearance
-    case network
-    case privacy
+    case about
 
     var id: String { rawValue }
 
@@ -62,8 +48,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: String(localized: "General")
         case .menuBar: String(localized: "Menu Bar")
         case .appearance: String(localized: "Appearance")
-        case .network: String(localized: "Network")
-        case .privacy: String(localized: "Privacy")
+        case .about: String(localized: "About")
         }
     }
 
@@ -72,8 +57,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .menuBar: "menubar.rectangle"
         case .appearance: "paintbrush.fill"
-        case .network: "network"
-        case .privacy: "lock.shield"
+        case .about: "info.circle"
         }
     }
 

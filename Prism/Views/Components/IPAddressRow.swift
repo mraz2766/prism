@@ -32,10 +32,10 @@ struct IPAddressRow: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .textSelection(.enabled)
                         .contentTransition(reduceMotion ? .opacity : .numericText())
+                        .help(address)
                 } else {
-                    Text(placeholder ?? String(localized: "Unavailable"))
+                    Text(placeholder ?? "—")
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                 }
@@ -50,22 +50,34 @@ struct IPAddressRow: View {
                             .font(.caption2.weight(.medium))
                     }
                 }
-                .foregroundStyle(copied ? .green : (isHovered ? .primary : .secondary))
+                .foregroundStyle(copied ? AnyShapeStyle(StatusPalette.online) : (isHovered ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary)))
                 .padding(.horizontal, copied ? 8 : 6)
                 .frame(minWidth: 30, minHeight: 30)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(copied ? Color.green.opacity(0.12) : (isHovered ? Color(nsColor: .quaternaryLabelColor) : Color.clear))
+                        .fill(copied ? StatusPalette.online.opacity(0.12) : Color.clear)
                 )
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(address == nil)
-            .onHover { hovering in
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.12)) { isHovered = hovering }
-            }
+            .opacity(address == nil ? 0.4 : 1)
             .help(String(localized: "Copy IP address"))
             .accessibilityLabel(String(localized: "Copy IP address"))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isHovered && address != nil ? Color.primary.opacity(0.06) : Color.clear)
+        )
+        .padding(.horizontal, -8)
+        .padding(.vertical, -5)
+        // 点击整行即可复制，不必瞄准右侧的小按钮。
+        .contentShape(Rectangle())
+        .onTapGesture(perform: copy)
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.12)) { isHovered = hovering }
         }
         .accessibilityIdentifier(accessibilityIdentifier ?? "")
         .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: address)

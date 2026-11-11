@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MenuBarSettingsView: View {
     @Environment(SettingsStore.self) private var settings
+    @Environment(AppEnvironment.self) private var environment
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showsTemplateText = false
 
@@ -31,20 +33,35 @@ struct MenuBarSettingsView: View {
                     simulatedMenuBar(String(localized: "Offline"), status: .offline(previous: .preview))
                 }
                 .padding(.vertical, 4)
-                .animation(.easeOut(duration: 0.12), value: settings.countryFlagStyle)
-                .animation(.easeOut(duration: 0.15), value: settings.customMenuTemplate)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: settings.countryFlagStyle)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: settings.customMenuTemplate)
             }
-            Section(String(localized: "Country flag style")) {
-                Picker(String(localized: "Style"), selection: $settings.countryFlagStyle) {
+            Section {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4),
+                    spacing: 8
+                ) {
                     ForEach(CountryFlagStyle.allCases) { style in
-                        Text(style.label).tag(style)
+                        FlagStyleTile(
+                            style: style,
+                            sampleCountryCode: sampleCountryCode,
+                            isSelected: settings.countryFlagStyle == style,
+                            accent: settings.accentColorChoice.theme
+                        ) {
+                            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
+                                settings.countryFlagStyle = style
+                            }
+                        }
                     }
                 }
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(String(localized: "Country flag style"))
                 .accessibilityIdentifier("settings.menuBar.flagStyle")
-
+            } header: {
+                Text(String(localized: "Country flag style"))
+            } footer: {
                 Text(String(localized: "Flag style also applies to the popover, details, and history. Each style uses a compact menu bar rendering."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
         }
@@ -103,7 +120,7 @@ struct MenuBarSettingsView: View {
         var next = composition
         change(&next)
         guard !next.isEmpty else { return }
-        withAnimation(.easeOut(duration: 0.15)) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
             settings.customMenuTemplate = next.template
         }
     }
@@ -211,7 +228,24 @@ struct MenuBarSettingsView: View {
         .padding(.leading, index > 0 ? 6 : 8)
         .padding(.trailing, 6)
         .padding(.vertical, 3)
-        .background(Color.accentColor.opacity(0.15), in: Capsule())
+        .background(.tint.opacity(0.15), in: Capsule())
+        .contentShape(Capsule())
+        // 拖到另一个标签上即可调整顺序。
+        .draggable(element.rawValue)
+        .dropDestination(for: String.self) { items, _ in
+            guard let raw = items.first,
+                  let dragged = MenuBarTemplateElement(rawValue: raw),
+                  dragged != element else { return false }
+            updateComposition { $0.move(dragged, before: element) }
+            return true
+        }
+        .help(String(localized: "Drag to reorder"))
+    }
+
+    /// 预览用的国家：优先用当前出口，让用户看到的就是自己菜单栏上的那面旗。
+    private var sampleCountryCode: String {
+        let code = environment.networkViewModel.status.retainedInfo?.location.countryCode ?? ""
+        return CountryFlag.normalizedCode(code) ?? "JP"
     }
 
     private func preview(status: NetworkStatus) -> MenuBarPresentation {
@@ -219,7 +253,8 @@ struct MenuBarSettingsView: View {
             status: status,
             mode: settings.menuBarDisplayMode,
             flagStyle: settings.countryFlagStyle,
-            customTemplate: settings.customMenuTemplate
+            customTemplate: settings.customMenuTemplate,
+            cityOverride: status.info.flatMap { environment.cityLocalizer.displayCity(for: $0) }
         )
     }
 
@@ -244,6 +279,50 @@ struct MenuBarSettingsView: View {
                 .font(.system(size: 12, weight: .medium))
                 .frame(width: 16, height: 16)
         }
+    }
+}
+
+private struct FlagStyleTile: View {
+    let style: CountryFlagStyle
+    let sampleCountryCode: String
+    let isSelected: Bool
+    let accent: AccentTheme
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                CountryFlagView(
+                    countryCode: sampleCountryCode,
+                    style: style,
+                    diameter: 26,
+                    containerSize: CGSize(width: 40, height: 32)
+                )
+                Text(style.label)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .foregroundStyle(isSelected ? accent.primary : Color.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(isSelected ? accent.softBackground : Color.primary.opacity(isHovered ? 0.06 : 0.03))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(isSelected ? accent.primary : Color.clear, lineWidth: 1.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(style.label)
+        .accessibilityLabel(style.label)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("settings.menuBar.flagStyle.\(style.rawValue)")
     }
 }
 

@@ -19,6 +19,8 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
     private let ipv4Endpoint: URL
     private let ipv6Endpoint: URL
     private let domesticEndpoint: URL
+    /// 成功的海外探测往返耗时；仅用于界面展示，不参与出口判定。
+    private let latencyRecorder: (@Sendable (Duration) -> Void)?
 
     init(
         client: any HTTPClient = URLSessionHTTPClient(
@@ -29,9 +31,11 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
         ),
         ipv4Endpoint: URL? = nil,
         ipv6Endpoint: URL? = nil,
-        domesticEndpoint: URL? = nil
+        domesticEndpoint: URL? = nil,
+        latencyRecorder: (@Sendable (Duration) -> Void)? = nil
     ) {
         self.client = client
+        self.latencyRecorder = latencyRecorder
         self.ipv4Endpoint = ipv4Endpoint ?? Self.endpoint(host: "api.ipify.org")
         self.ipv6Endpoint = ipv6Endpoint ?? Self.endpoint(host: "api6.ipify.org")
         self.domesticEndpoint = domesticEndpoint ?? IPIPCurrentNetworkResponse.endpoint()
@@ -65,10 +69,23 @@ struct IPifyExitAddressProbe: ExitAddressProbing {
     }
 
     private func overseasAddresses() async -> IPAddressSet {
-        async let ipv4 = try? fetch(endpoint: ipv4Endpoint, family: .ipv4)
-        async let ipv6 = try? fetch(endpoint: ipv6Endpoint, family: .ipv6)
-        let (ipv4Address, ipv6Address) = await (ipv4, ipv6)
-        return IPAddressSet(ipv4: ipv4Address, ipv6: ipv6Address)
+        async let ipv4 = try? timedFetch(endpoint: ipv4Endpoint, family: .ipv4)
+        async let ipv6 = try? timedFetch(endpoint: ipv6Endpoint, family: .ipv6)
+        let (ipv4Result, ipv6Result) = await (ipv4, ipv6)
+        if let elapsed = ipv4Result?.elapsed ?? ipv6Result?.elapsed {
+            latencyRecorder?(elapsed)
+        }
+        return IPAddressSet(ipv4: ipv4Result?.address, ipv6: ipv6Result?.address)
+    }
+
+    private func timedFetch(
+        endpoint: URL,
+        family: AddressFamily
+    ) async throws -> (address: String, elapsed: Duration) {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let address = try await fetch(endpoint: endpoint, family: family)
+        return (address, start.duration(to: clock.now))
     }
 
     private func fetch(endpoint: URL, family: AddressFamily) async throws -> String {
