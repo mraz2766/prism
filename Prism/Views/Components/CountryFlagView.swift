@@ -59,6 +59,18 @@ struct CountryFlagView: View {
     let style: CountryFlagStyle
     var diameter: CGFloat = 34
     var containerSize = CGSize(width: 48, height: 48)
+    var usesMenuBarCartoonLayout = false
+
+    /// 在菜单栏有限的高度内放大旗面，并保留弹窗里的轻微倾斜和旗杆。
+    static func menuBarCartoon(for countryCode: String) -> CountryFlagView {
+        CountryFlagView(
+            countryCode: countryCode,
+            style: .cartoon,
+            diameter: 24,
+            containerSize: CGSize(width: 26, height: 18),
+            usesMenuBarCartoonLayout: true
+        )
+    }
 
     var body: some View {
         Group {
@@ -214,11 +226,11 @@ struct CountryFlagView: View {
                     .fill(Color(nsColor: .secondaryLabelColor).opacity(0.65))
                     .frame(
                         width: pixelAligned(max(1.5, diameter * 0.055)),
-                        height: pixelAligned(diameter * 0.72)
+                        height: pixelAligned(diameter * (usesMenuBarCartoonLayout ? 0.68 : 0.72))
                     )
                     .offset(
                         x: pixelAligned(diameter * 0.08),
-                        y: pixelAligned(diameter * 0.06)
+                        y: usesMenuBarCartoonLayout ? 0 : pixelAligned(diameter * 0.06)
                     )
 
                 Image(nsImage: image)
@@ -227,7 +239,10 @@ struct CountryFlagView: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: diameter, height: pixelAligned(diameter * 0.64))
                     .clipped()
-                    .rotationEffect(.degrees(isCompact ? 0 : -3), anchor: .bottomLeading)
+                    .rotationEffect(
+                        .degrees(isCompact && !usesMenuBarCartoonLayout ? 0 : -3),
+                        anchor: .bottomLeading
+                    )
                     .shadow(
                         color: .black.opacity(isCompact ? 0 : 0.12),
                         radius: isCompact ? 0 : 1,

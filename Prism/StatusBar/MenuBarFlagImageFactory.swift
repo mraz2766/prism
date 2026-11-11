@@ -7,16 +7,11 @@ enum MenuBarFlagImageFactory {
     static func flagImage(for countryCode: String, style: CountryFlagStyle) -> NSImage? {
         switch style {
         case .cartoon:
-            // 直接复用设置中的紧凑预览，保持旗杆、旗面比例和裁剪方式一致。
+            // 与设置预览共用放大的卡通布局，保留旗杆和手绘倾斜。
             let colorScheme: ColorScheme = NSApp.effectiveAppearance
                 .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
             let renderer = ImageRenderer(
-                content: CountryFlagView(
-                    countryCode: countryCode,
-                    style: .cartoon,
-                    diameter: 16,
-                    containerSize: CGSize(width: 18, height: 18)
-                )
+                content: CountryFlagView.menuBarCartoon(for: countryCode)
                 .environment(\.colorScheme, colorScheme)
             )
             renderer.scale = 2

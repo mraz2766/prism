@@ -264,12 +264,16 @@ struct MenuBarSettingsView: View {
         case .none:
             EmptyView()
         case .flag(let countryCode):
-            CountryFlagView(
-                countryCode: countryCode,
-                style: settings.countryFlagStyle,
-                diameter: 16,
-                containerSize: CGSize(width: 18, height: 18)
-            )
+            if settings.countryFlagStyle == .cartoon {
+                CountryFlagView.menuBarCartoon(for: countryCode)
+            } else {
+                CountryFlagView(
+                    countryCode: countryCode,
+                    style: settings.countryFlagStyle,
+                    diameter: 16,
+                    containerSize: CGSize(width: 18, height: 18)
+                )
+            }
         case .emoji(let countryCode):
             Text(CountryFlag.emoji(for: countryCode) ?? "◎")
                 .font(.system(size: 14))
