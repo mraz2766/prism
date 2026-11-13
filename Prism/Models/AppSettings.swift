@@ -104,6 +104,8 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     // 保留原始存储值，显示名称已统一为“圆角国旗”。
     case gradient
     case square
+    case postage
+    case capsule
     case code
     case codeStamp
     case emoji
@@ -116,6 +118,8 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
         case .waved: String(localized: "Waved flag")
         case .gradient: String(localized: "Rounded flag")
         case .square: String(localized: "Square flag")
+        case .postage: String(localized: "Postage flag")
+        case .capsule: String(localized: "Flag capsule")
         case .code: String(localized: "Flag color code")
         case .codeStamp: String(localized: "Code stamp")
         case .emoji: String(localized: "System Emoji")

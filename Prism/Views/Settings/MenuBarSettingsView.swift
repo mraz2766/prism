@@ -38,7 +38,7 @@ struct MenuBarSettingsView: View {
             }
             Section {
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4),
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
                     spacing: 8
                 ) {
                     ForEach(CountryFlagStyle.allCases) { style in
@@ -274,6 +274,11 @@ struct MenuBarSettingsView: View {
         case .flag(let countryCode):
             if settings.countryFlagStyle == .cartoon {
                 CountryFlagView.menuBarCartoon(for: countryCode)
+            } else if settings.countryFlagStyle == .postage || settings.countryFlagStyle == .capsule {
+                CountryFlagEmblemView(
+                    countryCode: countryCode,
+                    style: settings.countryFlagStyle == .postage ? .postage : .capsule
+                )
             } else if settings.countryFlagStyle == .code || settings.countryFlagStyle == .codeStamp {
                 CountryCodeBadgeView(
                     countryCode: countryCode,

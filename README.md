@@ -43,7 +43,7 @@ open /Applications/Prism.app
 - 登录时启动
 - 中英文、键盘操作、Tooltip 和 VoiceOver
 - 跟随系统、浅色、深色外观和六套自适应强调色
-- 卡通国旗、波浪国旗、圆角国旗、方形国旗、国旗色标、小印章和系统 Emoji 七种视觉风格
+- 卡通国旗、波浪国旗、圆角国旗、方形国旗、邮票国旗、双联胶囊、国旗色标、小印章和系统 Emoji 九种视觉风格
 
 Prism 不提供节点切换、测速、抓包、防火墙或自动更新。
 
@@ -66,7 +66,7 @@ Prism 不提供节点切换、测速、抓包、防火墙或自动更新。
 - 仅国旗
 - 自定义模板
 
-国旗可选卡通国旗、波浪国旗、圆角国旗（默认）、方形国旗、国旗色标、小印章或系统 Emoji，在设置中以带预览的网格选择。选中的风格会同步应用到菜单栏弹窗、概览、历史列表和详情；所有样式在空间有限的系统菜单栏中都会自动使用像素对齐的紧凑布局。国旗色标以粗体国家代码搭配底部代表色色带，小印章使用厚边框和轻微倾斜；两者在托盘与界面中共用绘制逻辑，并适配深浅外观。
+国旗可选卡通国旗、波浪国旗、圆角国旗（默认）、方形国旗、邮票国旗、双联胶囊、国旗色标、小印章或系统 Emoji，在设置中以带预览的网格选择。选中的风格会同步应用到菜单栏弹窗、概览、历史列表和详情；所有样式在空间有限的系统菜单栏中都会自动使用像素对齐的紧凑布局。国旗色标以粗体国家代码搭配底部代表色色带，小印章使用厚边框和轻微倾斜；两者在托盘与界面中共用绘制逻辑，并适配深浅外观。邮票国旗使用透明齿孔与细纸边，托盘画布为 22×18pt；双联胶囊将圆形旗面与国家代码组合在 28×18pt 画布中，旗面等比绘制，避免图案拉伸。
 
 自定义模板支持：
 
@@ -225,7 +225,7 @@ Prism 是菜单栏应用。请在屏幕顶部菜单栏查找国家或地区标�
 
 离线国家库由 [DB-IP Country Lite](https://db-ip.com/db/download/ip-to-country-lite) 转换为紧凑国家边界索引，采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可证（IP Geolocation by DB-IP）。转换合并了相邻同国家区间，将非 ISO 国家代码保留为未知；来源与许可说明位于 `Prism/Resources/GeoIP/DB-IP-LICENSE.txt`。
 
-用于缺失素材回退的圆形国旗来自 [Circle Flags](https://github.com/HatScripts/circle-flags)（提交 `379588b5da95`），采用 MIT 许可证。资源完全随 App 打包，不会在运行时下载；许可证副本位于 `Prism/Resources/CircleFlags/LICENSE.circle-flags.md`。
+用于双联胶囊和缺失素材回退的圆形国旗来自 [Circle Flags](https://github.com/HatScripts/circle-flags)（提交 `379588b5da95`），采用 MIT 许可证。资源完全随 App 打包，不会在运行时下载；许可证副本位于 `Prism/Resources/CircleFlags/LICENSE.circle-flags.md`。
 
 卡通国旗来自 [OpenMoji](https://github.com/hfg-gmuend/openmoji) 17.0.0，图形采用 CC BY-SA 4.0 许可证。Prism 在原图基础上增加旗杆、轻微倾斜和阴影；许可证副本位于 `Prism/Resources/CartoonFlags/LICENSE.openmoji.txt`。
 

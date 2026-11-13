@@ -60,6 +60,12 @@ enum MenuBarFlagImageFactory {
                 targetRect: NSRect(x: 2, y: 2, width: 14, height: 14),
                 cornerRadius: 3
             )
+        case .postage, .capsule:
+            let dark = (appearance ?? NSApp.effectiveAppearance)
+                .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return CountryFlagEmblemImageFactory.image(
+                for: countryCode, style: style == .postage ? .postage : .capsule, dark: dark
+            )
         case .code, .codeStamp:
             let dark = (appearance ?? NSApp.effectiveAppearance)
                 .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua

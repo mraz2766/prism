@@ -110,6 +110,73 @@ final class FlagStyleRenderingTests: XCTestCase {
         }
     }
 
+    func testCompactEmblemsPreserveFlagProportionsAndNativeSizes() throws {
+        for name in [NSAppearance.Name.aqua, .darkAqua] {
+            let appearance = try XCTUnwrap(NSAppearance(named: name))
+            for style in [CountryFlagStyle.postage, .capsule] {
+                let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
+                    for: "JP", style: style, appearance: appearance
+                ))
+                XCTAssertEqual(image.size, NSSize(width: style == .postage ? 22 : 28, height: 18))
+                let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+                var minX = bitmap.pixelsWide, minY = bitmap.pixelsHigh, maxX = -1, maxY = -1
+                for y in 0..<bitmap.pixelsHigh {
+                    for x in 0..<bitmap.pixelsWide {
+                        let color = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
+                        if color.alphaComponent > 0.8, color.redComponent > 0.5,
+                           color.greenComponent < 0.35, color.blueComponent < 0.45 {
+                            minX = min(minX, x); maxX = max(maxX, x)
+                            minY = min(minY, y); maxY = max(maxY, y)
+                        }
+                    }
+                }
+                XCTAssertGreaterThan(maxX - minX, 3, "Japanese disc must remain visible")
+                XCTAssertLessThanOrEqual(abs((maxX - minX) - (maxY - minY)), 1, "Flag disc must not become an ellipse")
+            }
+        }
+    }
+
+    func testPostagePerforationsRemainTransparentInBothAppearances() throws {
+        for name in [NSAppearance.Name.aqua, .darkAqua] {
+            let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
+                for: "JP", style: .postage, appearance: NSAppearance(named: name)
+            ))
+            let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+            let notch = try XCTUnwrap(bitmap.colorAt(x: 4, y: 3)).alphaComponent
+            let paper = try XCTUnwrap(bitmap.colorAt(x: 7, y: 3)).alphaComponent
+            XCTAssertLessThan(notch, 0.6, "Perforation must reveal the actual menu bar background")
+            XCTAssertGreaterThan(paper, 0.9)
+            XCTAssertLessThan(try XCTUnwrap(bitmap.colorAt(x: 0, y: 18)).alphaComponent, 0.01)
+        }
+    }
+
+    func testCapsuleLettersStayReadableAndMissingFlagsHaveFallbacks() throws {
+        for name in [NSAppearance.Name.aqua, .darkAqua] {
+            for code in ["JP", "US", "CN", "WW", "ZZ"] {
+                let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
+                    for: code, style: .capsule, appearance: NSAppearance(named: name)
+                ))
+                let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+                var letterPixels = 0
+                for y in 10..<26 {
+                    for x in 29..<50 {
+                        let color = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
+                        if color.alphaComponent > 0.9,
+                           name == .darkAqua ? color.redComponent < 0.3 : color.redComponent > 0.8 {
+                            letterPixels += 1
+                        }
+                    }
+                }
+                XCTAssertGreaterThan(letterPixels, 20, "\(code) capsule letters lost their contrast")
+            }
+        }
+        for style in [CountryFlagStyle.postage, .capsule] {
+            XCTAssertNil(MenuBarFlagImageFactory.flagImage(for: "invalid", style: style))
+            let fallback = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "ZZ", style: style))
+            XCTAssertGreaterThan(Self.opaqueCoverage(of: fallback), 0.1)
+        }
+    }
+
     func testEveryStyleDrawsFlagView() throws {
         for style in CountryFlagStyle.allCases {
             for code in countryCodes {

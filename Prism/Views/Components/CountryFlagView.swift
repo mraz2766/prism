@@ -74,6 +74,12 @@ struct CountryFlagView: View {
                 gradientFlag
             case .square:
                 squareFlag
+            case .postage, .capsule:
+                CountryFlagEmblemView(
+                    countryCode: countryCode,
+                    style: style == .postage ? .postage : .capsule,
+                    width: diameter
+                )
             case .code, .codeStamp:
                 CountryCodeBadgeView(
                     countryCode: countryCode,
