@@ -157,12 +157,14 @@ final class FlagStyleRenderingTests: XCTestCase {
                     for: code, style: .capsule, appearance: NSAppearance(named: name)
                 ))
                 let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+                let body = try XCTUnwrap(bitmap.colorAt(x: 34, y: 7)?.usingColorSpace(.deviceRGB))
+                XCTAssertGreaterThan(body.alphaComponent, 0.99)
+                XCTAssertGreaterThan(min(body.redComponent, body.greenComponent, body.blueComponent), 0.98)
                 var letterPixels = 0
                 for y in 10..<26 {
                     for x in 29..<50 {
                         let color = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
-                        if color.alphaComponent > 0.9,
-                           name == .darkAqua ? color.redComponent < 0.3 : color.redComponent > 0.8 {
+                        if color.alphaComponent > 0.9, color.redComponent < 0.3 {
                             letterPixels += 1
                         }
                     }

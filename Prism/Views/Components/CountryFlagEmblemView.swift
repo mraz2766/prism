@@ -50,7 +50,7 @@ enum CountryFlagEmblemImageFactory {
             case .postage:
                 drawPostage(flag: flag, code: code, dark: dark)
             case .capsule:
-                drawCapsule(flag: flag, code: code, dark: dark)
+                drawCapsule(flag: flag, code: code)
             }
             return true
         }
@@ -103,12 +103,12 @@ enum CountryFlagEmblemImageFactory {
         windowPath.stroke()
     }
 
-    private static func drawCapsule(flag: NSImage?, code: String, dark: Bool) {
+    private static func drawCapsule(flag: NSImage?, code: String) {
         // 比提案更窄、更薄：旗面有独立安全区，字母不压到右侧圆弧。
         let rect = NSRect(x: 1, y: 2.5, width: 26, height: 13)
         let capsule = NSBezierPath(roundedRect: rect, xRadius: 6.5, yRadius: 6.5)
-        let body = NSColor(calibratedWhite: dark ? 0.94 : 0.16, alpha: 1)
-        body.setFill()
+        // 胶囊固定白底深色字，托盘与预览不再随外观反转配色。
+        NSColor.white.setFill()
         capsule.fill()
 
         let flagRect = NSRect(x: 1.75, y: 3.25, width: 11.5, height: 11.5)
@@ -122,14 +122,14 @@ enum CountryFlagEmblemImageFactory {
             flagRect.fill()
         }
         NSGraphicsContext.restoreGraphicsState()
-        NSColor(calibratedWhite: dark ? 0 : 1, alpha: 0.18).setStroke()
+        NSColor.black.withAlphaComponent(0.18).setStroke()
         flagClip.lineWidth = 0.35
         flagClip.stroke()
         drawCode(
             code, center: NSPoint(x: 20, y: 9.15), size: 9,
-            color: dark ? NSColor(calibratedWhite: 0.12, alpha: 1) : .white
+            color: NSColor(calibratedWhite: 0.12, alpha: 1)
         )
-        NSColor(calibratedWhite: dark ? 0 : 1, alpha: 0.2).setStroke()
+        NSColor.black.withAlphaComponent(0.2).setStroke()
         capsule.lineWidth = 0.4
         capsule.stroke()
     }
