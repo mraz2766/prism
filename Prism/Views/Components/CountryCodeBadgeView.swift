@@ -36,7 +36,7 @@ enum CountryCodeBadgeImageFactory {
         guard let code = CountryFlag.normalizedCode(countryCode) else { return nil }
         let colors = style == .colorBand ? palette(for: code) : []
         let image = NSImage(size: NSSize(width: 28, height: 18), flipped: false) { _ in
-            let ink = dark ? NSColor.white : NSColor(calibratedWhite: 0.12, alpha: 1)
+            let ink = style == .stamp && dark ? NSColor.white : NSColor(calibratedWhite: 0.12, alpha: 1)
             // 印章额外留出旋转与粗描边的空间，避免在 18pt 高的托盘里切边。
             let rect = style == .stamp
                 ? NSRect(x: 1.5, y: 2, width: 25, height: 14)
@@ -53,9 +53,10 @@ enum CountryCodeBadgeImageFactory {
             let radius: CGFloat = style == .stamp ? 2.5 : 4
             let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
             if style == .colorBand {
-                ink.withAlphaComponent(dark ? 0.13 : 0.055).setFill()
+                // 固定采用浅色预览的浅灰底，避免半透明填充在菜单栏壁纸上变色。
+                NSColor(calibratedWhite: 0.95, alpha: 1).setFill()
                 path.fill()
-                ink.withAlphaComponent(0.2).setStroke()
+                NSColor(calibratedWhite: 0.78, alpha: 1).setStroke()
                 path.lineWidth = 0.5
                 path.stroke()
                 NSGraphicsContext.saveGraphicsState()
@@ -88,7 +89,7 @@ enum CountryCodeBadgeImageFactory {
             ))
             return true
         }
-        // 显式绘制当前外观的前景色，保留色带，并让叠加状态角标后的字母仍清楚可见。
+        // 保留固定底色与国旗色带；印章的字色仍跟随外观。
         image.isTemplate = false
         return image
     }

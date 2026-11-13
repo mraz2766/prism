@@ -34,6 +34,15 @@ final class FlagStyleRenderingTests: XCTestCase {
                     XCTAssertEqual(image.size, NSSize(width: 28, height: 18))
                     XCTAssertFalse(image.isTemplate, "Preserve explicit colors when a status badge is added")
                     let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+                    if style == .code {
+                        let background = try XCTUnwrap(bitmap.colorAt(x: 8, y: 12)?.usingColorSpace(.deviceRGB))
+                        XCTAssertGreaterThan(background.alphaComponent, 0.99, "Menu bar background must not show through")
+                        for channel in [background.redComponent, background.greenComponent, background.blueComponent] {
+                            XCTAssertGreaterThan(channel, 0.9)
+                            XCTAssertLessThan(channel, 0.99)
+                        }
+                    }
+                    let usesLightLetters = style == .codeStamp && name == .darkAqua
                     var coloredBandPixels = 0
                     var contrastingLetterPixels = 0
                     for y in 0..<bitmap.pixelsHigh {
@@ -44,7 +53,7 @@ final class FlagStyleRenderingTests: XCTestCase {
                             let saturation = (channels.max() ?? 0) - (channels.min() ?? 0)
                             if saturation > 0.3, y >= 28 { coloredBandPixels += 1 }
                             if (12..<44).contains(x), (8..<26).contains(y), saturation < 0.1,
-                               name == .darkAqua ? pixel.redComponent > 0.8 : pixel.redComponent < 0.2 {
+                               usesLightLetters ? pixel.redComponent > 0.8 : pixel.redComponent < 0.2 {
                                 contrastingLetterPixels += 1
                             }
                         }
