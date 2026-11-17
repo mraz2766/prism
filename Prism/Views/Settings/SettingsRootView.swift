@@ -56,7 +56,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape"
         case .menuBar: "menubar.rectangle"
-        case .appearance: "paintbrush.fill"
+        case .appearance: "paintpalette"
         case .about: "info.circle"
         }
     }
@@ -84,11 +84,16 @@ private struct SettingsNavigationBar: View {
                 Button {
                     select(section)
                 } label: {
-                    VStack(spacing: 5) {
+                    // 图标放在固定尺寸的槽位里，不同符号的视觉高度不再把文字顶得高低不一；
+                    // 字重也固定，选中只改变颜色与底色，标签宽度不会跳动。
+                    VStack(spacing: 4) {
                         Image(systemName: section.systemImage)
-                            .font(.system(size: 18, weight: isSelected ? .semibold : .regular))
+                            .symbolRenderingMode(.monochrome)
+                            .font(.system(size: 17, weight: .regular))
+                            .frame(width: 28, height: 22)
                         Text(section.title)
-                            .font(.caption.weight(isSelected ? .semibold : .medium))
+                            .font(.caption.weight(.medium))
+                            .lineLimit(1)
                     }
                     .foregroundStyle(isSelected ? settings.accentColorChoice.theme.primary : Color.secondary)
                     .frame(maxWidth: .infinity, minHeight: 46)

@@ -60,11 +60,7 @@ struct StatusBadge: View {
 
     var body: some View {
         Label(status.shortLabel, systemImage: status.symbolName)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(foregroundColor)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(backgroundColor, in: Capsule())
+            .tagCapsule(foreground: foregroundColor, background: backgroundColor)
             .contentTransition(.opacity)
             // 确认完成时由琥珀色平滑过渡到绿色。
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: status.symbolName)

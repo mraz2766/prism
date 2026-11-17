@@ -40,12 +40,10 @@ struct NetworkSummaryRow: View {
             Spacer(minLength: 8)
             if info.privacy == .suspected {
                 Label(String(localized: "Proxy / VPN"), systemImage: "shield.lefthalf.filled")
-                    .font(.caption2.weight(.medium))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(.tint.opacity(0.14), in: Capsule())
-                    .foregroundStyle(.tint)
-                    .fixedSize()
+                    .tagCapsule(
+                        foreground: .tint,
+                        background: .tint.opacity(TagCapsuleMetrics.backgroundOpacity)
+                    )
                     .help(String(localized: "Suspected proxy / VPN"))
             }
         }

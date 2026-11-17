@@ -84,11 +84,7 @@ struct CountryHeroView: View {
 
                 if outsideExpectedRegion {
                     Label(String(localized: "Outside expected region"), systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(StatusPalette.offline.opacity(0.13), in: Capsule())
-                        .foregroundStyle(StatusPalette.offline)
+                        .tagCapsule(StatusPalette.offline)
                         .accessibilityIdentifier("exit.region-guard")
                         .transition(.opacity)
                 }
@@ -100,11 +96,7 @@ struct CountryHeroView: View {
                                 info.exitSource == .domesticFallback ? String(localized: "Domestic fallback") : info.routeMode.label,
                                 systemImage: info.exitSource == .domesticFallback ? "network" : routeSymbol
                             )
-                                .font(.caption.weight(.medium))
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(Color(nsColor: .quaternaryLabelColor).opacity(0.4), in: Capsule())
-                                .foregroundStyle(.secondary)
+                                .neutralTagCapsule()
                                 .accessibilityIdentifier("exit.source")
                                 .accessibilityValue(info.exitSource.rawValue)
                         }

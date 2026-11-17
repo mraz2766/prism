@@ -107,6 +107,7 @@ struct DashboardOverviewView: View {
 
     private func cardTitle(_ title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
+            .labelStyle(.cardTitle)
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
     }

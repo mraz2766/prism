@@ -71,14 +71,10 @@ struct MenuBarSettingsView: View {
 
     private func simulatedMenuBar(_ stateLabel: String, status: NetworkStatus) -> some View {
         let presentation = preview(status: status)
+        // 行名与其它设置行同为正文字号；三个预览框等宽，内容左对齐，便于逐行对比。
         return HStack(spacing: 12) {
             Text(stateLabel)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 80, alignment: .leading)
-
-            Spacer()
-
+            Spacer(minLength: 12)
             HStack(spacing: 12) {
                 HStack(spacing: 4) {
                     previewIndicator(presentation.indicator)
@@ -99,6 +95,7 @@ struct MenuBarSettingsView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
+            .frame(width: 168, alignment: .leading)
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
             .background(
@@ -157,11 +154,25 @@ struct MenuBarSettingsView: View {
                             Button {
                                 updateComposition { $0.elements.append(element) }
                             } label: {
-                                Label(element.label, systemImage: "plus")
-                                    .font(.callout)
+                                // 与已选标签同字号、同高度，只用虚线描边区分“待添加”。
+                                HStack(spacing: 3) {
+                                    Image(systemName: "plus")
+                                        .font(.caption2.weight(.semibold))
+                                    Text(element.label)
+                                        .font(.callout)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .foregroundStyle(.secondary)
+                                .overlay(
+                                    Capsule().strokeBorder(
+                                        Color.secondary.opacity(0.45),
+                                        style: StrokeStyle(lineWidth: 1, dash: [3, 2])
+                                    )
+                                )
+                                .contentShape(Capsule())
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .buttonStyle(.plain)
                             .accessibilityIdentifier("settings.menuBar.custom.add.\(element.rawValue)")
                         }
                     }

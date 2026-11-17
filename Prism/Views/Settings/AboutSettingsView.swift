@@ -41,7 +41,6 @@ struct AboutSettingsView: View {
                 Label {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(String(localized: "Local-First Architecture"))
-                            .font(.callout.weight(.semibold))
                         Text(String(localized: "No accounts, no telemetry, no tracking, and no cloud syncing."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -72,15 +71,12 @@ struct AboutSettingsView: View {
 
             Section(String(localized: "Offline country database")) {
                 LabeledContent(String(localized: "Database date"), value: OfflineCountryLookup.datasetDate)
-                HStack(spacing: 14) {
-                    Text(OfflineCountryLookup.attribution)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Link("DB-IP", destination: OfflineCountryLookup.sourceURL)
-                    Link("CC BY 4.0", destination: OfflineCountryLookup.licenseURL)
+                LabeledContent(OfflineCountryLookup.attribution) {
+                    HStack(spacing: 14) {
+                        Link("DB-IP", destination: OfflineCountryLookup.sourceURL)
+                        Link("CC BY 4.0", destination: OfflineCountryLookup.licenseURL)
+                    }
                 }
-                .font(.caption)
             }
         }
         .formStyle(.grouped)
@@ -89,7 +85,7 @@ struct AboutSettingsView: View {
 
     private func providerRow(_ name: String, description: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(name).font(.system(.callout, design: .monospaced).weight(.medium))
+            Text(name)
             Text(description).font(.caption).foregroundStyle(.secondary)
         }
         .padding(.vertical, 1)

@@ -54,25 +54,19 @@ struct DiagnosticsView: View {
                             .accessibilityHidden(true)
 
                         Text(provider.identifier)
-                            .font(.body.monospaced())
 
                         Spacer()
 
                         if provider.isCircuitOpen {
                             Text(String(localized: "Circuit Open"))
-                                .font(.caption2.weight(.medium))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(StatusPalette.confirming.opacity(0.15), in: Capsule())
-                                .foregroundStyle(StatusPalette.confirming)
+                                .tagCapsule(StatusPalette.confirming)
                         } else if let latency = provider.lastLatencyMilliseconds {
                             Text(verbatim: "\(LatencyFormat.seconds(Double(latency))) s")
-                                .font(.caption.monospacedDigit())
+                                .monospacedDigit()
                                 .foregroundStyle(.secondary)
                         } else {
                             Text(String(localized: "Standby"))
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityElement(children: .combine)
@@ -83,11 +77,12 @@ struct DiagnosticsView: View {
                 Text(String(localized: "Local country first, online details in background"))
             }
 
-            Section(String(localized: "Offline country database")) {
+            Section {
                 LabeledContent(String(localized: "Database date"), value: OfflineCountryLookup.datasetDate)
+            } header: {
+                Text(String(localized: "Offline country database"))
+            } footer: {
                 Text(String(localized: "Country information is available locally; city and network details update in the background."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Section(String(localized: "How detection works")) {

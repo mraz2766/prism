@@ -27,7 +27,6 @@ struct AppearanceSettingsView: View {
                     }
                     Spacer()
                     Text(settings.accentColorChoice.label)
-                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("settings.accent.selection")
                 }

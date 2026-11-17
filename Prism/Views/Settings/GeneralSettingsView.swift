@@ -40,13 +40,9 @@ struct GeneralSettingsView: View {
             }
 
             Section {
+                // 与其它行一样左侧是行名、右侧是控件；滑杆固定宽度，两端图标紧贴滑杆。
+                LabeledContent(String(localized: "Detection sensitivity")) {
                 HStack(spacing: 8) {
-                    Text(String(localized: "Detection sensitivity"))
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-
-                    Spacer(minLength: 16)
-
                     Image(systemName: "leaf")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -63,7 +59,7 @@ struct GeneralSettingsView: View {
                         in: Double(DetectionSensitivity.energySaver.rawValue)...Double(DetectionSensitivity.maximum.rawValue),
                         step: 1
                     )
-                    .frame(minWidth: 180, idealWidth: 240, maxWidth: 280)
+                    .frame(width: 200)
                     .accessibilityLabel(String(localized: "Detection sensitivity"))
                     .accessibilityValue(settings.detectionSensitivity.label)
 
@@ -77,6 +73,7 @@ struct GeneralSettingsView: View {
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                         .frame(minWidth: 56, alignment: .trailing)
+                }
                 }
 
                 Toggle(String(localized: "Periodic metadata verification"), isOn: Binding(
@@ -152,8 +149,7 @@ struct GeneralSettingsView: View {
                 Spacer()
                 if environment.isOutsideExpectedRegion {
                     Label(String(localized: "Outside expected region"), systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(StatusPalette.offline)
+                        .tagCapsule(StatusPalette.offline)
                 }
             }
         }
