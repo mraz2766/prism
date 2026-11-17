@@ -132,7 +132,7 @@ private final class HeaderOnlyRequest: NSObject, URLSessionDataDelegate, @unchec
 struct PreviewNetworkTestProbe: NetworkTestProbing {
     func measure(_ target: NetworkTestTarget, round: Int) async throws -> NetworkTestSample {
         try await Task.sleep(for: .milliseconds(750))
-        let base = target.id == "bing" ? 42.0 : 185.0
+        let base = target.id == "baidu" ? 42.0 : 185.0
         return .init(round: round, milliseconds: base + Double([12, 38, 0][round - 1]), statusCode: target.expectedStatus ?? 200, failure: nil)
     }
 }

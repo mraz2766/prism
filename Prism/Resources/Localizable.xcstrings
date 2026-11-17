@@ -1,6 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Baidu" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"百度"}}}},
     "Test endpoint not found" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"测试路径不存在"}}}},
     "WebRTC compares this app's observed exits only. Matching exits do not guarantee privacy in other browsers; missing public candidates or a comparable exit means the result is unknown." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"WebRTC 仅比较本应用本次观察到的出口，出口一致不代表其他浏览器的隐私安全。缺少公网候选或可比较出口时，显示暂无法判断。"}}}},
     "Test again" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"请重新检测"}}}},

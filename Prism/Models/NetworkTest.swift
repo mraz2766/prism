@@ -8,7 +8,7 @@ struct NetworkTestTarget: Identifiable, Equatable, Sendable {
     let expectedStatus: Int?
 
     static let defaults: [Self] = [
-        .init(id: "bing", name: "Bing China", url: URL(string: "https://cn.bing.com/favicon.ico")!, expectedStatus: nil),
+        .init(id: "baidu", name: "Baidu", url: URL(string: "https://www.baidu.com/favicon.ico")!, expectedStatus: 200),
         .init(id: "google", name: "Google", url: URL(string: "https://www.google.com/generate_204")!, expectedStatus: 204),
         .init(id: "gemini", name: "Gemini", url: URL(string: "https://gemini.google.com/robots.txt")!, expectedStatus: nil),
         .init(id: "openai", name: "OpenAI", url: URL(string: "https://chatgpt.com/robots.txt")!, expectedStatus: nil)

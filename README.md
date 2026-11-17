@@ -49,7 +49,7 @@ Prism 不提供节点切换、带宽测速、抓包、防火墙或自动更新�
 
 ### 网络测试与 WebRTC
 
-详情窗口的“网络测试”（或 `⌘T`、菜单栏弹窗的仪表图标）提供手动延迟与稳定性检测。国内参考为必应中国 `cn.bing.com`，海外目标为 Google、Gemini 和 OpenAI；Gemini 与 ChatGPT 使用同域名的 `/robots.txt` 小型端点，避免已失效的图标路径。每站点执行 3 次新会话请求，最多同时请求 2 个站点；计时到收到响应头即停止读取，显示成功样本的中位延迟、最低、最高和波动范围，以及真实采样曲线。网络栈仍可能接收少量已在途正文，不会下载完整文件或执行 Mbps 带宽测速。
+详情窗口的“网络测试”（或 `⌘T`、菜单栏弹窗的仪表图标）提供手动延迟与稳定性检测。国内参考为百度 `www.baidu.com/favicon.ico`，海外目标为 Google、Gemini 和 OpenAI；Gemini 与 ChatGPT 使用同域名的 `/robots.txt` 小型端点，避免已失效的图标路径。每站点执行 3 次新会话请求，最多同时请求 2 个站点；计时到收到响应头即停止读取，显示成功样本的中位延迟、最低、最高和波动范围，以及真实采样曲线。网络栈仍可能接收少量已在途正文，不会下载完整文件或执行 Mbps 带宽测速。
 
 耗时包含连接建立、TLS 和网站响应，系统 DNS 缓存仍可能复用；不是 ICMP ping，也不能单独代表代理服务器延迟。HTTP 403 / 429 显示网站限制访问，404 显示测试路径不存在，均不计入成功延迟；这些网站响应不等于代理连接失败。测试跟随系统网络规则，国内目标也可能走全局代理；网络、代理或已确认出口变化后结果会标记过期。测试可取消，结果仅保留在内存，不写入出口历史。
 
@@ -117,7 +117,7 @@ Prism 会按需访问以下服务：
 | `myip.ipip.net/json` | 独立观察国内出口 IPv4；海外探针均不可达时提供主出口回退 |
 | `ipwho.is`、`ip.guide`、`api.ip.sb/geoip/{ip}`、`ipip.net` | 查询近似位置和网络信息 |
 | `ipapi.is` | 对新出口进行尽力而为的隐私分类 |
-| `cn.bing.com`、`www.google.com`、`gemini.google.com`、`chatgpt.com` | 手动网络测试的小型响应延迟请求 |
+| `www.baidu.com`、`www.google.com`、`gemini.google.com`、`chatgpt.com` | 手动网络测试的小型响应延迟请求 |
 | `stun.cloudflare.com:3478`、`stun.l.google.com:19302` | 手动 WebRTC ICE 候选收集 |
 
 出口历史、最后一次观察、最多 256 个 IP 的成功归属地和隐私分类仅保存在当前 Mac；国内出口 IPv4 仅保存在运行内存。历史缓存、离线国家和在线资料会分别标明来源，离线国家不会虚构城市或在线更新时间。IP 地理位置是公网出口或运营商网关的近似位置，不代表 Mac 的 GPS 位置；代理或 VPN 分类也不应视为确定结论。
@@ -233,6 +233,8 @@ Prism 是菜单栏应用。请在屏幕顶部菜单栏查找国家或地区标�
 `SMAppService` 需要已安装并签名的应用。请通过 `scripts/release.sh` 安装 Release 构建后再验证。
 
 ## 第三方资源
+
+网络测试中的百度、Google、Gemini 和 OpenAI 图标取自各自官方网站，随应用打包用于标识测试目标，不会在测试时下载。来源与处理记录见 [网络测试图标来源](docs/assets/network-test-icons.md)；商标及图标权利归各自权利人所有。
 
 离线国家库由 [DB-IP Country Lite](https://db-ip.com/db/download/ip-to-country-lite) 转换为紧凑国家边界索引，采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可证（IP Geolocation by DB-IP）。转换合并了相邻同国家区间，将非 ISO 国家代码保留为未知；来源与许可说明位于 `Prism/Resources/GeoIP/DB-IP-LICENSE.txt`。
 

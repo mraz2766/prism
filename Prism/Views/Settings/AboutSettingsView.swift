@@ -62,7 +62,7 @@ struct AboutSettingsView: View {
                 providerRow("myip.ipip.net", description: String(localized: "Observes the IPv4 address seen by a mainland endpoint."))
                 providerRow("ipwho.is · ip.guide · ip.sb · ipip.net", description: String(localized: "Looks up country, city, ISP, organization, ASN, and timezone when the public address changes."))
                 providerRow("ipapi.is", description: String(localized: "Performs a best-effort proxy or VPN classification only for a newly seen public address."))
-                providerRow("cn.bing.com · Google · Gemini · ChatGPT", description: String(localized: "Small response-time requests only when you start a network test. No bandwidth test."))
+                providerRow("www.baidu.com · Google · Gemini · ChatGPT", description: String(localized: "Small response-time requests only when you start a network test. No bandwidth test."))
                 providerRow("Cloudflare STUN · Google STUN", description: String(localized: "WebRTC ICE discovery during a manual network test. Candidates stay in memory; no camera or microphone access."))
             } header: {
                 Text(String(localized: "External Services Used"))

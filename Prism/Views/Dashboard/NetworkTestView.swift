@@ -77,6 +77,7 @@ struct NetworkTestView: View {
         HStack(spacing: 24) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
+                    siteIcon(model.selectedResult.target)
                     Text(displayName(model.selectedResult.target)).font(.headline)
                     Text(String(localized: "Median")).font(.caption).foregroundStyle(.secondary)
                 }
@@ -186,9 +187,16 @@ struct NetworkTestView: View {
                     HStack(spacing: 12) {
                         Button { model.selectedTargetID = result.id } label: {
                             HStack(spacing: 10) {
-                                Image(systemName: model.activeTargets.contains(result.id) ? "antenna.radiowaves.left.and.right" : "globe")
-                                    .foregroundStyle(model.selectedTargetID == result.id ? accent : .secondary)
-                                    .symbolEffect(.pulse, isActive: model.activeTargets.contains(result.id) && !reduceMotion)
+                                siteIcon(result.target)
+                                    .overlay(alignment: .bottomTrailing) {
+                                        if model.activeTargets.contains(result.id) {
+                                            Image(systemName: "circle.fill")
+                                                .font(.system(size: 6))
+                                                .foregroundStyle(accent)
+                                                .symbolEffect(.pulse, isActive: !reduceMotion)
+                                                .accessibilityHidden(true)
+                                        }
+                                    }
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(displayName(result.target)).font(.callout.weight(.medium))
                                     Text(result.target.url.host ?? "").font(.caption2).foregroundStyle(.secondary)
@@ -322,5 +330,16 @@ struct NetworkTestView: View {
     }
 
     private func milliseconds(_ value: Double?) -> String { value.map { String(format: "%.0f", $0) } ?? "—" }
-    private func displayName(_ target: NetworkTestTarget) -> String { target.id == "bing" ? String(localized: "Bing China") : target.name }
+    private func displayName(_ target: NetworkTestTarget) -> String { target.id == "baidu" ? String(localized: "Baidu") : target.name }
+
+    private func siteIcon(_ target: NetworkTestTarget) -> some View {
+        Image("NetworkTest-\(target.id)")
+            .resizable()
+            .renderingMode(.original)
+            .scaledToFit()
+            .frame(width: 22, height: 22)
+            .padding(3)
+            .background(.white, in: RoundedRectangle(cornerRadius: 6))
+            .accessibilityHidden(true)
+    }
 }

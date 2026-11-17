@@ -11,7 +11,7 @@ final class NetworkTestLiveTests: XCTestCase {
         let rtc = WebRTCProbe()
         async let report = rtc.collect()
         let result = try await NetworkTestService().measure(NetworkTestTarget.defaults[0], round: 1)
-        XCTAssertNotNil(result.milliseconds, "Bing should return headers: \(result.failure ?? "")")
+        XCTAssertNotNil(result.milliseconds, "The domestic reference should return headers: \(result.failure ?? "")")
         XCTAssertEqual(result.statusCode, 200)
         let ice = await report
         print("Prism live ICE: outcome=\(ice.outcome), candidate count=\(ice.candidates.count)")
