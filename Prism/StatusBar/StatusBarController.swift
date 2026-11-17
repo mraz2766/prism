@@ -473,6 +473,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         menu.addItem(.separator())
         menu.addItem(item(title: String(localized: "Refresh"), action: #selector(refresh), key: "r"))
         menu.addItem(item(title: String(localized: "Open Details"), action: #selector(openDetails), key: "o"))
+        menu.addItem(item(title: String(localized: "Network Test"), action: #selector(openNetworkTest), key: "t"))
         menu.addItem(item(title: String(localized: "Exit History"), action: #selector(openHistory), key: "y"))
         menu.addItem(.separator())
         menu.addItem(item(title: String(localized: "Settings…"), action: #selector(openSettings), key: ","))
@@ -498,6 +499,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     @objc private func refresh() { environment.refreshCoordinator.triggerManual() }
     @objc private func openDetails() { environment.showDashboard() }
     @objc private func openHistory() { environment.showDashboard(.history) }
+    @objc private func openNetworkTest() { environment.showDashboard(.networkTest) }
     @objc private func copyAddress() {
         guard let address = environment.networkViewModel.status.info?.addresses.preferredForLookup else { return }
         NSPasteboard.general.clearContents()

@@ -3,6 +3,30 @@ import XCTest
 
 @MainActor
 final class PrismUITests: XCTestCase {
+    func testNetworkTestProgressResultsAndCancellation() {
+        let app = launchApp()
+        XCTAssertTrue(app.windows["Prism"].waitForExistence(timeout: 8))
+        app.activate()
+        app.typeKey("t", modifierFlags: .command)
+        let button = app.buttons["network-test.start"]
+        XCTAssertTrue(button.waitForExistence(timeout: 4))
+        attach(app.windows["Prism"], named: "Network test ready")
+        button.click()
+        let running = app.descendants(matching: .any)["network-test.phase.running"]
+        let completed = app.descendants(matching: .any)["network-test.phase.completed"]
+        XCTAssertTrue(running.waitForExistence(timeout: 3) || completed.exists)
+        attach(app.windows["Prism"], named: "Network test sampling")
+        XCTAssertTrue(completed.waitForExistence(timeout: 15))
+        XCTAssertTrue(completed.label.contains("12/12"))
+        app.buttons["network-test.details.google"].click()
+        attach(app.windows["Prism"], named: "Network test completed with sample details")
+        app.buttons["network-test.details.google"].click()
+        XCTAssertTrue(app.staticTexts["preview.local"].exists)
+        button.click()
+        button.click()
+        XCTAssertTrue(app.descendants(matching: .any)["network-test.phase.cancelled"].waitForExistence(timeout: 3))
+    }
+
     func testDashboardLaunchesInUITestMode() {
         let app = launchApp()
 

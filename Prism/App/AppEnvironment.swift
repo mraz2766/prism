@@ -7,6 +7,7 @@ import Observation
 final class DashboardNavigationModel {
     enum Destination: String, CaseIterable, Identifiable {
         case overview
+        case networkTest
         case history
         case diagnostics
         var id: String { rawValue }
@@ -29,6 +30,7 @@ final class AppEnvironment {
     let providerHealth: ProviderHealthRegistry
     let cityLocalizer: CityLocalizer
     let latencyModel = ProbeLatencyModel()
+    let networkTestViewModel: NetworkTestViewModel
     let dashboardNavigation = DashboardNavigationModel()
     /// 所选全局快捷键已被系统或其他应用占用。
     private(set) var hotKeyUnavailable = false
@@ -58,6 +60,10 @@ final class AppEnvironment {
             : nil
         let defaults: UserDefaults = isUITesting ? Self.makeUITestDefaults() : .standard
         settings = SettingsStore(defaults: defaults)
+        networkTestViewModel = NetworkTestViewModel(
+            probe: isUITesting ? PreviewNetworkTestProbe() : NetworkTestService(),
+            rtc: isUITesting ? PreviewWebRTCProbe() : WebRTCProbe()
+        )
         cityLocalizer = isUITesting
             ? CityLocalizer(defaults: defaults, lookup: nil)
             : CityLocalizer(defaults: defaults)
@@ -129,6 +135,9 @@ final class AppEnvironment {
             domesticIPv4ViewModel: domesticIPv4ViewModel,
             proxyConfigurationMonitor: proxyConfigurationMonitor
         )
+        refreshCoordinator.onNetworkEnvironmentChanged = { [weak networkTestViewModel] in
+            networkTestViewModel?.invalidate()
+        }
     }
 
     private static func makeUITestDefaults() -> UserDefaults {
@@ -151,6 +160,7 @@ final class AppEnvironment {
     }
 
     func stop() {
+        networkTestViewModel.stop()
         notificationTask?.cancel()
         globalHotKey.unregister()
         refreshCoordinator.stop()
@@ -189,6 +199,7 @@ final class AppEnvironment {
                 cityLocalizer.resolveIfNeeded(for: status)
                 if status.isOffline { latencyModel.reset() }
                 guard case .online(let current) = status else { continue }
+                networkTestViewModel.observedExitChanged(current.addresses)
                 let old = previous
                 previous = current
                 if let old, old.id != current.id {

@@ -160,6 +160,14 @@ struct MenuBarPopoverView: View {
             Spacer(minLength: 8)
 
             PopoverActionButton(
+                systemName: "speedometer",
+                help: String(localized: "Network Test"),
+                shortcutKey: "t"
+            ) {
+                closeThen { environment.showDashboard(.networkTest) }
+            }
+
+            PopoverActionButton(
                 systemName: "arrow.clockwise",
                 help: String(localized: "Refresh"),
                 shortcutKey: "r",

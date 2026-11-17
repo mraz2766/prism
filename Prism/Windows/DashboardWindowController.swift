@@ -14,6 +14,12 @@ final class DashboardWindowController: NSWindowController, NSWindowDelegate {
         )
         window.title = "Prism"
         window.minSize = NSSize(width: 640, height: 460)
+        window.toolbarStyle = .unified
+        window.titlebarAppearsTransparent = true
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: rootView)
+        // NSHostingController applies its initial fitting size; restore a useful workspace afterwards.
+        window.setContentSize(NSSize(width: 760, height: 660))
         window.center()
         // Keep screenshot-based UI tests on the primary display even when another screen is active.
         if ProcessInfo.processInfo.arguments.contains("--ui-testing"), let screen = NSScreen.screens.first {
@@ -23,10 +29,6 @@ final class DashboardWindowController: NSWindowController, NSWindowDelegate {
                 y: visible.midY - window.frame.height / 2
             ))
         }
-        window.toolbarStyle = .unified
-        window.titlebarAppearsTransparent = true
-        window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: rootView)
         super.init(window: window)
         window.delegate = self
     }

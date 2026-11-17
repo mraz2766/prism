@@ -9,6 +9,10 @@ struct AppCommands: Commands {
                 environment.showDashboard()
             }
             .keyboardShortcut("o", modifiers: [.command])
+            Button(String(localized: "Network Test")) {
+                environment.showDashboard(.networkTest)
+            }
+            .keyboardShortcut("t", modifiers: [.command])
         }
         CommandGroup(replacing: .saveItem) {
             Button(String(localized: "Refresh")) {

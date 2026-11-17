@@ -3,6 +3,7 @@ import Foundation
 
 @MainActor
 final class RefreshCoordinator {
+    var onNetworkEnvironmentChanged: (() -> Void)?
     private let lookupService: NetworkLookupService
     private let monitor: NetworkMonitor
     private let settings: SettingsStore
@@ -105,6 +106,7 @@ final class RefreshCoordinator {
             for await event in monitor.events() {
                 switch event {
                 case .offline:
+                    onNetworkEnvironmentChanged?()
                     environmentChangeTask?.cancel()
                     environmentChangeTask = nil
                     await realtimeExitMonitor.networkBecameUnavailable()
@@ -129,6 +131,7 @@ final class RefreshCoordinator {
     }
 
     private func scheduleEnvironmentChange() {
+        onNetworkEnvironmentChanged?()
         environmentChangeTask?.cancel()
         let delay = environmentChangeDebounce
         environmentChangeTask = Task { [weak self] in
@@ -222,6 +225,7 @@ final class RefreshCoordinator {
         }
 
         if !wasPaused, isSleeping {
+            onNetworkEnvironmentChanged?()
             resumeTask?.cancel()
             resumeTask = nil
             environmentChangeTask?.cancel()
