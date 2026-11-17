@@ -59,6 +59,14 @@ final class NetworkTestHTTPTests: XCTestCase {
         XCTAssertFalse(result.succeeded)
     }
 
+    func testMissingEndpointIsNotReportedAsAProxyConnectionFailure() async throws {
+        let result = try await service().measure(target(status: 404), round: 1)
+        XCTAssertFalse(result.succeeded)
+        XCTAssertEqual(result.statusCode, 404)
+        XCTAssertNotNil(result.milliseconds)
+        XCTAssertEqual(result.failure, String(localized: "Test endpoint not found"))
+    }
+
     private func service() -> NetworkTestService {
         NetworkTestService {
             let configuration = URLSessionConfiguration.ephemeral

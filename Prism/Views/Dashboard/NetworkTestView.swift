@@ -26,6 +26,8 @@ struct NetworkTestView: View {
                 DisclosureGroup(String(localized: "Measurement details"), isExpanded: $showsMethod) {
                     Text(String(localized: "Three fresh-session requests per site, at most two at once. Time includes connection setup and response headers; DNS caches may be reused. Bodies are not intentionally downloaded. Range is highest minus lowest successful latency, not packet loss or RTP jitter. Requests follow system routing; a domestic target may still use a VPN."))
                         .font(.caption).foregroundStyle(.secondary).padding(.top, 6)
+                    Text(String(localized: "WebRTC compares this app's observed exits only. Matching exits do not guarantee privacy in other browsers; missing public candidates or a comparable exit means the result is unknown."))
+                        .font(.caption).foregroundStyle(.secondary).padding(.top, 6)
                 }
                 .font(.callout)
             }
@@ -258,62 +260,56 @@ struct NetworkTestView: View {
     }
 
     private var webRTCSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("WebRTC", systemImage: "point.3.connected.trianglepath.dotted").font(.headline)
-                Spacer()
-                if model.webRTCRunning { ProgressView().controlSize(.small) }
-                Text(webRTCLabel).font(.callout).foregroundStyle(webRTCColor)
-                    .accessibilityIdentifier("network-test.webrtc-status")
-            }
-            if !model.httpAddresses.isEmpty {
-                Text("HTTP · \([model.httpAddresses.ipv4, model.httpAddresses.ipv6].compactMap { $0 }.joined(separator: " · "))")
-                    .font(.caption.monospaced()).textSelection(.enabled)
-            }
-            if let report = model.webRTC {
-                ForEach(report.candidates) { candidate in
-                    HStack(spacing: 12) {
-                        Text(candidate.kind.uppercased()).font(.caption2.weight(.semibold)).frame(width: 44, alignment: .leading)
-                        Text(candidate.address).font(.caption.monospaced()).textSelection(.enabled)
-                        Spacer(minLength: 0)
-                        Text(candidate.transport.uppercased()).font(.caption2).foregroundStyle(.secondary)
-                    }
-                }
-                if report.candidates.isEmpty {
-                    Text(String(localized: "No ICE candidates collected")).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Text(String(localized: "Checks this app's WebKit only, not other browsers. Different public addresses may indicate a different route; matching addresses do not guarantee privacy. Local or mDNS candidates, blocked STUN, and missing IP families are inconclusive. No camera or microphone is used."))
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        HStack {
+            Text("WebRTC").font(.headline)
+            Spacer()
+            if model.webRTCRunning { ProgressView().controlSize(.small) }
+            Label(webRTCLabel, systemImage: webRTCSymbol)
+                .font(.callout.weight(.medium)).foregroundStyle(webRTCColor)
+                .accessibilityIdentifier("network-test.webrtc-status")
         }
     }
 
     private var webRTCLabel: String {
-        if model.phase == .invalidated { return String(localized: "Outdated result") }
-        if model.webRTCRunning { return String(localized: "Gathering ICE candidates…") }
+        if model.phase == .invalidated { return String(localized: "Test again") }
+        if model.webRTCRunning { return String(localized: "Checking…") }
         guard let report = model.webRTC else { return String(localized: "Not tested") }
         switch report.outcome {
-        case .cancelled: return String(localized: "Test stopped")
-        case .unavailable: return String(localized: "WebRTC unavailable")
-        case .timedOut: return String(localized: "Collection timed out · inconclusive")
+        case .cancelled: return String(localized: "Stopped")
+        case .unavailable: return String(localized: "Check unavailable")
+        case .timedOut: return String(localized: "Check timed out")
         case .complete:
             switch report.assessment(httpAddresses: model.httpAddresses) {
-            case .differentPath: return String(localized: "Different public route observed")
-            case .matchesObservedExit: return String(localized: "Matches observed HTTP exit")
-            case .inconclusive: return String(localized: "Insufficient evidence")
+            case .differentPath: return String(localized: "Exits differ")
+            case .matchesObservedExit: return String(localized: "Exits match")
+            case .inconclusive: return String(localized: "Unable to determine")
             }
         }
     }
 
     private var webRTCColor: Color {
         guard let report = model.webRTC, model.phase != .invalidated else { return .secondary }
-        return report.assessment(httpAddresses: model.httpAddresses) == .differentPath ? StatusPalette.confirming : .secondary
+        switch report.assessment(httpAddresses: model.httpAddresses) {
+        case .differentPath: return StatusPalette.confirming
+        case .matchesObservedExit: return StatusPalette.online
+        case .inconclusive: return .secondary
+        }
+    }
+
+    private var webRTCSymbol: String {
+        if model.phase == .invalidated { return "arrow.clockwise" }
+        guard let report = model.webRTC else { return "minus.circle" }
+        switch report.assessment(httpAddresses: model.httpAddresses) {
+        case .matchesObservedExit: return "checkmark.circle.fill"
+        case .differentPath: return "exclamationmark.circle.fill"
+        case .inconclusive: return "questionmark.circle"
+        }
     }
 
     private var phaseLabel: String {
         switch model.phase {
         case .idle: String(localized: "Ready")
-        case .running: model.progress == 1 ? String(localized: "Waiting for ICE") : String(localized: "Testing…")
+        case .running: model.progress == 1 ? String(localized: "Checking WebRTC") : String(localized: "Testing…")
         case .completed: String(localized: "Completed")
         case .cancelled: String(localized: "Stopped")
         case .invalidated: String(localized: "Outdated result")

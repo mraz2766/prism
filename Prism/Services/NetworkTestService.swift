@@ -31,8 +31,13 @@ struct NetworkTestService: NetworkTestProbing {
             try Task.checkCancellation()
             let code = response.statusCode
             let accepted = target.expectedStatus.map { code == $0 } ?? (200..<300).contains(code)
-            let failure: String? = accepted ? nil : ((code == 403 || code == 429)
-                ? String(localized: "Access restricted") : String(localized: "Unexpected HTTP status"))
+            let failure: String?
+            switch code {
+            case _ where accepted: failure = nil
+            case 404: failure = String(localized: "Test endpoint not found")
+            case 403, 429: failure = String(localized: "Access restricted")
+            default: failure = String(localized: "Unexpected HTTP status")
+            }
             return NetworkTestSample(round: round, milliseconds: response.milliseconds, statusCode: code, failure: failure)
         } catch {
             if Task.isCancelled || (error as? URLError)?.code == .cancelled { throw CancellationError() }
