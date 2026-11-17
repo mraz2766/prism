@@ -135,8 +135,8 @@ final class AppEnvironment {
             domesticIPv4ViewModel: domesticIPv4ViewModel,
             proxyConfigurationMonitor: proxyConfigurationMonitor
         )
-        refreshCoordinator.onNetworkEnvironmentChanged = { [weak networkTestViewModel] in
-            networkTestViewModel?.invalidate()
+        refreshCoordinator.onNetworkEnvironmentChanged = { [weak networkTestViewModel] reason in
+            networkTestViewModel?.invalidate(reason: reason)
         }
     }
 

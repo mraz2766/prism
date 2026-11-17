@@ -182,6 +182,55 @@ final class NetworkTestViewModelTests: XCTestCase {
         XCTAssertEqual(model.completedSamples, 0)
     }
 
+    func testMissingAndRecoveredFamiliesDoNotExpireCompletedResults() async {
+        let model = NetworkTestViewModel(probe: RecordingLatencyProbe(), rtc: ImmediateRTCProbe())
+        let reference = IPAddressSet(ipv4: "8.8.8.8", ipv6: "2606:4700:4700::1111")
+        await model.start(httpAddresses: reference).value
+        for addresses in [
+            IPAddressSet(ipv4: reference.ipv4, ipv6: nil),
+            IPAddressSet(ipv4: nil, ipv6: reference.ipv6),
+            IPAddressSet(ipv4: nil, ipv6: nil),
+            reference
+        ] {
+            model.observedExitChanged(addresses)
+            XCTAssertEqual(model.phase, .completed)
+            XCTAssertEqual(model.completedSamples, 12)
+            XCTAssertEqual(model.httpAddresses, reference)
+        }
+        // A new IPv6 after the missing sample must still invalidate the old test.
+        model.observedExitChanged(.init(ipv4: reference.ipv4, ipv6: nil))
+        model.observedExitChanged(.init(ipv4: reference.ipv4, ipv6: "2606:4700:4700::1001"))
+        XCTAssertEqual(model.phase, .invalidated)
+    }
+
+    func testIncompleteObservationDoesNotCancelRunningTest() async {
+        let model = NetworkTestViewModel(probe: RecordingLatencyProbe(), rtc: ImmediateRTCProbe())
+        let task = model.start(httpAddresses: .init(ipv4: "8.8.8.8", ipv6: "2606:4700:4700::1111"))
+        model.observedExitChanged(.init(ipv4: "8.8.8.8", ipv6: nil))
+        XCTAssertEqual(model.phase, .running)
+        await task.value
+        XCTAssertEqual(model.phase, .completed)
+        XCTAssertEqual(model.completedSamples, 12)
+    }
+
+    func testEquivalentIPv6SpellingDoesNotExpireResults() async {
+        let model = NetworkTestViewModel(probe: RecordingLatencyProbe(), rtc: ImmediateRTCProbe())
+        await model.start(httpAddresses: .init(ipv4: nil, ipv6: "2606:4700:4700::1111")).value
+        model.observedExitChanged(.init(ipv4: nil, ipv6: "2606:4700:4700:0:0:0:0:1111"))
+        XCTAssertEqual(model.phase, .completed)
+    }
+
+    func testNewFamilyBecomesComparableWithoutChangingWebRTCReference() async {
+        let model = NetworkTestViewModel(probe: RecordingLatencyProbe(), rtc: ImmediateRTCProbe())
+        let reference = IPAddressSet(ipv4: "8.8.8.8", ipv6: nil)
+        await model.start(httpAddresses: reference).value
+        model.observedExitChanged(.init(ipv4: reference.ipv4, ipv6: "2606:4700:4700::1111"))
+        XCTAssertEqual(model.phase, .completed)
+        XCTAssertEqual(model.httpAddresses, reference)
+        model.observedExitChanged(.init(ipv4: reference.ipv4, ipv6: "2606:4700:4700::1001"))
+        XCTAssertEqual(model.phase, .invalidated)
+    }
+
     func testCancelledWebKitCollectionFinishesPromptly() async {
         let probe = WebRTCProbe()
         let task = Task { await probe.collect() }

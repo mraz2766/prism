@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class RefreshCoordinator {
-    var onNetworkEnvironmentChanged: (() -> Void)?
+    var onNetworkEnvironmentChanged: ((String) -> Void)?
     private let lookupService: NetworkLookupService
     private let monitor: NetworkMonitor
     private let settings: SettingsStore
@@ -106,7 +106,7 @@ final class RefreshCoordinator {
             for await event in monitor.events() {
                 switch event {
                 case .offline:
-                    onNetworkEnvironmentChanged?()
+                    onNetworkEnvironmentChanged?("offline")
                     environmentChangeTask?.cancel()
                     environmentChangeTask = nil
                     await realtimeExitMonitor.networkBecameUnavailable()
@@ -114,7 +114,7 @@ final class RefreshCoordinator {
                     domesticIPv4ViewModel.markOffline()
                 case .onlineChanged:
                     guard !isSleeping else { continue }
-                    scheduleEnvironmentChange()
+                    scheduleEnvironmentChange(reason: "network path")
                 }
             }
         }
@@ -125,13 +125,13 @@ final class RefreshCoordinator {
             guard let self else { return }
             for await _ in proxyConfigurationMonitor.events() {
                 guard !isSleeping else { continue }
-                scheduleEnvironmentChange()
+                scheduleEnvironmentChange(reason: "system configuration")
             }
         }
     }
 
-    private func scheduleEnvironmentChange() {
-        onNetworkEnvironmentChanged?()
+    private func scheduleEnvironmentChange(reason: String) {
+        onNetworkEnvironmentChanged?(reason)
         environmentChangeTask?.cancel()
         let delay = environmentChangeDebounce
         environmentChangeTask = Task { [weak self] in
@@ -225,7 +225,7 @@ final class RefreshCoordinator {
         }
 
         if !wasPaused, isSleeping {
-            onNetworkEnvironmentChanged?()
+            onNetworkEnvironmentChanged?("paused: \(reason)")
             resumeTask?.cancel()
             resumeTask = nil
             environmentChangeTask?.cancel()

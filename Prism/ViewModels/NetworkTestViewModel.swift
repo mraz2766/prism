@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 
 @MainActor
 @Observable
@@ -19,6 +20,7 @@ final class NetworkTestViewModel {
     @ObservationIgnored private let rtc: any WebRTCProbing
     @ObservationIgnored private var operation: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
+    @ObservationIgnored private var observedAddresses = IPAddressSet(ipv4: nil, ipv6: nil)
 
     static let sampleCount = 3
     var isRunning: Bool { phase == .running }
@@ -38,6 +40,7 @@ final class NetworkTestViewModel {
         let id = UUID()
         generation = id
         self.httpAddresses = httpAddresses
+        observedAddresses = httpAddresses
         results = NetworkTestTarget.defaults.map { .init(target: $0) }
         webRTC = nil
         webRTCRunning = true
@@ -105,14 +108,31 @@ final class NetworkTestViewModel {
         }
     }
 
-    func invalidate() {
-        guard phase != .idle else { return }
+    func invalidate(reason: String = "network environment") {
+        guard phase != .idle, phase != .invalidated else { return }
+        Logger(subsystem: "com.mraz.prism", category: "network-test").notice("Invalidated test: \(reason, privacy: .public)")
         stop()
         phase = .invalidated
     }
 
     func observedExitChanged(_ addresses: IPAddressSet) {
-        guard !httpAddresses.isEmpty, addresses != httpAddresses else { return }
-        invalidate()
+        guard phase == .running || phase == .completed || phase == .cancelled else { return }
+        // A missing family is an incomplete observation, not evidence of a changed exit.
+        // Keep the last known address per family so a later real change is still detected.
+        let changed = [(observedAddresses.ipv4, addresses.ipv4), (observedAddresses.ipv6, addresses.ipv6)]
+            .contains { previous, current in
+                guard let previous = previous.flatMap(IPAddressKey.normalized),
+                      let current = current.flatMap(IPAddressKey.normalized) else { return false }
+                return previous != current
+            }
+        if changed {
+            invalidate(reason: "confirmed address changed within the same IP family")
+            return
+        }
+        observedAddresses = .init(
+            ipv4: addresses.ipv4 ?? observedAddresses.ipv4,
+            ipv6: addresses.ipv6 ?? observedAddresses.ipv6
+        )
+        // httpAddresses remains the test-start snapshot used for WebRTC assessment.
     }
 }
