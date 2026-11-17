@@ -5,6 +5,9 @@ struct SettingsRootView: View {
     @Environment(SettingsStore.self) private var settings
     @State private var selection: SettingsSection = .general
 
+    /// 设置窗口的固定尺寸，与 macOS 系统设置类应用的常见比例一致。
+    static let windowSize = CGSize(width: 620, height: 600)
+
     var body: some View {
         VStack(spacing: 0) {
             SettingsNavigationBar(selection: $selection)
@@ -21,13 +24,12 @@ struct SettingsRootView: View {
                 case .about: AboutSettingsView()
                 }
             }
-            // 高度由每页内容决定，文字变长或展开折叠区时不会被裁切。
-            .fixedSize(horizontal: false, vertical: true)
+            // 所有标签页共用同一窗口尺寸，切换时窗口不再伸缩；内容较多的页面在页内滚动。
             .id(selection)
             .transition(.opacity)
-            .frame(maxWidth: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 620)
+        .frame(width: Self.windowSize.width, height: Self.windowSize.height)
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(settings.accentColorChoice.color)
         .navigationTitle(selection.title)
@@ -69,7 +71,7 @@ private struct SettingsNavigationBar: View {
     @FocusState private var focusedSection: SettingsSection?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// 切换页面时窗口高度随内容平滑过渡，内容交叉淡入。
+    /// 切换页面时内容交叉淡入，窗口尺寸保持不变。
     private func select(_ section: SettingsSection) {
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.26)) {
             selection = section
