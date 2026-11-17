@@ -109,3 +109,84 @@ struct WebRTCReport: Equatable, Sendable {
         return allComparable ? .matchesObservedExit : .inconclusive
     }
 }
+
+/// 单次 HTTP 响应时间的分级（包含 DNS、TLS 握手与首字节，不是 ICMP 延迟）。
+enum NetworkTestQuality: Int, Comparable, Sendable {
+    case excellent
+    case good
+    case fair
+    case poor
+    case failed
+
+    init(milliseconds: Double) {
+        switch milliseconds {
+        case ..<150: self = .excellent
+        case ..<400: self = .good
+        case ..<900: self = .fair
+        default: self = .poor
+        }
+    }
+
+    static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+
+    var label: String {
+        switch self {
+        case .excellent: String(localized: "Excellent")
+        case .good: String(localized: "Good")
+        case .fair: String(localized: "Fair")
+        case .poor: String(localized: "Slow")
+        case .failed: String(localized: "Unreachable")
+        }
+    }
+}
+
+extension NetworkTestResult {
+    /// 尚无采样时为空；有采样但全部失败时为不可达。
+    var quality: NetworkTestQuality? {
+        guard !samples.isEmpty else { return nil }
+        return median.map(NetworkTestQuality.init(milliseconds:)) ?? .failed
+    }
+}
+
+/// 一轮测试的整体结论，供顶部仪表与统计使用。
+struct NetworkTestSummary: Equatable, Sendable {
+    let completedSamples: Int
+    let successfulSamples: Int
+    /// 所有站点成功采样合在一起的中位数。
+    let overallMedian: Double?
+    let fastest: NetworkTestResult?
+
+    init(results: [NetworkTestResult]) {
+        completedSamples = results.reduce(0) { $0 + $1.samples.count }
+        let successful = results.flatMap(\.successful).sorted()
+        successfulSamples = successful.count
+        if successful.isEmpty {
+            overallMedian = nil
+        } else {
+            let middle = successful.count / 2
+            overallMedian = successful.count.isMultiple(of: 2)
+                ? (successful[middle - 1] + successful[middle]) / 2
+                : successful[middle]
+        }
+        fastest = results
+            .filter { $0.median != nil }
+            .min { ($0.median ?? .infinity) < ($1.median ?? .infinity) }
+    }
+
+    var successRate: Double? {
+        completedSamples == 0 ? nil : Double(successfulSamples) / Double(completedSamples)
+    }
+
+    /// 以整体中位数分级，再按成功率下调：成功率低于 90% 至多“一般”，低于 50% 为“较慢”。
+    var quality: NetworkTestQuality? {
+        guard completedSamples > 0 else { return nil }
+        guard let overallMedian, let successRate else { return .failed }
+        var quality = NetworkTestQuality(milliseconds: overallMedian)
+        if successRate < 0.5 {
+            quality = max(quality, .poor)
+        } else if successRate < 0.9 {
+            quality = max(quality, .fair)
+        }
+        return quality
+    }
+}
