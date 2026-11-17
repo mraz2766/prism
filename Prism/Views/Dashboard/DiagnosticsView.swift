@@ -66,7 +66,7 @@ struct DiagnosticsView: View {
                                 .background(StatusPalette.confirming.opacity(0.15), in: Capsule())
                                 .foregroundStyle(StatusPalette.confirming)
                         } else if let latency = provider.lastLatencyMilliseconds {
-                            Text("\(latency) ms")
+                            Text(verbatim: "\(LatencyFormat.seconds(Double(latency))) s")
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         } else {

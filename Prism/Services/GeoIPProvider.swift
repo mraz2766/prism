@@ -56,7 +56,7 @@ struct FallbackGeoIPProvider: GeoIPProvider {
                             if failure != .cancelled {
                                 let milliseconds = Self.milliseconds(latency)
                                 // Only provider identity, error category and duration are logged; never IP addresses.
-                                logger.info("Geo provider \(provider.identifier, privacy: .public): \(String(describing: failure), privacy: .public), \(milliseconds) ms")
+                                logger.info("Geo provider \(provider.identifier, privacy: .public): \(String(describing: failure), privacy: .public), \(LatencyFormat.seconds(Double(milliseconds)), privacy: .public) s")
                             }
                             return .failure(failure)
                         }

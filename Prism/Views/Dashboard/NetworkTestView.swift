@@ -4,7 +4,6 @@ import Charts
 struct NetworkTestView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var showsMethod = false
     @State private var expandedTargets: Set<String> = []
 
     private var model: NetworkTestViewModel { environment.networkTestViewModel }
@@ -21,15 +20,6 @@ struct NetworkTestView: View {
                 }
                 measurement
                 targetList
-                Divider()
-                webRTCSection
-                DisclosureGroup(String(localized: "Measurement details"), isExpanded: $showsMethod) {
-                    Text(String(localized: "Three fresh-session requests per site, at most two at once. Time includes connection setup and response headers; DNS caches may be reused. Bodies are not intentionally downloaded. Range is highest minus lowest successful latency, not packet loss or RTP jitter. Requests follow system routing; a domestic target may still use a VPN."))
-                        .font(.caption).foregroundStyle(.secondary).padding(.top, 6)
-                    Text(String(localized: "WebRTC compares this app's observed exits only. Matching exits do not guarantee privacy in other browsers; missing public candidates or a comparable exit means the result is unknown."))
-                        .font(.caption).foregroundStyle(.secondary).padding(.top, 6)
-                }
-                .font(.callout)
             }
             .padding(24)
         }
@@ -43,8 +33,15 @@ struct NetworkTestView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(String(localized: "Network Test")).font(.title2.bold())
-                    Text(String(localized: "Response time · stability · WebRTC"))
-                        .font(.callout).foregroundStyle(.secondary)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 10) {
+                            Text(String(localized: "Response time · stability"))
+                                .font(.callout).foregroundStyle(.secondary)
+                            Divider().frame(height: 12)
+                            webRTCStatus
+                        }
+                        webRTCStatus
+                    }
                 }
                 Spacer()
                 Button {
@@ -64,7 +61,7 @@ struct NetworkTestView: View {
                 .controlSize(.large)
                 .accessibilityIdentifier("network-test.start")
             }
-            Text(String(localized: "Small requests only. No bandwidth test. WebRTC contacts Cloudflare and Google STUN when you start."))
+            Text(String(localized: "Three samples per site. No bandwidth test."))
                 .font(.caption).foregroundStyle(.secondary)
             if let date = model.startedAt {
                 Text("\(String(localized: "Test started")) · \(date.formatted(date: .abbreviated, time: .standard))")
@@ -82,11 +79,11 @@ struct NetworkTestView: View {
                     Text(String(localized: "Median")).font(.caption).foregroundStyle(.secondary)
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(milliseconds(model.selectedResult.median))
+                    Text(LatencyFormat.seconds(model.selectedResult.median))
                         .font(.system(size: 48, weight: .light, design: .rounded)).monospacedDigit()
                         .contentTransition(reduceMotion ? .identity : .numericText())
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: model.selectedResult.median)
-                    Text("ms").font(.headline).foregroundStyle(.secondary)
+                    Text("s").font(.headline).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 16) {
                     metric(String(localized: "Lowest"), value: model.selectedResult.successful.min())
@@ -98,7 +95,7 @@ struct NetworkTestView: View {
             VStack(spacing: 10) {
                 sampleChart
                 HStack {
-                    Text(String(localized: "Actual samples"))
+                    Text("\(String(localized: "Actual samples")) · s")
                     Spacer()
                     Text("\(model.selectedResult.samples.count)/\(NetworkTestViewModel.sampleCount)")
                 }
@@ -113,7 +110,7 @@ struct NetworkTestView: View {
     private func metric(_ label: String, value: Double?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label).font(.caption).foregroundStyle(.secondary)
-            Text(milliseconds(value)).font(.callout.monospacedDigit())
+            Text(LatencyFormat.seconds(value)).font(.callout.monospacedDigit())
         }
     }
 
@@ -144,14 +141,14 @@ struct NetworkTestView: View {
     private var sampleChart: some View {
         Chart {
             ForEach(chartPoints) { point in
-                LineMark(x: .value("Sample", point.round), y: .value("ms", point.value), series: .value("Segment", point.segment))
+                LineMark(x: .value("Sample", point.round), y: .value("s", point.value), series: .value("Segment", point.segment))
                     .foregroundStyle(accent).lineStyle(StrokeStyle(lineWidth: 2))
-                PointMark(x: .value("Sample", point.round), y: .value("ms", point.value))
+                PointMark(x: .value("Sample", point.round), y: .value("s", point.value))
                     .foregroundStyle(accent).symbolSize(28)
             }
         }
         .chartXScale(domain: 0.8...(Double(NetworkTestViewModel.sampleCount) + 0.2))
-        .chartYScale(domain: 0...max(100, (model.selectedResult.successful.max() ?? 0) * 1.2))
+        .chartYScale(domain: 0...max(0.1, (model.selectedResult.successful.max() ?? 0) / 1_000 * 1.2))
         .chartXAxis { AxisMarks(values: Array(1...NetworkTestViewModel.sampleCount)) }
         .chartYAxis { AxisMarks(position: .leading) }
         .chartLegend(.hidden)
@@ -162,7 +159,7 @@ struct NetworkTestView: View {
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: model.selectedResult)
-        .accessibilityLabel(String(localized: "Successful response times in milliseconds"))
+        .accessibilityLabel(String(localized: "Successful response times in seconds"))
     }
 
     private struct ChartPoint: Identifiable {
@@ -176,7 +173,7 @@ struct NetworkTestView: View {
         var segment = 0
         return model.selectedResult.samples.compactMap { sample in
             guard sample.succeeded, let value = sample.milliseconds else { segment += 1; return nil }
-            return ChartPoint(round: sample.round, value: value, segment: segment)
+            return ChartPoint(round: sample.round, value: value / 1_000, segment: segment)
         }
     }
 
@@ -218,7 +215,7 @@ struct NetworkTestView: View {
                         Text("\(result.successful.count)/\(result.samples.count)")
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width: 32)
                             .help(String(localized: "Successful / completed requests"))
-                        Text("\(milliseconds(result.median)) ms")
+                        Text("\(LatencyFormat.seconds(result.median)) s")
                             .font(.callout.monospacedDigit()).frame(width: 76, alignment: .trailing)
                             .contentTransition(reduceMotion ? .identity : .numericText())
                         Button {
@@ -256,7 +253,7 @@ struct NetworkTestView: View {
             ForEach(result.samples) { sample in
                 HStack {
                     Text("#\(sample.round)").frame(width: 26, alignment: .leading)
-                    Text("\(milliseconds(sample.milliseconds)) ms").frame(width: 70, alignment: .trailing)
+                    Text("\(LatencyFormat.seconds(sample.milliseconds)) s").frame(width: 70, alignment: .trailing)
                     if let code = sample.statusCode { Text("HTTP \(code)") }
                     Spacer()
                     Text(sample.failure ?? String(localized: "Response accepted"))
@@ -267,15 +264,22 @@ struct NetworkTestView: View {
         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
     }
 
-    private var webRTCSection: some View {
-        HStack {
-            Text("WebRTC").font(.headline)
-            Spacer()
-            if model.webRTCRunning { ProgressView().controlSize(.small) }
-            Label(webRTCLabel, systemImage: webRTCSymbol)
-                .font(.callout.weight(.medium)).foregroundStyle(webRTCColor)
-                .accessibilityIdentifier("network-test.webrtc-status")
+    private var webRTCStatus: some View {
+        HStack(spacing: 5) {
+            Text("WebRTC").foregroundStyle(.secondary)
+            Image(systemName: webRTCSymbol)
+                .symbolEffect(.pulse, isActive: model.webRTCRunning && !reduceMotion)
+                .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace, options: .nonRepeating))
+                .accessibilityHidden(true)
+            Text(webRTCLabel)
+                .contentTransition(reduceMotion ? .identity : .opacity)
         }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(webRTCColor)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: webRTCLabel)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("network-test.webrtc-status")
+        .help(String(localized: "WebRTC compares this app's observed exits only. Matching exits do not guarantee privacy in other browsers; missing public candidates or a comparable exit means the result is unknown."))
     }
 
     private var webRTCLabel: String {
@@ -296,6 +300,7 @@ struct NetworkTestView: View {
     }
 
     private var webRTCColor: Color {
+        if model.webRTCRunning { return accent }
         guard let report = model.webRTC, model.phase != .invalidated else { return .secondary }
         switch report.assessment(httpAddresses: model.httpAddresses) {
         case .differentPath: return StatusPalette.confirming
@@ -305,6 +310,7 @@ struct NetworkTestView: View {
     }
 
     private var webRTCSymbol: String {
+        if model.webRTCRunning { return "dot.radiowaves.left.and.right" }
         if model.phase == .invalidated { return "arrow.clockwise" }
         guard let report = model.webRTC else { return "minus.circle" }
         switch report.assessment(httpAddresses: model.httpAddresses) {
@@ -329,7 +335,6 @@ struct NetworkTestView: View {
         return sample.succeeded ? accent : StatusPalette.confirming
     }
 
-    private func milliseconds(_ value: Double?) -> String { value.map { String(format: "%.0f", $0) } ?? "—" }
     private func displayName(_ target: NetworkTestTarget) -> String { target.id == "baidu" ? String(localized: "Baidu") : target.name }
 
     private func siteIcon(_ target: NetworkTestTarget) -> some View {

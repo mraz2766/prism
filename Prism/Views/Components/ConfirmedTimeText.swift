@@ -38,7 +38,7 @@ struct LatencyLabel: View {
                 .fill(ProbeLatencyModel.color(for: milliseconds))
                 .frame(width: 6, height: 6)
                 .accessibilityHidden(true)
-            Text(verbatim: "\(milliseconds) ms")
+            Text(verbatim: "\(LatencyFormat.seconds(Double(milliseconds))) s")
                 .monospacedDigit()
                 .contentTransition(.numericText())
         }
@@ -47,6 +47,6 @@ struct LatencyLabel: View {
         .help(String(localized: "Round-trip time of the latest exit probe"))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Probe latency"))
-        .accessibilityValue("\(milliseconds) ms")
+        .accessibilityValue("\(LatencyFormat.seconds(Double(milliseconds))) s")
     }
 }
