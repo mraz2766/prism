@@ -1,19 +1,16 @@
 import AppKit
 import SwiftUI
 
-/// 用代码绘制的两款特色国旗：像素国旗与玻璃珠。
+/// 用代码绘制的特色国旗。
 /// 菜单栏、弹窗、详情和设置预览共用同一份绘制，比例与细节完全一致。
 enum CountryFlagArtworkStyle: Sendable {
     /// 12×9 的像素马赛克，四角削去一格，形成像素画的阶梯边缘。
     case pixel
-    /// 圆形旗面加高光、暗角与边缘反光，像一颗玻璃弹珠。
-    case orb
 
     /// 宽高比（宽 / 高）。
     var aspectRatio: CGFloat {
         switch self {
         case .pixel: CGFloat(PixelGrid.columns) / CGFloat(PixelGrid.rows)
-        case .orb: 1
         }
     }
 }
@@ -75,23 +72,14 @@ enum CountryFlagArtworkFactory {
             }
             image.isTemplate = false
             return image
-        case .orb:
-            let flag = CountryFlag.image(for: code)
-            let image = NSImage(size: size, flipped: false) { rect in
-                drawOrb(flag: flag, code: code, in: rect)
-                return true
-            }
-            image.isTemplate = false
-            return image
         }
     }
 
-    /// 菜单栏 18pt 高画布：像素国旗每格 1.5pt（Retina 下正好 3 像素），玻璃珠直径 16pt。
+    /// 菜单栏 18pt 高画布：像素国旗每格 1.5pt（Retina 下正好 3 像素）。
     static func menuBarImage(for countryCode: String, style: CountryFlagArtworkStyle) -> NSImage? {
         let canvas = NSSize(width: 18, height: 18)
         let flagSize: NSSize = switch style {
         case .pixel: NSSize(width: 18, height: 13.5)
-        case .orb: NSSize(width: 16, height: 16)
         }
         guard let flag = image(for: countryCode, style: style, size: flagSize) else { return nil }
         let image = NSImage(size: canvas, flipped: false) { _ in
@@ -218,112 +206,5 @@ enum CountryFlagArtworkFactory {
         NSColor.black.withAlphaComponent(0.28).setStroke()
         outline.lineWidth = max(0.5, min(cellWidth, cellHeight) * 0.18)
         outline.stroke()
-    }
-
-    // MARK: 玻璃珠
-
-    private static func drawOrb(flag: NSImage?, code: String, in rect: NSRect) {
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let side = min(rect.width, rect.height)
-        let circleRect = NSRect(
-            x: rect.midX - side / 2,
-            y: rect.midY - side / 2,
-            width: side,
-            height: side
-        ).insetBy(dx: side * 0.02, dy: side * 0.02)
-        let circle = NSBezierPath(ovalIn: circleRect)
-
-        NSGraphicsContext.saveGraphicsState()
-        circle.addClip()
-        NSGraphicsContext.current?.imageInterpolation = .high
-        // 旗面素材可能带透明区域，先铺一层实色底，玻璃珠始终是完整的球体。
-        NSColor(calibratedWhite: 0.82, alpha: 1).setFill()
-        circleRect.fill()
-        if let flag {
-            flag.draw(in: circleRect, from: .zero, operation: .sourceOver, fraction: 1)
-        } else {
-            NSColor(calibratedWhite: 0.6, alpha: 1).setFill()
-            circleRect.fill()
-            let text = NSAttributedString(string: code, attributes: [
-                .font: NSFont.systemFont(ofSize: side * 0.36, weight: .bold),
-                .foregroundColor: NSColor.white
-            ])
-            let textSize = text.size()
-            text.draw(at: NSPoint(x: circleRect.midX - textSize.width / 2, y: circleRect.midY - textSize.height / 2))
-        }
-
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        // 球面暗角：光源在左上，越靠右下越暗。
-        if let shade = CGGradient(
-            colorsSpace: colorSpace,
-            colors: [
-                NSColor.black.withAlphaComponent(0).cgColor,
-                NSColor.black.withAlphaComponent(0.05).cgColor,
-                NSColor.black.withAlphaComponent(0.38).cgColor
-            ] as CFArray,
-            locations: [0, 0.55, 1]
-        ) {
-            let center = CGPoint(x: circleRect.midX - side * 0.14, y: circleRect.midY + side * 0.14)
-            context.drawRadialGradient(
-                shade,
-                startCenter: center, startRadius: 0,
-                endCenter: CGPoint(x: circleRect.midX, y: circleRect.midY), endRadius: side * 0.56,
-                options: [.drawsAfterEndLocation]
-            )
-        }
-        // 底部反射光：一道很淡的亮弧。
-        if let bounce = CGGradient(
-            colorsSpace: colorSpace,
-            colors: [
-                NSColor.white.withAlphaComponent(0.28).cgColor,
-                NSColor.white.withAlphaComponent(0).cgColor
-            ] as CFArray,
-            locations: [0, 1]
-        ) {
-            let center = CGPoint(x: circleRect.midX + side * 0.06, y: circleRect.minY + side * 0.02)
-            context.drawRadialGradient(
-                bounce,
-                startCenter: center, startRadius: 0,
-                endCenter: center, endRadius: side * 0.36,
-                options: []
-            )
-        }
-        NSGraphicsContext.restoreGraphicsState()
-
-        // 顶部高光：一块由白到透明的椭圆。
-        let highlightRect = NSRect(
-            x: circleRect.minX + side * 0.17,
-            y: circleRect.midY + side * 0.06,
-            width: side * 0.62,
-            height: side * 0.38
-        )
-        NSGraphicsContext.saveGraphicsState()
-        NSBezierPath(ovalIn: highlightRect).addClip()
-        if let gloss = NSGradient(colors: [
-            NSColor.white.withAlphaComponent(0.78),
-            NSColor.white.withAlphaComponent(0.05)
-        ]) {
-            gloss.draw(in: highlightRect, angle: -90)
-        }
-        NSGraphicsContext.restoreGraphicsState()
-
-        // 左上角一个小亮点，增加玻璃质感。
-        let sparkle = side * 0.09
-        NSColor.white.withAlphaComponent(0.9).setFill()
-        NSBezierPath(ovalIn: NSRect(
-            x: circleRect.minX + side * 0.25,
-            y: circleRect.maxY - side * 0.3,
-            width: sparkle,
-            height: sparkle
-        )).fill()
-
-        // 双层边缘：内侧亮边、外侧暗边。
-        NSColor.white.withAlphaComponent(0.45).setStroke()
-        let inner = NSBezierPath(ovalIn: circleRect.insetBy(dx: side * 0.035, dy: side * 0.035))
-        inner.lineWidth = max(0.5, side * 0.03)
-        inner.stroke()
-        NSColor.black.withAlphaComponent(0.3).setStroke()
-        circle.lineWidth = max(0.5, side * 0.025)
-        circle.stroke()
     }
 }

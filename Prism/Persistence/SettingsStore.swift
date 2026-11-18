@@ -174,8 +174,8 @@ final class SettingsStore {
     private static func migratedFlagStyle(_ rawValue: String?) -> CountryFlagStyle {
         if let rawValue, let current = CountryFlagStyle(rawValue: rawValue) { return current }
         return switch rawValue {
-        // 波浪国旗、邮票国旗与系统 Emoji 已移除，回退为默认的圆角国旗。
-        case "flat", "badge", "circle", "sticker", "rounded", "waved", "postage", "emoji": .gradient
+        // 波浪国旗、邮票国旗、系统 Emoji 与玻璃珠已移除，回退为默认的圆角国旗。
+        case "flat", "badge", "circle", "sticker", "rounded", "waved", "postage", "emoji", "orb": .gradient
         default: .gradient
         }
     }

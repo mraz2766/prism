@@ -37,19 +37,12 @@ enum CountryCodeBadgeImageFactory {
         let colors = style == .colorBand ? palette(for: code) : []
         let image = NSImage(size: NSSize(width: 28, height: 18), flipped: false) { _ in
             let ink = style == .stamp && dark ? NSColor.white : NSColor(calibratedWhite: 0.12, alpha: 1)
-            // 印章额外留出旋转与粗描边的空间，避免在 18pt 高的托盘里切边。
+            // 印章端正放置，只为粗描边留出半个线宽，避免在 18pt 高的托盘里切边。
             let rect = style == .stamp
-                ? NSRect(x: 1.5, y: 2, width: 25, height: 14)
+                ? NSRect(x: 1, y: 1.75, width: 26, height: 14.5)
                 : NSRect(x: 0.75, y: 1.5, width: 26.5, height: 15)
             NSGraphicsContext.saveGraphicsState()
             defer { NSGraphicsContext.restoreGraphicsState() }
-            if style == .stamp {
-                let transform = NSAffineTransform()
-                transform.translateX(by: 14, yBy: 9)
-                transform.rotate(byDegrees: 3)
-                transform.translateX(by: -14, yBy: -9)
-                transform.concat()
-            }
             let radius: CGFloat = style == .stamp ? 2.5 : 4
             let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
             if style == .colorBand {

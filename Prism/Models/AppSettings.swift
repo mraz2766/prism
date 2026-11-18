@@ -104,7 +104,6 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     case gradient
     case square
     case pixel
-    case orb
     case capsule
     case code
     case codeStamp
@@ -117,7 +116,6 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
         case .gradient: String(localized: "Rounded flag")
         case .square: String(localized: "Square flag")
         case .pixel: String(localized: "Pixel flag")
-        case .orb: String(localized: "Glass orb")
         case .capsule: String(localized: "Flag capsule")
         case .code: String(localized: "Flag color code")
         case .codeStamp: String(localized: "Code stamp")
@@ -128,7 +126,6 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     var artworkStyle: CountryFlagArtworkStyle? {
         switch self {
         case .pixel: .pixel
-        case .orb: .orb
         default: nil
         }
     }

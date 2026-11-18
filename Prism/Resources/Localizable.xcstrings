@@ -3,7 +3,6 @@
   "strings" : {
     "Approximate location" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"位置为近似值"}}}},
     "Copy version" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"拷贝版本信息"}}}},
-    "Glass orb" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"玻璃珠"}}}},
     "Pixel flag" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"像素国旗"}}}},
     "Preview state" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"预览状态"}}}},
     "Type a code, e.g. JP" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"输入国家代码，如 JP"}}}},

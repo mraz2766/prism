@@ -165,20 +165,8 @@ final class FlagStyleRenderingTests: XCTestCase {
         XCTAssertGreaterThan(min(edge.redComponent, edge.greenComponent, edge.blueComponent), 0.85)
     }
 
-    func testGlassOrbIsRoundWithAHighlight() throws {
-        let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "JP", style: .orb))
-        XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
-        let bitmap = try XCTUnwrap(Self.bitmap(of: image))
-        XCTAssertGreaterThan(try XCTUnwrap(bitmap.colorAt(x: 18, y: 18)).alphaComponent, 0.99)
-        XCTAssertLessThan(try XCTUnwrap(bitmap.colorAt(x: 3, y: 3)).alphaComponent, 0.05, "Corners stay outside the orb")
-        // 上半部高光比下半部暗角更亮。
-        let top = try XCTUnwrap(bitmap.colorAt(x: 18, y: 10)?.usingColorSpace(.deviceRGB))
-        let bottom = try XCTUnwrap(bitmap.colorAt(x: 22, y: 29)?.usingColorSpace(.deviceRGB))
-        XCTAssertGreaterThan(top.brightnessComponent, bottom.brightnessComponent)
-    }
-
     func testRemovedStylesMigrateToTheDefaultFlag() throws {
-        for legacy in ["waved", "postage", "emoji"] {
+        for legacy in ["waved", "postage", "emoji", "orb"] {
             let suite = "prism.tests.flag-migration.\(UUID().uuidString)"
             let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
             defer { defaults.removePersistentDomain(forName: suite) }
@@ -209,7 +197,7 @@ final class FlagStyleRenderingTests: XCTestCase {
                 XCTAssertGreaterThan(letterPixels, 20, "\(code) capsule letters lost their contrast")
             }
         }
-        for style in [CountryFlagStyle.capsule, .pixel, .orb] {
+        for style in [CountryFlagStyle.capsule, .pixel] {
             XCTAssertNil(MenuBarFlagImageFactory.flagImage(for: "invalid", style: style))
             let fallback = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "ZZ", style: style))
             XCTAssertGreaterThan(Self.opaqueCoverage(of: fallback), 0.1)

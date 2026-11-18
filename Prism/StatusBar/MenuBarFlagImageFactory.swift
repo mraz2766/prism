@@ -57,7 +57,7 @@ enum MenuBarFlagImageFactory {
                 targetRect: NSRect(x: 2, y: 2, width: 14, height: 14),
                 cornerRadius: 3
             )
-        case .pixel, .orb:
+        case .pixel:
             return style.artworkStyle.flatMap {
                 CountryFlagArtworkFactory.menuBarImage(for: countryCode, style: $0)
             }
