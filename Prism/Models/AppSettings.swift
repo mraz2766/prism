@@ -100,29 +100,36 @@ enum MenuBarDisplayMode: String, CaseIterable, Codable, Identifiable, Sendable {
 
 enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     case cartoon
-    case waved
     // 保留原始存储值，显示名称已统一为“圆角国旗”。
     case gradient
     case square
-    case postage
+    case pixel
+    case orb
     case capsule
     case code
     case codeStamp
-    case emoji
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .cartoon: String(localized: "Cartoon flag")
-        case .waved: String(localized: "Waved flag")
         case .gradient: String(localized: "Rounded flag")
         case .square: String(localized: "Square flag")
-        case .postage: String(localized: "Postage flag")
+        case .pixel: String(localized: "Pixel flag")
+        case .orb: String(localized: "Glass orb")
         case .capsule: String(localized: "Flag capsule")
         case .code: String(localized: "Flag color code")
         case .codeStamp: String(localized: "Code stamp")
-        case .emoji: String(localized: "System Emoji")
+        }
+    }
+
+    /// 由代码绘制的特色样式。
+    var artworkStyle: CountryFlagArtworkStyle? {
+        switch self {
+        case .pixel: .pixel
+        case .orb: .orb
+        default: nil
         }
     }
 }

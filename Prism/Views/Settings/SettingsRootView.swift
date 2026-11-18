@@ -3,31 +3,30 @@ import SwiftUI
 struct SettingsRootView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(SettingsStore.self) private var settings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: SettingsSection = .general
+    /// 切换方向：向右的标签从右侧滑入，向左的从左侧滑入。
+    @State private var movesForward = true
 
-    /// 设置窗口的固定尺寸，与 macOS 系统设置类应用的常见比例一致。
+    /// 设置窗口的固定尺寸，所有标签页共用。
     static let windowSize = CGSize(width: 620, height: 600)
 
     var body: some View {
         VStack(spacing: 0) {
-            SettingsNavigationBar(selection: $selection)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
+            SettingsNavigationBar(selection: selectionBinding)
+                .padding(.horizontal, 22)
+                .padding(.top, 10)
+                .padding(.bottom, 10)
 
             Divider()
 
-            Group {
-                switch selection {
-                case .general: GeneralSettingsView()
-                case .menuBar: MenuBarSettingsView()
-                case .appearance: AppearanceSettingsView()
-                case .about: AboutSettingsView()
-                }
+            ZStack(alignment: .top) {
+                page(for: selection)
+                    .id(selection)
+                    .transition(pageTransition)
             }
-            // 所有标签页共用同一窗口尺寸，切换时窗口不再伸缩；内容较多的页面在页内滚动。
-            .id(selection)
-            .transition(.opacity)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .clipped()
         }
         .frame(width: Self.windowSize.width, height: Self.windowSize.height)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -35,15 +34,49 @@ struct SettingsRootView: View {
         .navigationTitle(selection.title)
         .background(SettingsWindowAccessor { environment.registerSettingsWindow($0) })
     }
+
+    private var selectionBinding: Binding<SettingsSection> {
+        Binding(
+            get: { selection },
+            set: { next in
+                guard next != selection else { return }
+                SettingsFocus.clear()
+                movesForward = next.index > selection.index
+                withAnimation(reduceMotion ? nil : .smooth(duration: 0.32)) {
+                    selection = next
+                }
+            }
+        )
+    }
+
+    private var pageTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        let distance: CGFloat = 28
+        return .asymmetric(
+            insertion: .offset(x: movesForward ? distance : -distance).combined(with: .opacity),
+            removal: .offset(x: movesForward ? -distance : distance).combined(with: .opacity)
+        )
+    }
+
+    @ViewBuilder
+    private func page(for section: SettingsSection) -> some View {
+        switch section {
+        case .general: GeneralSettingsView()
+        case .menuBar: MenuBarSettingsView()
+        case .appearance: AppearanceSettingsView()
+        case .about: AboutSettingsView()
+        }
+    }
 }
 
-private enum SettingsSection: String, CaseIterable, Identifiable {
+enum SettingsSection: String, CaseIterable, Identifiable {
     case general
     case menuBar
     case appearance
     case about
 
     var id: String { rawValue }
+    var index: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 
     var title: String {
         switch self {
@@ -62,64 +95,91 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .about: "info.circle"
         }
     }
-
 }
 
+/// 顶部分段导航：选中底块在标签之间滑动，选中时图标轻弹一下。
 private struct SettingsNavigationBar: View {
-    @Environment(SettingsStore.self) private var settings
     @Binding var selection: SettingsSection
-    @FocusState private var focusedSection: SettingsSection?
+    @Namespace private var namespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// 切换页面时内容交叉淡入，窗口尺寸保持不变。
-    private func select(_ section: SettingsSection) {
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.26)) {
-            selection = section
-        }
-        focusedSection = section
-    }
+    @State private var bounce = 0
+    @State private var hovered: SettingsSection?
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 2) {
             ForEach(SettingsSection.allCases) { section in
-                let isSelected = selection == section
-                Button {
-                    select(section)
-                } label: {
-                    // 图标放在固定尺寸的槽位里，不同符号的视觉高度不再把文字顶得高低不一；
-                    // 字重也固定，选中只改变颜色与底色，标签宽度不会跳动。
-                    VStack(spacing: 4) {
-                        Image(systemName: section.systemImage)
-                            .symbolRenderingMode(.monochrome)
-                            .font(.system(size: 17, weight: .regular))
-                            .frame(width: 28, height: 22)
-                        Text(section.title)
-                            .font(.caption.weight(.medium))
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(isSelected ? settings.accentColorChoice.theme.primary : Color.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .contentShape(Rectangle())
-                    .background(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(isSelected ? settings.accentColorChoice.theme.softBackground : Color.clear)
-                    )
-                }
-                .buttonStyle(.plain)
-                .focused($focusedSection, equals: section)
-                .accessibilityLabel(section.title)
-                .accessibilityIdentifier("settings.section.\(section.rawValue)")
-                .accessibilityValue(isSelected ? String(localized: "Selected") : "")
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                item(section)
             }
         }
+        .padding(3)
+        .background(
+            Capsule().fill(Color.primary.opacity(0.05))
+        )
+        .frame(maxWidth: .infinity)
         .onMoveCommand { direction in
-            guard direction == .left || direction == .right,
-                  let currentIndex = SettingsSection.allCases.firstIndex(of: selection) else { return }
+            guard direction == .left || direction == .right else { return }
             let delta = direction == .left ? -1 : 1
-            let nextIndex = min(max(currentIndex + delta, 0), SettingsSection.allCases.count - 1)
-            select(SettingsSection.allCases[nextIndex])
+            let next = min(max(selection.index + delta, 0), SettingsSection.allCases.count - 1)
+            select(SettingsSection.allCases[next])
         }
+    }
+
+    private func select(_ section: SettingsSection) {
+        guard section != selection else { return }
+        selection = section
+        bounce += 1
+    }
+
+    private func item(_ section: SettingsSection) -> some View {
+        let isSelected = selection == section
+        return Button {
+            select(section)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: section.systemImage)
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 16, height: 16)
+                    .keyframeAnimator(initialValue: 1.0, trigger: bounce) { content, scale in
+                        content.scaleEffect(isSelected ? scale : 1)
+                    } keyframes: { _ in
+                        if reduceMotion {
+                            LinearKeyframe(1.0, duration: 0.01)
+                        } else {
+                            SpringKeyframe(1.22, duration: 0.14)
+                            SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
+                        }
+                    }
+                Text(section.title)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .padding(.horizontal, 14)
+            .frame(height: 28)
+            .frame(maxWidth: .infinity)
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                        .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+                        .overlay(Capsule().fill(.tint.opacity(0.1)))
+                        .matchedGeometryEffect(id: "selection", in: namespace)
+                } else if hovered == section {
+                    Capsule().fill(Color.primary.opacity(0.05))
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
+                hovered = hovering ? section : (hovered == section ? nil : hovered)
+            }
+        }
+        .accessibilityLabel(section.title)
+        .accessibilityIdentifier("settings.section.\(section.rawValue)")
+        .accessibilityValue(isSelected ? String(localized: "Selected") : "")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

@@ -210,8 +210,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             return nil
         case .flag(let countryCode):
             key = "flag/\(style.rawValue)/\(countryCode)/\(presentation.badge?.rawValue ?? "-")"
-        case .emoji(let countryCode):
-            key = "emoji/\(countryCode)/\(presentation.badge?.rawValue ?? "-")"
         case .systemSymbol(let name):
             key = "symbol/\(name)/\(presentation.badge?.rawValue ?? "-")"
         }
@@ -227,8 +225,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
                 style: style,
                 appearance: statusItem.button?.effectiveAppearance
             )
-        case .emoji(let countryCode):
-            base = MenuBarFlagImageFactory.emojiImage(for: countryCode)
         case .systemSymbol(let name):
             let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
             image?.isTemplate = true

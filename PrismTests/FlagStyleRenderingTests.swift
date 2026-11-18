@@ -122,11 +122,11 @@ final class FlagStyleRenderingTests: XCTestCase {
     func testCompactEmblemsPreserveFlagProportionsAndNativeSizes() throws {
         for name in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = try XCTUnwrap(NSAppearance(named: name))
-            for style in [CountryFlagStyle.postage, .capsule] {
+            for style in [CountryFlagStyle.capsule] {
                 let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
                     for: "JP", style: style, appearance: appearance
                 ))
-                XCTAssertEqual(image.size, NSSize(width: style == .postage ? 22 : 28, height: 18))
+                XCTAssertEqual(image.size, NSSize(width: 28, height: 18))
                 let bitmap = try XCTUnwrap(Self.bitmap(of: image))
                 var minX = bitmap.pixelsWide, minY = bitmap.pixelsHigh, maxX = -1, maxY = -1
                 for y in 0..<bitmap.pixelsHigh {
@@ -145,17 +145,45 @@ final class FlagStyleRenderingTests: XCTestCase {
         }
     }
 
-    func testPostagePerforationsRemainTransparentInBothAppearances() throws {
-        for name in [NSAppearance.Name.aqua, .darkAqua] {
-            let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(
-                for: "JP", style: .postage, appearance: NSAppearance(named: name)
-            ))
-            let bitmap = try XCTUnwrap(Self.bitmap(of: image))
-            let notch = try XCTUnwrap(bitmap.colorAt(x: 4, y: 3)).alphaComponent
-            let paper = try XCTUnwrap(bitmap.colorAt(x: 7, y: 3)).alphaComponent
-            XCTAssertLessThan(notch, 0.6, "Perforation must reveal the actual menu bar background")
-            XCTAssertGreaterThan(paper, 0.9)
-            XCTAssertLessThan(try XCTUnwrap(bitmap.colorAt(x: 0, y: 18)).alphaComponent, 0.01)
+    func testPixelFlagUsesSteppedCornersAndCrispCells() throws {
+        let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "JP", style: .pixel))
+        XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
+        let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+        // 旗面 18×13.5pt 居中：上下各留 2.25pt；左上角那一格被削去，应透明。
+        // 削去的角格只剩相邻描边的抗锯齿，远低于实色格。
+        XCTAssertLessThan(try XCTUnwrap(bitmap.colorAt(x: 1, y: 6)).alphaComponent, 0.3)
+        XCTAssertGreaterThan(try XCTUnwrap(bitmap.colorAt(x: 5, y: 6)).alphaComponent, 0.9)
+        XCTAssertLessThan(try XCTUnwrap(bitmap.colorAt(x: 17, y: 1)).alphaComponent, 0.01)
+
+        let palette = try XCTUnwrap(CountryFlagArtworkFactory.pixelPalette(for: "JP"))
+        XCTAssertEqual(palette.count, PixelGrid.rows)
+        XCTAssertEqual(palette[0].count, PixelGrid.columns)
+        let center = try XCTUnwrap(palette[4][6].usingColorSpace(.deviceRGB))
+        XCTAssertGreaterThan(center.redComponent, 0.6, "Japanese disc must survive pixelation")
+        XCTAssertLessThan(center.greenComponent, 0.4)
+        let edge = try XCTUnwrap(palette[1][1].usingColorSpace(.deviceRGB))
+        XCTAssertGreaterThan(min(edge.redComponent, edge.greenComponent, edge.blueComponent), 0.85)
+    }
+
+    func testGlassOrbIsRoundWithAHighlight() throws {
+        let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "JP", style: .orb))
+        XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
+        let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+        XCTAssertGreaterThan(try XCTUnwrap(bitmap.colorAt(x: 18, y: 18)).alphaComponent, 0.99)
+        XCTAssertLessThan(try XCTUnwrap(bitmap.colorAt(x: 3, y: 3)).alphaComponent, 0.05, "Corners stay outside the orb")
+        // 上半部高光比下半部暗角更亮。
+        let top = try XCTUnwrap(bitmap.colorAt(x: 18, y: 10)?.usingColorSpace(.deviceRGB))
+        let bottom = try XCTUnwrap(bitmap.colorAt(x: 22, y: 29)?.usingColorSpace(.deviceRGB))
+        XCTAssertGreaterThan(top.brightnessComponent, bottom.brightnessComponent)
+    }
+
+    func testRemovedStylesMigrateToTheDefaultFlag() throws {
+        for legacy in ["waved", "postage", "emoji"] {
+            let suite = "prism.tests.flag-migration.\(UUID().uuidString)"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            defaults.set(legacy, forKey: "menuBar.flagStyle")
+            XCTAssertEqual(SettingsStore(defaults: defaults).countryFlagStyle, .gradient, legacy)
         }
     }
 
@@ -181,7 +209,7 @@ final class FlagStyleRenderingTests: XCTestCase {
                 XCTAssertGreaterThan(letterPixels, 20, "\(code) capsule letters lost their contrast")
             }
         }
-        for style in [CountryFlagStyle.postage, .capsule] {
+        for style in [CountryFlagStyle.capsule, .pixel, .orb] {
             XCTAssertNil(MenuBarFlagImageFactory.flagImage(for: "invalid", style: style))
             let fallback = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "ZZ", style: style))
             XCTAssertGreaterThan(Self.opaqueCoverage(of: fallback), 0.1)
@@ -204,7 +232,6 @@ final class FlagStyleRenderingTests: XCTestCase {
 
     func testPrerenderedFlagSetsLoadAsBitmaps() throws {
         let images = [
-            CountryFlag.wavedImage(for: "SV"),
             CountryFlag.squareImage(for: "SV"),
         ]
         for image in images {

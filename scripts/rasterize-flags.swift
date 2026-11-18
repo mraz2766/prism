@@ -1,9 +1,9 @@
 #!/usr/bin/env swift
-// 把体积较大的国旗 SVG 预先栅格化为同名 PNG（Noto 波浪旗、flag-icons 方形旗）。
+// 把体积较大的国旗 SVG 预先栅格化为同名 PNG（如 flag-icons 方形旗）。
 // 规格与 CountryFlagImageCache.rasterized 完全一致，运行时直接加载位图，
 // 外观不变，同时省去 SVG 解析并显著减小 App 体积。
 //
-// 用法：swift scripts/rasterize-flags.swift Prism/Resources/WavedFlags/*.svg
+// 用法：swift scripts/rasterize-flags.swift Prism/Resources/SquareFlags/*.svg
 // 生成 PNG 后删除对应 SVG；含 <use> 引用的 SVG 需先运行 expand-flag-uses.py。
 
 import AppKit

@@ -43,9 +43,6 @@ enum MenuBarFlagImageFactory {
             guard let image = renderer.nsImage else { return nil }
             image.isTemplate = false
             return image
-        case .waved:
-            guard let source = CountryFlag.wavedImage(for: countryCode) else { return nil }
-            return fittedImage(source)
         case .gradient:
             guard let source = CountryFlag.gradientImage(for: countryCode) else { return nil }
             return roundedImage(
@@ -60,31 +57,21 @@ enum MenuBarFlagImageFactory {
                 targetRect: NSRect(x: 2, y: 2, width: 14, height: 14),
                 cornerRadius: 3
             )
-        case .postage, .capsule:
+        case .pixel, .orb:
+            return style.artworkStyle.flatMap {
+                CountryFlagArtworkFactory.menuBarImage(for: countryCode, style: $0)
+            }
+        case .capsule:
             let dark = (appearance ?? NSApp.effectiveAppearance)
                 .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            return CountryFlagEmblemImageFactory.image(
-                for: countryCode, style: style == .postage ? .postage : .capsule, dark: dark
-            )
+            return CountryFlagEmblemImageFactory.image(for: countryCode, style: .capsule, dark: dark)
         case .code, .codeStamp:
             let dark = (appearance ?? NSApp.effectiveAppearance)
                 .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             return CountryCodeBadgeImageFactory.image(
                 for: countryCode, style: style == .code ? .colorBand : .stamp, dark: dark
             )
-        case .emoji:
-            return emojiImage(for: countryCode)
         }
-    }
-
-    private static func fittedImage(_ source: NSImage) -> NSImage {
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size, flipped: false) { rect in
-            source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-            return true
-        }
-        image.isTemplate = false
-        return image
     }
 
     private static func roundedImage(
@@ -111,24 +98,6 @@ enum MenuBarFlagImageFactory {
         }
         image.isTemplate = false
         return image
-    }
-
-    static func emojiImage(for countryCode: String) -> NSImage? {
-        guard let emoji = CountryFlag.emoji(for: countryCode) else { return nil }
-        let size = NSSize(width: 20, height: 18)
-        let attributed = NSAttributedString(
-            string: emoji,
-            attributes: [.font: NSFont.systemFont(ofSize: 14)]
-        )
-        let textSize = attributed.size()
-        return NSImage(size: size, flipped: false) { _ in
-            let origin = NSPoint(
-                x: pixelAligned((size.width - textSize.width) / 2),
-                y: pixelAligned((size.height - textSize.height) / 2)
-            )
-            attributed.draw(at: origin)
-            return true
-        }
     }
 
     private static func pixelAligned(_ value: CGFloat) -> CGFloat {

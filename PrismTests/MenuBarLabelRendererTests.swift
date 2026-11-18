@@ -86,15 +86,16 @@ final class MenuBarLabelRendererTests: XCTestCase {
         XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .flag(countryCode: "CN")))
     }
 
-    func testEmojiFlagAndCodeUsesImageIndicator() {
-        let value = MenuBarLabelRenderer.presentation(
-            status: .online(.preview),
-            mode: .flagAndCode,
-            flagStyle: .emoji,
-            customTemplate: ""
-        )
-
-        XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .emoji(countryCode: "CN")))
+    func testArtworkFlagStylesUseTheFlagIndicator() {
+        for style in [CountryFlagStyle.pixel, .orb] {
+            let value = MenuBarLabelRenderer.presentation(
+                status: .online(.preview),
+                mode: .flagAndCode,
+                flagStyle: style,
+                customTemplate: ""
+            )
+            XCTAssertEqual(value, MenuBarPresentation(title: "CN", indicator: .flag(countryCode: "CN")))
+        }
     }
 
     func testFlagAndCityUsesSelectedFlagAndCompactCity() {

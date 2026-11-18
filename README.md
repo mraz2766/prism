@@ -43,7 +43,7 @@ open /Applications/Prism.app
 - 登录时启动
 - 中英文、键盘操作、Tooltip 和 VoiceOver
 - 跟随系统、浅色、深色外观和六套自适应强调色
-- 卡通国旗、波浪国旗、圆角国旗、方形国旗、邮票国旗、双联胶囊、国旗色标、小印章和系统 Emoji 九种视觉风格
+- 卡通国旗、圆角国旗、方形国旗、像素国旗、玻璃珠、双联胶囊、国旗色标和小印章八种视觉风格
 
 Prism 不提供节点切换、带宽测速、抓包、防火墙或自动更新。
 
@@ -76,7 +76,7 @@ Prism 不提供节点切换、带宽测速、抓包、防火墙或自动更新�
 - 仅国旗
 - 自定义模板
 
-国旗可选卡通国旗、波浪国旗、圆角国旗（默认）、方形国旗、邮票国旗、双联胶囊、国旗色标、小印章或系统 Emoji，在设置中以带预览的网格选择。选中的风格会同步应用到菜单栏弹窗、概览、历史列表和详情；所有样式在空间有限的系统菜单栏中都会自动使用像素对齐的紧凑布局。国旗色标使用固定的不透明浅灰底、深色国家代码与底部代表色色带；小印章使用厚边框和轻微倾斜，字色跟随深浅外观。两者在托盘与界面中共用绘制逻辑。邮票国旗使用透明齿孔与细纸边，托盘画布为 22×18pt；双联胶囊将圆形旗面与国家代码组合在 28×18pt 画布中，固定白底深色字，旗面等比绘制，避免图案拉伸。
+国旗可选卡通国旗、圆角国旗（默认）、方形国旗、像素国旗、玻璃珠、双联胶囊、国旗色标或小印章，在设置中以带预览的网格选择。选中的风格会同步应用到菜单栏弹窗、概览、历史列表和详情；所有样式在空间有限的系统菜单栏中都会自动使用像素对齐的紧凑布局。国旗色标使用固定的不透明浅灰底、深色国家代码与底部代表色色带；小印章使用厚边框和轻微倾斜，字色跟随深浅外观。两者在托盘与界面中共用绘制逻辑。像素国旗把旗面取色为 12×9 的马赛克并削去四角，菜单栏中每格 1.5pt，Retina 下正好 3 像素；玻璃珠在圆形旗面上叠加高光、暗角和双层边缘。两者均由代码实时绘制，不增加资源体积。双联胶囊将圆形旗面与国家代码组合在 28×18pt 画布中，固定白底深色字，旗面等比绘制，避免图案拉伸。
 
 自定义模板支持：
 
@@ -244,10 +244,9 @@ Prism 是菜单栏应用。请在屏幕顶部菜单栏查找国家或地区标�
 
 卡通国旗来自 [OpenMoji](https://github.com/hfg-gmuend/openmoji) 17.0.0，图形采用 CC BY-SA 4.0 许可证。Prism 在原图基础上增加旗杆、轻微倾斜和阴影；许可证副本位于 `Prism/Resources/CartoonFlags/LICENSE.openmoji.txt`。
 
-波浪国旗来自 [Noto Emoji region flags](https://github.com/googlefonts/noto-emoji/tree/main/third_party/region-flags)（提交 `8998f5dd6834`）。原始旗帜为公有领域资源，相关来源与声明保存在 `Prism/Resources/WavedFlags`。
 
 圆角国旗（原“渐变国旗”）来自 [FlagKit](https://github.com/madebybowtie/FlagKit)（提交 `f12111d91902`），采用 MIT 许可证；许可证副本位于 `Prism/Resources/FlagKitFlags/LICENSE.flagkit.txt`。
 
 方形国旗来自 [flag-icons](https://github.com/lipis/flag-icons) 7.2.3 的 1×1 版本，采用 MIT 许可证；许可证副本位于 `Prism/Resources/SquareFlags/LICENSE.flag-icons.txt`。
 
-波浪和方形国旗体积较大，已用 `scripts/rasterize-flags.swift` 按运行时相同的规格预先栅格化为 PNG 随 App 打包，外观与直接渲染 SVG 一致。
+方形国旗体积较大，已用 `scripts/rasterize-flags.swift` 按运行时相同的规格预先栅格化为 PNG 随 App 打包，外观与直接渲染 SVG 一致。

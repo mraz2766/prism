@@ -29,10 +29,6 @@ enum CountryFlag {
         CountryFlagImageCache.shared.image(for: countryCode, source: .cartoon)
     }
 
-    static func wavedImage(for countryCode: String) -> NSImage? {
-        CountryFlagImageCache.shared.image(for: countryCode, source: .waved)
-    }
-
     static func gradientImage(for countryCode: String) -> NSImage? {
         CountryFlagImageCache.shared.image(for: countryCode, source: .gradient)
     }
@@ -63,23 +59,18 @@ struct CountryFlagView: View {
     var body: some View {
         Group {
             switch style {
-            case .emoji:
-                Text(CountryFlag.emoji(for: countryCode) ?? "◎")
-                    .font(.system(size: emojiFontSize))
             case .cartoon:
                 cartoonFlag
-            case .waved:
-                wavedFlag
             case .gradient:
                 gradientFlag
             case .square:
                 squareFlag
-            case .postage, .capsule:
-                CountryFlagEmblemView(
-                    countryCode: countryCode,
-                    style: style == .postage ? .postage : .capsule,
-                    width: diameter
-                )
+            case .pixel:
+                CountryFlagArtworkView(countryCode: countryCode, style: .pixel, width: diameter)
+            case .orb:
+                CountryFlagArtworkView(countryCode: countryCode, style: .orb, width: diameter)
+            case .capsule:
+                CountryFlagEmblemView(countryCode: countryCode, style: .capsule, width: diameter)
             case .code, .codeStamp:
                 CountryCodeBadgeView(
                     countryCode: countryCode,
@@ -108,24 +99,6 @@ struct CountryFlagView: View {
                 )
                 .shadow(
                     color: .black.opacity(isCompact ? 0 : 0.08),
-                    radius: isCompact ? 0 : 1,
-                    y: isCompact ? 0 : 1
-                )
-        } else {
-            circleFlag
-        }
-    }
-
-    @ViewBuilder
-    private var wavedFlag: some View {
-        if let image = CountryFlag.wavedImage(for: countryCode) {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.medium)
-                .aspectRatio(1, contentMode: .fit)
-                .frame(width: diameter, height: diameter)
-                .shadow(
-                    color: .black.opacity(isCompact ? 0 : 0.10),
                     radius: isCompact ? 0 : 1,
                     y: isCompact ? 0 : 1
                 )
@@ -246,10 +219,6 @@ struct CountryFlagView: View {
         min(containerSize.width, containerSize.height) <= 32
     }
 
-    private var emojiFontSize: CGFloat {
-        (min(containerSize.width, containerSize.height) * 0.68).rounded()
-    }
-
     private func pixelAligned(_ value: CGFloat) -> CGFloat {
         (value * 2).rounded() / 2
     }
@@ -335,7 +304,6 @@ private final class CountryFlagImageCache: @unchecked Sendable {
 private enum CountryFlagAssetSource: String {
     case circle
     case cartoon
-    case waved
     case gradient
     case square
 
@@ -343,7 +311,6 @@ private enum CountryFlagAssetSource: String {
         switch self {
         case .circle: "circle-"
         case .cartoon: "cartoon-"
-        case .waved: "wave-"
         case .gradient: "flagkit-"
         case .square: "square-"
         }
@@ -353,7 +320,6 @@ private enum CountryFlagAssetSource: String {
         switch self {
         case .circle: "CircleFlags"
         case .cartoon: "CartoonFlags"
-        case .waved: "WavedFlags"
         case .gradient: "FlagKitFlags"
         case .square: "SquareFlags"
         }

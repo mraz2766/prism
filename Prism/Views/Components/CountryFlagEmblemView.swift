@@ -2,12 +2,9 @@ import AppKit
 import SwiftUI
 
 enum CountryFlagEmblemStyle: Sendable {
-    case postage
     case capsule
 
-    var size: NSSize {
-        NSSize(width: self == .postage ? 22 : 28, height: 18)
-    }
+    var size: NSSize { NSSize(width: 28, height: 18) }
 }
 
 /// 使用同一份绘制适配托盘与详情，避免预览和实际图标的比例、细节不同。
@@ -38,69 +35,16 @@ struct CountryFlagEmblemView: View {
 enum CountryFlagEmblemImageFactory {
     static func image(for countryCode: String, style: CountryFlagEmblemStyle, dark: Bool) -> NSImage? {
         guard let code = CountryFlag.normalizedCode(countryCode) else { return nil }
-        let flag: NSImage? = switch style {
-        case .postage: CountryFlag.gradientImage(for: code) ?? CountryFlag.image(for: code)
-        case .capsule: CountryFlag.image(for: code) ?? CountryFlag.squareImage(for: code)
-        }
+        let flag = CountryFlag.image(for: code) ?? CountryFlag.squareImage(for: code)
         let image = NSImage(size: style.size, flipped: false) { _ in
             NSGraphicsContext.saveGraphicsState()
             defer { NSGraphicsContext.restoreGraphicsState() }
             NSGraphicsContext.current?.imageInterpolation = .high
-            switch style {
-            case .postage:
-                drawPostage(flag: flag, code: code, dark: dark)
-            case .capsule:
-                drawCapsule(flag: flag, code: code)
-            }
+            drawCapsule(flag: flag, code: code)
             return true
         }
         image.isTemplate = false
         return image
-    }
-
-    private static func drawPostage(flag: NSImage?, code: String, dark: Bool) {
-        let paperRect = NSRect(x: 1, y: 1.5, width: 20, height: 15)
-        let outline = NSBezierPath(roundedRect: paperRect, xRadius: 0.6, yRadius: 0.6)
-        let paper = outline.copy() as! NSBezierPath
-        paper.windingRule = .evenOdd
-        // 均匀的小半圆切口，保持四角完整；齿孔真正透明，不用背景色伪装。
-        let radius: CGFloat = 0.45
-        for index in 0..<8 {
-            let x = paperRect.minX + (CGFloat(index) + 0.5) * paperRect.width / 8
-            for y in [paperRect.minY, paperRect.maxY] {
-                paper.appendOval(in: NSRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2))
-            }
-        }
-        for index in 0..<6 {
-            let y = paperRect.minY + (CGFloat(index) + 0.5) * paperRect.height / 6
-            for x in [paperRect.minX, paperRect.maxX] {
-                paper.appendOval(in: NSRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2))
-            }
-        }
-        // 两层裁剪防止位于矩形外侧的半个齿孔被 even-odd 规则填回去。
-        outline.addClip()
-        paper.addClip()
-        NSColor(calibratedWhite: dark ? 0.92 : 0.97, alpha: 1).setFill()
-        paperRect.fill()
-        NSColor(calibratedWhite: dark ? 0.56 : 0.62, alpha: 1).setStroke()
-        paper.lineWidth = 0.5
-        paper.stroke()
-
-        let window = NSRect(x: 3, y: 3.25, width: 16, height: 11.5)
-        let windowPath = NSBezierPath(roundedRect: window, xRadius: 0.3, yRadius: 0.3)
-        NSColor.white.setFill()
-        windowPath.fill()
-        NSGraphicsContext.saveGraphicsState()
-        windowPath.addClip()
-        if let flag {
-            drawFitted(flag, in: window)
-        } else {
-            drawCode(code, center: NSPoint(x: window.midX, y: window.midY), size: 8, color: .darkGray)
-        }
-        NSGraphicsContext.restoreGraphicsState()
-        NSColor(calibratedWhite: 0.25, alpha: 0.2).setStroke()
-        windowPath.lineWidth = 0.35
-        windowPath.stroke()
     }
 
     private static func drawCapsule(flag: NSImage?, code: String) {

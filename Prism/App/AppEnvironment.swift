@@ -172,6 +172,7 @@ final class AppEnvironment {
         NSApp.activate()
         if let settingsWindow, settingsWindow.isVisible {
             settingsWindow.makeKeyAndOrderFront(nil)
+            Self.dropInitialTextFocus(in: settingsWindow)
         } else if let openSettingsAction {
             // 新建的窗口由 SettingsRootView 挂载后通过 registerSettingsWindow 置前。
             openSettingsAction()
@@ -184,6 +185,14 @@ final class AppEnvironment {
         settingsWindow = window
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        Self.dropInitialTextFocus(in: window)
+    }
+
+    /// 打开设置时系统会把第一个输入框设为焦点，光标一直闪烁；改为不默认聚焦任何输入框。
+    static func dropInitialTextFocus(in window: NSWindow) {
+        DispatchQueue.main.async {
+            if window.firstResponder is NSText { window.makeFirstResponder(nil) }
+        }
     }
 
     func showDashboard(_ destination: DashboardNavigationModel.Destination = .overview) {

@@ -3,7 +3,6 @@ import Foundation
 enum MenuBarIndicator: Equatable {
     case none
     case flag(countryCode: String)
-    case emoji(countryCode: String)
     case systemSymbol(name: String)
 }
 
@@ -65,24 +64,15 @@ enum MenuBarLabelRenderer {
 
         switch mode {
         case .flagAndCode:
-            if flagStyle == .emoji {
-                indicator = .emoji(countryCode: code)
-                value = code
-            } else {
-                indicator = .flag(countryCode: code)
-                value = code
-            }
+            indicator = .flag(countryCode: code)
+            value = code
         case .flagAndCity:
-            indicator = flagStyle == .emoji
-                ? .emoji(countryCode: code)
-                : .flag(countryCode: code)
+            indicator = .flag(countryCode: code)
             value = city
         case .countryCode:
             value = code
         case .flagOnly:
-            indicator = flagStyle == .emoji
-                ? .emoji(countryCode: code)
-                : .flag(countryCode: code)
+            indicator = .flag(countryCode: code)
             value = ""
         case .custom:
             let tokens = ["{flag}", "{country}", "{code}", "{city}", "{status}"]
@@ -97,20 +87,11 @@ enum MenuBarLabelRenderer {
                     outsideExpectedRegion: outsideExpectedRegion
                 )
             }
-            let flagValue: String
-            if flagStyle == .emoji {
-                flagValue = ""
-                if customTemplate.contains("{flag}") {
-                    indicator = .emoji(countryCode: code)
-                }
-            } else {
-                flagValue = ""
-                if customTemplate.contains("{flag}") {
-                    indicator = .flag(countryCode: code)
-                }
+            if customTemplate.contains("{flag}") {
+                indicator = .flag(countryCode: code)
             }
             value = customTemplate
-                .replacingOccurrences(of: "{flag}", with: flagValue)
+                .replacingOccurrences(of: "{flag}", with: "")
                 .replacingOccurrences(of: "{country}", with: country)
                 .replacingOccurrences(of: "{code}", with: code)
                 .replacingOccurrences(of: "{city}", with: city)

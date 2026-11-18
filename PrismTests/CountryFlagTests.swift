@@ -22,10 +22,6 @@ final class CountryFlagTests: XCTestCase {
         XCTAssertNotNil(CountryFlag.cartoonImage(for: "CN"))
     }
 
-    func testBundledWavedFlagCanBeLoaded() {
-        XCTAssertNotNil(CountryFlag.wavedImage(for: "CN"))
-    }
-
     func testBundledSquareFlagCanBeLoaded() {
         XCTAssertNotNil(CountryFlag.squareImage(for: "CN"))
     }
@@ -93,7 +89,6 @@ final class CountryFlagTests: XCTestCase {
     func testRasterizedFlagsFillTheirBitmap() throws {
         let images: [(String, NSImage?, CGFloat, CGFloat)] = [
             ("circle", CountryFlag.image(for: "JP"), 0.9, 0.9),
-            ("waved", CountryFlag.wavedImage(for: "JP"), 0.8, 0.5),
             ("gradient", CountryFlag.gradientImage(for: "JP"), 0.8, 0.6),
             ("square", CountryFlag.squareImage(for: "JP"), 0.9, 0.9),
             ("cartoon", CountryFlag.cartoonImage(for: "JP"), 0.8, 0.5)
