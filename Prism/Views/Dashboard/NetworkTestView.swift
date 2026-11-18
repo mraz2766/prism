@@ -6,16 +6,10 @@ struct NetworkTestView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @State private var expandedTargets: Set<String> = []
-    @State private var appeared = false
 
     private var model: NetworkTestViewModel { environment.networkTestViewModel }
     private var accent: Color { environment.settings.accentColorChoice.color }
     private var summary: NetworkTestSummary { NetworkTestSummary(results: model.results) }
-
-    /// 所有站点共用的柱高刻度，卡片之间的柱子可以直接比较。
-    private var barScale: Double {
-        max(400, model.results.flatMap(\.successful).max() ?? 0)
-    }
 
     var body: some View {
         ScrollView {
@@ -26,15 +20,11 @@ struct NetworkTestView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 sitesSection
-                comparisonSection
             }
             .padding(20)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: model.phase)
-        .onAppear {
-            withAnimation(reduceMotion ? nil : .smooth(duration: 0.5)) { appeared = true }
-        }
         .accessibilityIdentifier("network-test.page")
     }
 
@@ -48,8 +38,7 @@ struct NetworkTestView: View {
                 total: model.totalSamples,
                 summary: summary,
                 phaseLabel: phaseLabel,
-                accent: accent,
-                completionTrigger: model.phase == .completed ? model.finishedAt : nil
+                accent: accent
             )
             .frame(width: 172, height: 172)
             .padding(.leading, 6)
@@ -207,24 +196,23 @@ struct NetworkTestView: View {
         .accessibilityIdentifier("network-test.invalidated")
     }
 
-    // MARK: 站点卡片
+    // MARK: 站点
 
+    /// 站点与对比合为一个区块：每个站点一行，中间是共用刻度的时间轴。
     private var sitesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let upper = max(300, (model.results.flatMap(\.successful).max() ?? 0) * 1.15)
+        let hasData = model.results.contains { !$0.successful.isEmpty }
+        return VStack(alignment: .leading, spacing: 10) {
             sectionTitle(String(localized: "Sites"), systemImage: "globe")
-            LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-                alignment: .leading,
-                spacing: 12
-            ) {
-                ForEach(Array(model.results.enumerated()), id: \.element.id) { index, result in
-                    NetworkTestSiteCard(
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(model.results) { result in
+                    NetworkTestSiteRow(
                         result: result,
                         name: displayName(result.target),
+                        upperBound: upper,
                         isSelected: model.selectedTargetID == result.id,
                         isActive: model.activeTargets.contains(result.id),
                         isExpanded: expandedTargets.contains(result.id),
-                        barScale: barScale,
                         accent: accent,
                         onSelect: {
                             withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) {
@@ -241,73 +229,27 @@ struct NetworkTestView: View {
                             }
                         }
                     )
-                    // 首次进入时卡片依次浮现。
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared || reduceMotion ? 0 : 14)
-                    .animation(
-                        reduceMotion ? nil : .smooth(duration: 0.45).delay(Double(index) * 0.06),
-                        value: appeared
-                    )
                 }
+                NetworkTestComparisonAxis(upperBound: upper)
+                    .padding(.top, 4)
+                Text(
+                    hasData || model.isRunning
+                        ? String(localized: "Bars span the lowest to highest response; dots mark the median.")
+                        : String(localized: "Run a test to compare sites.")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
             }
-        }
-    }
-
-    // MARK: 对比图
-
-    private var comparisonSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionTitle(String(localized: "Comparison"), systemImage: "chart.bar.xaxis")
-            VStack(alignment: .leading, spacing: 8) {
-                comparisonChart
-                Text(String(localized: "Bars span the lowest to highest response; dots mark the median."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(16)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.035))
             )
+            .animation(reduceMotion ? nil : .smooth(duration: 0.45), value: upper)
         }
-        .opacity(appeared ? 1 : 0)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.3), value: appeared)
-    }
-
-    /// 自绘区间图：每个站点一行，浅色胶囊是最低到最高，圆点是中位数，选中站点加粗。
-    private var comparisonChart: some View {
-        let upper = max(300, (model.results.flatMap(\.successful).max() ?? 0) * 1.15)
-        return VStack(spacing: 10) {
-            ForEach(model.results) { result in
-                NetworkTestComparisonRow(
-                    result: result,
-                    name: displayName(result.target),
-                    upperBound: upper,
-                    isSelected: result.id == model.selectedTargetID
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) {
-                        model.selectedTargetID = result.id
-                    }
-                }
-            }
-            NetworkTestComparisonAxis(upperBound: upper)
-        }
-        .overlay {
-            if model.results.allSatisfy({ $0.successful.isEmpty }) {
-                Text(model.isRunning ? String(localized: "Waiting for samples") : String(localized: "Run a test to compare sites."))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(.regularMaterial, in: Capsule())
-            }
-        }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: model.results)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: model.selectedTargetID)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(String(localized: "Successful response times in seconds"))
     }
 
     private func sectionTitle(_ title: String, systemImage: String) -> some View {
@@ -402,7 +344,7 @@ extension NetworkTestQuality {
 
 // MARK: - 仪表
 
-/// 分段进度环：每一段对应一次采样。测试中有雷达扫描与外扩波纹，完成时环色变为结论颜色并放出一圈光晕。
+/// 分段进度环：每一段对应一次采样，逐段填满；完成后环色平滑过渡为结论颜色。
 private struct NetworkTestDial: View {
     let phase: NetworkTestViewModel.Phase
     let completed: Int
@@ -410,7 +352,6 @@ private struct NetworkTestDial: View {
     let summary: NetworkTestSummary
     let phaseLabel: String
     let accent: Color
-    let completionTrigger: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isRunning: Bool { phase == .running }
@@ -421,31 +362,10 @@ private struct NetworkTestDial: View {
 
     var body: some View {
         ZStack {
-            if isRunning && !reduceMotion {
-                ripples
-            }
             segmentedRing
-            if isRunning && !reduceMotion {
-                radarSweep
-            }
             centerContent
                 .id(phase == .completed)
-                .transition(
-                    reduceMotion ? .opacity : .scale(scale: 0.82).combined(with: .opacity)
-                )
-        }
-        .keyframeAnimator(initialValue: 0.0, trigger: completionTrigger) { content, value in
-            // 完成瞬间从环上向外扩散一圈光晕。
-            content.overlay(
-                Circle()
-                    .stroke(ringColor, lineWidth: 3)
-                    .scaleEffect(1 + value * 0.24)
-                    .opacity(value == 0 || reduceMotion ? 0 : (1 - value) * 0.8)
-            )
-        } keyframes: { _ in
-            LinearKeyframe(0.001, duration: 0.01)
-            CubicKeyframe(1, duration: 0.75)
-            LinearKeyframe(0, duration: 0.01)
+                .transition(.opacity)
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.45), value: phase)
         .accessibilityElement(children: .ignore)
@@ -480,43 +400,6 @@ private struct NetworkTestDial: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: phase)
     }
 
-    private var radarSweep: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
-            let angle = context.date.timeIntervalSinceReferenceDate
-                .truncatingRemainder(dividingBy: 2.4) / 2.4 * 360
-            Circle()
-                .fill(
-                    AngularGradient(
-                        colors: [accent.opacity(0), accent.opacity(0), accent.opacity(0.28)],
-                        center: .center,
-                        startAngle: .degrees(0),
-                        endAngle: .degrees(100)
-                    )
-                )
-                .rotationEffect(.degrees(angle - 100))
-                .padding(lineWidth + 8)
-        }
-        .allowsHitTesting(false)
-        .transition(.opacity)
-    }
-
-    private var ripples: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-            let time = context.date.timeIntervalSinceReferenceDate
-            ZStack {
-                ForEach(0..<3, id: \.self) { index in
-                    let progress = (time / 2.4 + Double(index) / 3)
-                        .truncatingRemainder(dividingBy: 1)
-                    Circle()
-                        .stroke(accent.opacity((1 - progress) * 0.3), lineWidth: 1.5)
-                        .scaleEffect(1 + progress * 0.2)
-                }
-            }
-        }
-        .allowsHitTesting(false)
-        .transition(.opacity)
-    }
-
     @ViewBuilder
     private var centerContent: some View {
         if phase == .completed, let quality = summary.quality {
@@ -532,7 +415,6 @@ private struct NetworkTestDial: View {
                 Label(quality.label, systemImage: quality <= .good ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                     .font(.callout.weight(.semibold))
                     .foregroundStyle(quality.color)
-                    .symbolEffect(.bounce, value: completionTrigger)
                 Text("\(completed)/\(total)")
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -579,303 +461,6 @@ private struct NetworkTestDial: View {
     }
 }
 
-// MARK: - 站点卡片
-
-private struct NetworkTestSiteCard: View {
-    let result: NetworkTestResult
-    let name: String
-    let isSelected: Bool
-    let isActive: Bool
-    let isExpanded: Bool
-    let barScale: Double
-    let accent: Color
-    let onSelect: () -> Void
-    let onToggleDetails: () -> Void
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var isHovered = false
-
-    private let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            NetworkTestSampleBars(
-                samples: result.samples,
-                isActive: isActive,
-                scale: barScale,
-                accent: accent
-            )
-            footer
-            if isExpanded {
-                Divider()
-                details
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            } else if let failure = result.samples.last?.failure {
-                Text(failure)
-                    .font(.caption)
-                    .foregroundStyle(StatusPalette.confirming)
-                    .lineLimit(2)
-                    .transition(.opacity)
-            }
-        }
-        .padding(14)
-        .background(
-            shape.fill(
-                isSelected
-                    ? accent.opacity(colorScheme == .dark ? 0.14 : 0.07)
-                    : Color.primary.opacity(isHovered ? 0.06 : (colorScheme == .dark ? 0.045 : 0.03))
-            )
-        )
-        .overlay(shape.strokeBorder(isSelected ? accent.opacity(0.7) : Color.clear, lineWidth: 1.5))
-        .overlay { if isActive { activeBorder } }
-        .contentShape(shape)
-        .onTapGesture(perform: onSelect)
-        .onHover { hovering in
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) { isHovered = hovering }
-        }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: result)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(name)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityAction(named: Text(String(localized: "Select"))) { onSelect() }
-    }
-
-    private var header: some View {
-        HStack(spacing: 10) {
-            Image("NetworkTest-\(result.target.id)")
-                .resizable()
-                .renderingMode(.original)
-                .scaledToFit()
-                .frame(width: 20, height: 20)
-                .padding(5)
-                .background(.white, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
-                )
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(name)
-                    .font(.headline)
-                    .lineLimit(1)
-                Text(result.target.url.host ?? "")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            Spacer(minLength: 6)
-            VStack(alignment: .trailing, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(LatencyFormat.seconds(result.median))
-                        .font(.title3.weight(.semibold))
-                        .monospacedDigit()
-                        .contentTransition(reduceMotion ? .opacity : .numericText())
-                    Text("s")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                qualityLabel
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var qualityLabel: some View {
-        if let quality = result.quality {
-            HStack(spacing: 4) {
-                Circle().fill(quality.color).frame(width: 6, height: 6)
-                Text(quality.label)
-            }
-            .font(.caption.weight(.medium))
-            .foregroundStyle(quality.color)
-            .transition(.opacity)
-        } else {
-            Text(isActive ? String(localized: "Testing…") : String(localized: "Waiting"))
-                .font(.caption)
-                .foregroundStyle(isActive ? accent : .secondary)
-        }
-    }
-
-    private var footer: some View {
-        HStack(spacing: 6) {
-            Text("\(result.successful.count)/\(result.samples.count) \(String(localized: "successful"))")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .help(String(localized: "Successful / completed requests"))
-            if let spread = result.spread {
-                Text("· \(String(localized: "Range")) \(LatencyFormat.seconds(spread)) s")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button(action: onToggleDetails) {
-                HStack(spacing: 3) {
-                    Text(String(localized: "Details"))
-                    Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.semibold))
-                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(isExpanded ? accent : .secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.primary.opacity(isExpanded ? 0 : 0.05), in: Capsule())
-                .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(String(localized: "Sample details"))
-            .accessibilityIdentifier("network-test.details.\(result.id)")
-        }
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if result.samples.isEmpty {
-                Text(String(localized: "Waiting for samples"))
-            }
-            ForEach(result.samples) { sample in
-                HStack(spacing: 8) {
-                    Text(verbatim: "#\(sample.round)")
-                        .frame(width: 22, alignment: .leading)
-                        .foregroundStyle(.tertiary)
-                    Text("\(LatencyFormat.seconds(sample.milliseconds)) s")
-                        .frame(width: 56, alignment: .trailing)
-                    if let code = sample.statusCode {
-                        Text(verbatim: "HTTP \(code)")
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 4)
-                    Text(sample.failure ?? String(localized: "Response accepted"))
-                        .foregroundStyle(sample.succeeded ? Color.secondary : StatusPalette.confirming)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-            }
-        }
-        .font(.caption.monospacedDigit())
-    }
-
-    /// 正在请求的站点：描边上有一道光沿着卡片边缘流动。
-    private var activeBorder: some View {
-        Group {
-            if reduceMotion {
-                shape.strokeBorder(accent.opacity(0.6), lineWidth: 1.5)
-            } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
-                    let angle = context.date.timeIntervalSinceReferenceDate
-                        .truncatingRemainder(dividingBy: 1.6) / 1.6 * 360
-                    shape.strokeBorder(
-                        AngularGradient(
-                            colors: [accent.opacity(0), accent.opacity(0.15), accent, accent.opacity(0.15), accent.opacity(0)],
-                            center: .center,
-                            angle: .degrees(angle)
-                        ),
-                        lineWidth: 2
-                    )
-                }
-            }
-        }
-        .allowsHitTesting(false)
-        .transition(.opacity)
-    }
-}
-
-// MARK: - 采样柱
-
-/// 每轮采样一根柱子，高度按全局刻度换算；柱子到达时从底部弹起，正在请求的一轮显示呼吸占位。
-private struct NetworkTestSampleBars: View {
-    let samples: [NetworkTestSample]
-    let isActive: Bool
-    let scale: Double
-    let accent: Color
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private let barAreaHeight: CGFloat = 44
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            ForEach(1...NetworkTestViewModel.sampleCount, id: \.self) { round in
-                column(round: round, sample: samples.first { $0.round == round })
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Successful response times in seconds"))
-        .accessibilityValue(
-            samples.map { $0.succeeded ? "\(LatencyFormat.seconds($0.milliseconds)) s" : String(localized: "Failed") }
-                .joined(separator: ", ")
-        )
-    }
-
-    private func column(round: Int, sample: NetworkTestSample?) -> some View {
-        VStack(spacing: 4) {
-            ZStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
-                if let sample {
-                    bar(for: sample)
-                        .transition(
-                            reduceMotion ? .opacity : .scale(scale: 0.05, anchor: .bottom).combined(with: .opacity)
-                        )
-                } else if isActive && round == samples.count + 1 {
-                    pendingBar
-                        .transition(.opacity)
-                }
-            }
-            .frame(maxWidth: 30)
-            .frame(height: barAreaHeight)
-            .animation(reduceMotion ? nil : .spring(duration: 0.55, bounce: 0.38), value: sample)
-
-            Text(label(for: sample))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(sample?.succeeded == false ? AnyShapeStyle(StatusPalette.offline) : AnyShapeStyle(.tertiary))
-                .contentTransition(.opacity)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    @ViewBuilder
-    private func bar(for sample: NetworkTestSample) -> some View {
-        if sample.succeeded, let value = sample.milliseconds {
-            let quality = NetworkTestQuality(milliseconds: value)
-            let ratio = min(1, max(0.12, value / scale))
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [quality.color.opacity(0.75), quality.color],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                )
-                .frame(height: barAreaHeight * ratio)
-        } else {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(StatusPalette.offline.opacity(0.18))
-                .overlay(
-                    Image(systemName: "xmark")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(StatusPalette.offline)
-                )
-        }
-    }
-
-    private var pendingBar: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { context in
-            let wave = (sin(context.date.timeIntervalSinceReferenceDate * 4) + 1) / 2
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(accent.opacity(reduceMotion ? 0.25 : 0.14 + wave * 0.22))
-                .frame(height: barAreaHeight * (reduceMotion ? 0.4 : 0.3 + wave * 0.25))
-        }
-    }
-
-    private func label(for sample: NetworkTestSample?) -> String {
-        guard let sample else { return "—" }
-        return sample.succeeded ? LatencyFormat.seconds(sample.milliseconds) : String(localized: "Failed")
-    }
-}
-
 // MARK: - 对比图
 
 /// 刻度换算：毫秒值映射到 0…1 的横向位置。
@@ -892,59 +477,269 @@ private enum ComparisonScale {
     }
 }
 
-private struct NetworkTestComparisonRow: View {
+/// 站点行各列宽度；刻度行用同一组宽度，时间轴在每行都对齐。
+private enum SiteRowMetrics {
+    static let spacing: CGFloat = 10
+    static let icon: CGFloat = 24
+    static let name: CGFloat = 70
+    static let value: CGFloat = 56
+    static let quality: CGFloat = 50
+    static let chevron: CGFloat = 20
+    static let horizontalPadding: CGFloat = 8
+    /// 行内容左边缘到时间轴起点的距离。
+    static var trackLeading: CGFloat { icon + spacing + name + spacing }
+}
+
+private struct NetworkTestSiteRow: View {
     let result: NetworkTestResult
     let name: String
     let upperBound: Double
     let isSelected: Bool
+    let isActive: Bool
+    let isExpanded: Bool
+    let accent: Color
+    let onSelect: () -> Void
+    let onToggleDetails: () -> Void
 
-    private let labelWidth: CGFloat = 72
-    private let valueWidth: CGFloat = 64
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
 
     var body: some View {
-        let color = (result.quality ?? .good).color
-        HStack(spacing: 10) {
-            Text(name)
-                .font(.callout.weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? .primary : .secondary)
-                .lineLimit(1)
-                .frame(width: labelWidth, alignment: .leading)
-            GeometryReader { proxy in
-                let width = proxy.size.width
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.primary.opacity(0.05))
-                        .frame(height: 4)
-                    if let low = result.successful.min(), let high = result.successful.max() {
-                        let start = ComparisonScale.position(low, upperBound: upperBound) * width
-                        let end = ComparisonScale.position(high, upperBound: upperBound) * width
-                        Capsule()
-                            .fill(color.opacity(isSelected ? 0.45 : 0.28))
-                            .frame(width: max(end - start, 8), height: isSelected ? 10 : 8)
-                            .offset(x: min(start, width - 8))
-                    }
-                    if let median = result.median {
-                        let x = ComparisonScale.position(median, upperBound: upperBound) * width
-                        Circle()
-                            .fill(color)
-                            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 2))
-                            .frame(width: isSelected ? 16 : 12, height: isSelected ? 16 : 12)
-                            .shadow(color: color.opacity(0.35), radius: isSelected ? 4 : 0)
-                            .offset(x: x - (isSelected ? 8 : 6))
-                    }
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: SiteRowMetrics.spacing) {
+                icon
+                Text(name)
+                    .font(.callout.weight(isSelected ? .semibold : .medium))
+                    .lineLimit(1)
+                    .frame(width: SiteRowMetrics.name, alignment: .leading)
+                NetworkTestSiteTrack(
+                    result: result,
+                    upperBound: upperBound,
+                    isSelected: isSelected,
+                    isActive: isActive,
+                    accent: accent
+                )
+                .frame(height: 22)
+                Text(result.median.map { "\(LatencyFormat.seconds($0)) s" } ?? "—")
+                    .font(.callout.monospacedDigit().weight(isSelected ? .semibold : .regular))
+                    .foregroundStyle(result.median == nil ? .secondary : .primary)
+                    .contentTransition(reduceMotion ? .opacity : .numericText())
+                    .frame(width: SiteRowMetrics.value, alignment: .trailing)
+                qualityLabel
+                    .frame(width: SiteRowMetrics.quality, alignment: .leading)
+                Button(action: onToggleDetails) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(isExpanded ? accent : .secondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .frame(width: SiteRowMetrics.chevron, height: 22)
+                        .contentShape(Rectangle())
                 }
-                .frame(maxHeight: .infinity)
+                .buttonStyle(.plain)
+                .help(String(localized: "Sample details"))
+                .accessibilityLabel(String(localized: "Sample details"))
+                .accessibilityIdentifier("network-test.details.\(result.id)")
             }
-            .frame(height: 18)
-            Text(result.median.map { "\(LatencyFormat.seconds($0)) s" } ?? "—")
-                .font(.callout.monospacedDigit().weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? .primary : .secondary)
-                .contentTransition(.numericText())
-                .frame(width: valueWidth, alignment: .trailing)
+            if isExpanded {
+                details
+                    .padding(.leading, SiteRowMetrics.trackLeading)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            } else if !result.samples.isEmpty, result.successful.isEmpty, let failure = result.samples.last?.failure {
+                Text(failure)
+                    .font(.caption)
+                    .foregroundStyle(StatusPalette.confirming)
+                    .lineLimit(1)
+                    .padding(.leading, SiteRowMetrics.trackLeading)
+                    .transition(.opacity)
+            }
         }
-        .frame(height: 24)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .padding(.horizontal, SiteRowMetrics.horizontalPadding)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isSelected ? accent.opacity(0.09) : Color.primary.opacity(isHovered ? 0.04 : 0))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSelect)
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { isHovered = hovering }
+        }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.4), value: result)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(name)
+        .accessibilityValue(result.median.map { "\(LatencyFormat.seconds($0)) s" } ?? "")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction(named: Text(String(localized: "Select"))) { onSelect() }
+    }
+
+    private var icon: some View {
+        Image("NetworkTest-\(result.target.id)")
+            .resizable()
+            .renderingMode(.original)
+            .scaledToFit()
+            .frame(width: 16, height: 16)
+            .frame(width: SiteRowMetrics.icon, height: SiteRowMetrics.icon)
+            .background(.white, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
+            )
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var qualityLabel: some View {
+        if let quality = result.quality {
+            Text(quality.label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(quality.color)
+                .lineLimit(1)
+                .transition(.opacity)
+        } else {
+            Text(isActive ? String(localized: "Testing…") : String(localized: "Waiting"))
+                .font(.caption)
+                .foregroundStyle(isActive ? accent : .secondary)
+                .lineLimit(1)
+        }
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if result.samples.isEmpty {
+                Text(String(localized: "Waiting for samples"))
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(result.samples) { sample in
+                HStack(spacing: 8) {
+                    Text(verbatim: "#\(sample.round)")
+                        .frame(width: 22, alignment: .leading)
+                        .foregroundStyle(.tertiary)
+                    Text("\(LatencyFormat.seconds(sample.milliseconds)) s")
+                        .frame(width: 52, alignment: .trailing)
+                    if let code = sample.statusCode {
+                        Text(verbatim: "HTTP \(code)")
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(sample.failure ?? String(localized: "Response accepted"))
+                        .foregroundStyle(sample.succeeded ? Color.secondary : StatusPalette.confirming)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .font(.caption.monospacedDigit())
+        .padding(.bottom, 2)
+    }
+}
+
+/// 一个站点的时间轴：浅色条为最快到最慢，圆点为中位数，小点为每次采样落点。
+/// 正在请求时，一个光点沿轴发出再返回，像一次往返的探测包；返回后采样点落在对应耗时的位置。
+private struct NetworkTestSiteTrack: View {
+    let result: NetworkTestResult
+    let upperBound: Double
+    let isSelected: Bool
+    let isActive: Bool
+    let accent: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var color: Color { (result.quality ?? .good).color }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.primary.opacity(0.07))
+                    .frame(height: 4)
+
+                if let low = result.successful.min(), let high = result.successful.max() {
+                    let start = position(low) * width
+                    let end = position(high) * width
+                    Capsule()
+                        .fill(color.opacity(isSelected ? 0.4 : 0.26))
+                        .frame(width: max(end - start, 8), height: 8)
+                        .offset(x: min(start, width - 8))
+                }
+
+                ForEach(result.samples) { sample in
+                    sampleMark(sample, width: width)
+                        .transition(
+                            reduceMotion ? .opacity : .scale(scale: 2.6).combined(with: .opacity)
+                        )
+                }
+
+                if let median = result.median {
+                    let size: CGFloat = isSelected ? 14 : 11
+                    Circle()
+                        .fill(color)
+                        .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 2))
+                        .frame(width: size, height: size)
+                        .offset(x: position(median) * width - size / 2)
+                }
+
+                if isActive {
+                    pulse(width: width)
+                        .transition(.opacity)
+                }
+            }
+            .frame(width: width, height: proxy.size.height, alignment: .leading)
+        }
+    }
+
+    private func position(_ milliseconds: Double) -> CGFloat {
+        ComparisonScale.position(milliseconds, upperBound: upperBound)
+    }
+
+    @ViewBuilder
+    private func sampleMark(_ sample: NetworkTestSample, width: CGFloat) -> some View {
+        if sample.succeeded, let value = sample.milliseconds {
+            Circle()
+                .fill(NetworkTestQuality(milliseconds: value).color.opacity(0.75))
+                .frame(width: 6, height: 6)
+                .offset(x: position(value) * width - 3)
+        } else {
+            Image(systemName: "xmark")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(StatusPalette.offline)
+                .frame(width: 10, height: 10)
+                .offset(x: width - 10)
+        }
+    }
+
+    /// 往返光点：前半程减速飞出，后半程加速返回，带两颗渐隐的拖尾。
+    private func pulse(width: CGFloat) -> some View {
+        let reach = min(0.95, max(0.3, result.median.map(position) ?? 0.55))
+        return TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduceMotion)) { context in
+            let time = context.date.timeIntervalSinceReferenceDate
+            ZStack(alignment: .leading) {
+                ForEach(0..<3, id: \.self) { index in
+                    let x = reduceMotion
+                        ? 0
+                        : Self.pulseProgress(time - Double(index) * 0.045) * reach * width
+                    Circle()
+                        .fill(accent.opacity(index == 0 ? 1 : 0.45 / Double(index)))
+                        .frame(width: index == 0 ? 8 : 6, height: index == 0 ? 8 : 6)
+                        .shadow(color: index == 0 ? accent.opacity(0.6) : .clear, radius: 4)
+                        .offset(x: x - (index == 0 ? 4 : 3))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// 1.2 秒一个往返：0 → 1 → 0。
+    static func pulseProgress(_ time: TimeInterval) -> Double {
+        let period = 1.2
+        let phase = (time.truncatingRemainder(dividingBy: period) + period)
+            .truncatingRemainder(dividingBy: period) / period
+        if phase < 0.5 {
+            let t = phase * 2
+            return 1 - (1 - t) * (1 - t)
+        } else {
+            let t = (phase - 0.5) * 2
+            return 1 - t * t
+        }
     }
 }
 
@@ -952,8 +747,9 @@ private struct NetworkTestComparisonAxis: View {
     let upperBound: Double
 
     var body: some View {
-        HStack(spacing: 10) {
-            Color.clear.frame(width: 72, height: 1)
+        HStack(spacing: SiteRowMetrics.spacing) {
+            Color.clear.frame(width: SiteRowMetrics.icon, height: 1)
+            Color.clear.frame(width: SiteRowMetrics.name, height: 1)
             GeometryReader { proxy in
                 ForEach(ComparisonScale.ticks(upperBound: upperBound), id: \.self) { tick in
                     let x = ComparisonScale.position(tick, upperBound: upperBound) * proxy.size.width
@@ -965,8 +761,11 @@ private struct NetworkTestComparisonAxis: View {
                 }
             }
             .frame(height: 14)
-            Color.clear.frame(width: 64, height: 1)
+            Color.clear.frame(width: SiteRowMetrics.value, height: 1)
+            Color.clear.frame(width: SiteRowMetrics.quality, height: 1)
+            Color.clear.frame(width: SiteRowMetrics.chevron, height: 1)
         }
+        .padding(.horizontal, SiteRowMetrics.horizontalPadding)
         .accessibilityHidden(true)
     }
 }
