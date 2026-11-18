@@ -1,6 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Folded sticker" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"折角贴纸"}}}},
     "Approximate location" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"位置为近似值"}}}},
     "Copy version" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"拷贝版本信息"}}}},
     "Pixel flag" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"像素国旗"}}}},

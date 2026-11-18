@@ -87,7 +87,7 @@ final class MenuBarLabelRendererTests: XCTestCase {
     }
 
     func testArtworkFlagStylesUseTheFlagIndicator() {
-        for style in [CountryFlagStyle.pixel] {
+        for style in [CountryFlagStyle.pixel, .foldedSticker] {
             let value = MenuBarLabelRenderer.presentation(
                 status: .online(.preview),
                 mode: .flagAndCode,

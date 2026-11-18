@@ -103,6 +103,7 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     // 保留原始存储值，显示名称已统一为“圆角国旗”。
     case gradient
     case square
+    case foldedSticker
     case pixel
     case capsule
     case code
@@ -115,6 +116,7 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
         case .cartoon: String(localized: "Cartoon flag")
         case .gradient: String(localized: "Rounded flag")
         case .square: String(localized: "Square flag")
+        case .foldedSticker: String(localized: "Folded sticker")
         case .pixel: String(localized: "Pixel flag")
         case .capsule: String(localized: "Flag capsule")
         case .code: String(localized: "Flag color code")
@@ -126,6 +128,7 @@ enum CountryFlagStyle: String, CaseIterable, Codable, Identifiable, Sendable {
     var artworkStyle: CountryFlagArtworkStyle? {
         switch self {
         case .pixel: .pixel
+        case .foldedSticker: .foldedSticker
         default: nil
         }
     }

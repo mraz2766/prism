@@ -165,6 +165,25 @@ final class FlagStyleRenderingTests: XCTestCase {
         XCTAssertGreaterThan(min(edge.redComponent, edge.greenComponent, edge.blueComponent), 0.85)
     }
 
+    func testFoldedStickerPrintsOnPaperWithAFoldedCorner() throws {
+        let image = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "JP", style: .foldedSticker))
+        XCTAssertEqual(image.size, NSSize(width: 24, height: 18))
+        let bitmap = try XCTUnwrap(Self.bitmap(of: image))
+        // 旗面中心是印上去的红圆。
+        let disc = try XCTUnwrap(bitmap.colorAt(x: 20, y: 17)?.usingColorSpace(.deviceRGB))
+        XCTAssertGreaterThan(disc.redComponent, 0.6)
+        XCTAssertLessThan(disc.greenComponent, 0.35)
+        // 白色部分是偏暖的纸色，而不是纯白。
+        let paper = try XCTUnwrap(bitmap.colorAt(x: 6, y: 9)?.usingColorSpace(.deviceRGB))
+        XCTAssertGreaterThan(paper.alphaComponent, 0.99)
+        XCTAssertGreaterThan(paper.redComponent, paper.blueComponent + 0.02, "Paper should be warm, not pure white")
+        // 右下角被折起：最角落的位置没有纸。
+        XCTAssertLessThan(try XCTUnwrap(bitmap.colorAt(x: 46, y: 31)).alphaComponent, 0.3)
+        // 相同国家两次绘制完全一致，纸纹不会在菜单栏刷新时闪烁。
+        let again = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "JP", style: .foldedSticker))
+        XCTAssertEqual(Self.bitmap(of: again)?.tiffRepresentation, bitmap.tiffRepresentation)
+    }
+
     func testRemovedStylesMigrateToTheDefaultFlag() throws {
         for legacy in ["waved", "postage", "emoji", "orb"] {
             let suite = "prism.tests.flag-migration.\(UUID().uuidString)"
@@ -197,7 +216,7 @@ final class FlagStyleRenderingTests: XCTestCase {
                 XCTAssertGreaterThan(letterPixels, 20, "\(code) capsule letters lost their contrast")
             }
         }
-        for style in [CountryFlagStyle.capsule, .pixel] {
+        for style in [CountryFlagStyle.capsule, .pixel, .foldedSticker] {
             XCTAssertNil(MenuBarFlagImageFactory.flagImage(for: "invalid", style: style))
             let fallback = try XCTUnwrap(MenuBarFlagImageFactory.flagImage(for: "ZZ", style: style))
             XCTAssertGreaterThan(Self.opaqueCoverage(of: fallback), 0.1)

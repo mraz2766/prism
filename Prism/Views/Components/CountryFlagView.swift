@@ -67,6 +67,8 @@ struct CountryFlagView: View {
                 squareFlag
             case .pixel:
                 CountryFlagArtworkView(countryCode: countryCode, style: .pixel, width: diameter)
+            case .foldedSticker:
+                CountryFlagArtworkView(countryCode: countryCode, style: .foldedSticker, width: diameter)
             case .capsule:
                 CountryFlagEmblemView(countryCode: countryCode, style: .capsule, width: diameter)
             case .code, .codeStamp:
